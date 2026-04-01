@@ -9,15 +9,17 @@ const productsData = [
   {
     id: 1,
     name: "Cable Clip",
+    description: "Durable plastic cable clip for secure wire management",
     size: "4mm - 14mm",
     originalPrice: 12.00,
     salePrice: 8.50,
-    image: "/Cable_Clip.png", // User will replace in public folder
+    image: "/Cable_Clip.png",
     isNew: true
   },
   {
     id: 2,
     name: "Nail Cable Clip",
+    description: "Heavy-duty nail clip for wall-mounted cable routing",
     size: "6mm, 8mm, 10mm",
     originalPrice: 15.50,
     salePrice: 11.00,
@@ -27,6 +29,7 @@ const productsData = [
   {
     id: 3,
     name: "Circle Nail Cable Clip",
+    description: "Round nail clip ideal for circular cables and wires",
     size: "5mm - 20mm",
     originalPrice: 9.00,
     salePrice: 6.75,
@@ -36,6 +39,7 @@ const productsData = [
   {
     id: 4,
     name: "Double Nail Clamp",
+    description: "Twin-nail clamp for extra-strong cable fastening",
     size: "12mm, 16mm, 20mm",
     originalPrice: 22.00,
     salePrice: 18.50,
@@ -69,7 +73,7 @@ export default function Products() {
 
         {/* Section Header */}
         <div className="section-header">
-          <h2 className="section-title">Featured Fasteners & Clips</h2>
+          <h2 className="section-title">Featured Brands</h2>
           <p className="section-subtitle">Premium quality industrial cable management solutions</p>
         </div>
 
@@ -116,17 +120,22 @@ export default function Products() {
                   </div>
 
                   <h3 className="product-title">{product.name}</h3>
+                  <p className="product-description">{product.description}</p>
 
                   <div className="product-pricing">
                     <span className="original-price">₹{product.originalPrice.toFixed(2)}</span>
                     <span className="sale-price">₹{product.salePrice.toFixed(2)}</span>
                   </div>
 
-                  <button className="add-to-cart-btn">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
-                      <path d="m5 11 4-7" /><path d="m19 11-4-7" /><path d="M2 11h20" /><path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8c.9 0 1.8-.7 2-1.6l1.7-7.4" /><path d="m9 11 1 9" /><path d="M4.5 15.5h15" /><path d="m15 11-1 9" />
-                    </svg>
-                    Add to Cart
+                  <button className="add-to-cart-btn" data-tooltip={`Price: \u20b9${product.salePrice.toFixed(2)}`}>
+                    <div className="btn-wrapper">
+                      <div className="btn-text">Buy Now</div>
+                      <span className="btn-icon">
+                        <svg viewBox="0 0 16 16" fill="currentColor" height="24" width="24" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5zM3.14 5l1.25 5h8.22l1.25-5H3.14zM5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0z" />
+                        </svg>
+                      </span>
+                    </div>
                   </button>
                 </div>
 
