@@ -1,0 +1,255 @@
+"use client";
+
+import React, { useState } from "react";
+import styles from "./ProductInfo.module.css";
+import type { Product } from "../../../data/products";
+
+interface ProductInfoProps {
+  product: Product;
+}
+
+export default function ProductInfo({ product }: ProductInfoProps) {
+  const [selectedSizeIndex, setSelectedSizeIndex] = useState(0);
+  const [wishlist, setWishlist] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
+
+  const selectedSize = product.sizes[selectedSizeIndex];
+
+  const handleAddToCart = () => {
+    setAddedToCart(true);
+    setTimeout(() => setAddedToCart(false), 2000);
+  };
+
+  return (
+    <div className={styles.infoPanel}>
+      {/* Brand + Category */}
+      <div className={styles.metaRow}>
+        <span className={styles.brandBadge}>{product.brand}</span>
+        <span className={styles.separator}>·</span>
+        <span className={styles.categoryText}>{product.subCategory}</span>
+        {product.certifications?.map((cert) => (
+          <span key={cert} className={styles.certBadge}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M20 7 9 18l-5-5" />
+            </svg>
+            {cert}
+          </span>
+        ))}
+      </div>
+
+      {/* Product Name */}
+      <h1 className={styles.productName}>{product.name}</h1>
+
+      {/* Product Code */}
+      {product.brandCode && (
+        <p className={styles.productCode}>
+          Product Code: <strong>{product.brandCode}</strong>
+        </p>
+      )}
+
+      {/* Star Rating */}
+      <div className={styles.ratingRow}>
+        <div className={styles.stars}>
+          {[1, 2, 3, 4, 5].map((star) => (
+            <svg
+              key={star}
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill={star <= 4 ? "#f59e0b" : "none"}
+              stroke="#f59e0b"
+              strokeWidth="2"
+            >
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          ))}
+        </div>
+        <span className={styles.ratingText}>4.0 / 5 (Wholesale Rating)</span>
+      </div>
+
+      {/* Divider */}
+      <div className={styles.divider} />
+
+      {/* Price Card */}
+      <div className={styles.priceCard}>
+        <div className={styles.priceRow}>
+          <div>
+            <p className={styles.priceLabel}>Basic Price (Per Packet)</p>
+            <p className={styles.basicPrice}>₹{selectedSize.basicPrice.toFixed(2)}</p>
+          </div>
+          <div className={styles.gstPriceBlock}>
+            <p className={styles.priceLabel}>With GST (Per Packet)</p>
+            <p className={styles.gstPrice}>₹{selectedSize.withGST.toFixed(2)}</p>
+          </div>
+        </div>
+        <div className={styles.gstNote}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 16v-4M12 8h.01" />
+          </svg>
+          GST included in final price · Price valid from 01-04-2026
+        </div>
+      </div>
+
+      {/* Size Selector */}
+      <div className={styles.sectionBlock}>
+        <div className={styles.sectionLabelRow}>
+          <p className={styles.sectionLabel}>Select Size</p>
+          <span className={styles.selectedSizeTag}>{selectedSize.size}</span>
+        </div>
+        <div className={styles.sizeGrid}>
+          {product.sizes.map((s, i) => (
+            <button
+              key={i}
+              className={`${styles.sizeBtn} ${i === selectedSizeIndex ? styles.sizeBtnActive : ""}`}
+              onClick={() => setSelectedSizeIndex(i)}
+              title={`₹${s.withGST.toFixed(2)} incl. GST`}
+            >
+              {s.size}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Packing Info */}
+      <div className={styles.packingCard}>
+        <p className={styles.packingTitle}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+            <polyline points="3.29 7 12 12 20.71 7" />
+            <line x1="12" y1="22" x2="12" y2="12" />
+          </svg>
+          Packing Details
+        </p>
+        <div className={styles.packingGrid}>
+          <div className={styles.packingItem}>
+            <span className={styles.packingValue}>{selectedSize.pcsPerPacket}</span>
+            <span className={styles.packingUnit}>Pcs / Packet</span>
+          </div>
+          <div className={styles.packingDivider} />
+          <div className={styles.packingItem}>
+            <span className={styles.packingValue}>{selectedSize.qtyPerBag}</span>
+            <span className={styles.packingUnit}>Pkts / Master Bag</span>
+          </div>
+          <div className={styles.packingDivider} />
+          <div className={styles.packingItem}>
+            <span className={styles.packingValue}>
+              {selectedSize.pcsPerPacket * selectedSize.qtyPerBag}
+            </span>
+            <span className={styles.packingUnit}>Pcs / Master Bag</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Discount Tiers */}
+      <div className={styles.discountCard}>
+        <p className={styles.discountTitle}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+            <path d="M2 17l10 5 10-5M2 12l10 5 10-5" />
+          </svg>
+          Bulk Discount Structure
+        </p>
+        <div className={styles.discountTiers}>
+          {product.discountTiers.map((tier, i) => (
+            <div key={i} className={styles.discountTier}>
+              <span className={styles.discountQty}>{tier.qty}</span>
+              <span className={styles.discountPct}>{tier.discount} OFF</span>
+            </div>
+          ))}
+        </div>
+        {product.note && (
+          <p className={styles.discountNote}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4M12 8h.01" />
+            </svg>
+            {product.note}
+          </p>
+        )}
+      </div>
+
+      {/* Action Buttons */}
+      <div className={styles.actionRow}>
+        <button
+          className={`${styles.addToCartBtn} ${addedToCart ? styles.addedBtn : ""}`}
+          onClick={handleAddToCart}
+        >
+          {addedToCart ? (
+            <>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M20 7 9 18l-5-5" />
+              </svg>
+              Added!
+            </>
+          ) : (
+            <>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" />
+                <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+              </svg>
+              Add to Cart
+            </>
+          )}
+        </button>
+
+        <button className={styles.buyNowBtn}>
+          Buy Now
+        </button>
+
+        <button
+          className={`${styles.wishlistBtn} ${wishlist ? styles.wishlistActive : ""}`}
+          onClick={() => setWishlist((w) => !w)}
+          aria-label="Add to Wishlist"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill={wishlist ? "#ff4757" : "none"}
+            stroke={wishlist ? "#ff4757" : "currentColor"}
+            strokeWidth="2"
+          >
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Min Order Note */}
+      <div className={styles.minOrderNote}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+        Minimum Order: {product.minOrder} · Subject to Ahmedabad Jurisdiction
+      </div>
+
+      {/* Quick Features */}
+      {product.features.length > 0 && (
+        <div className={styles.featuresBlock}>
+          <p className={styles.featuresTitle}>Key Features</p>
+          <ul className={styles.featuresList}>
+            {product.features.map((f, i) => (
+              <li key={i} className={styles.featureItem}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5">
+                  <path d="M20 7 9 18l-5-5" />
+                </svg>
+                {f}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Material */}
+      {product.material && (
+        <div className={styles.materialBadge}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4M12 16h.01" />
+          </svg>
+          Material: <strong>{product.material}</strong>
+        </div>
+      )}
+    </div>
+  );
+}

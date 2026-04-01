@@ -36,6 +36,14 @@
   gap: 2.5rem;
 }
 
+/* Logo Link */
+.logo-section {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  align-items: center;
+}
+
 /* Logo Placeholder */
 .logo-container {
   display: flex;
@@ -168,6 +176,30 @@
 .product-item a:hover {
   color: var(--primary-color);
   transform: translateX(4px);
+}
+
+.coming-soon-link {
+  display: flex !important;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: default !important;
+  opacity: 0.55;
+}
+
+.coming-soon-link:hover {
+  transform: none !important;
+  color: var(--text-muted) !important;
+}
+
+.coming-soon-badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #94a3b8;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 /* Search Bar */

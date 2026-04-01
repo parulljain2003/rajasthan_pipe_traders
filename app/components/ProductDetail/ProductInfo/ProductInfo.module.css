@@ -1,0 +1,469 @@
+.infoPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ── Meta Row ── */
+.metaRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.brandBadge {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.separator {
+  color: #cbd5e1;
+}
+
+.categoryText {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.certBadge {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+}
+
+/* ── Name & Code ── */
+.productName {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.productCode {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.productCode strong {
+  color: #334155;
+}
+
+/* ── Rating ── */
+.ratingRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stars {
+  display: flex;
+  gap: 0.1rem;
+}
+
+.ratingText {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+/* ── Divider ── */
+.divider {
+  height: 1px;
+  background: #f1f5f9;
+}
+
+/* ── Price Card ── */
+.priceCard {
+  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  padding: 1.25rem;
+}
+
+.priceRow {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 0.65rem;
+}
+
+.priceLabel {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 500;
+  margin-bottom: 0.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.basicPrice {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #475569;
+  text-decoration: line-through;
+}
+
+.gstPriceBlock {
+  border-left: 2px solid #bfdbfe;
+  padding-left: 2rem;
+}
+
+.gstPrice {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.gstNote {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+}
+
+/* ── Section Label ── */
+.sectionBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sectionLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionLabel {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.selectedSizeTag {
+  background: #2563eb;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.65rem;
+  border-radius: 20px;
+}
+
+/* ── Size Grid ── */
+.sizeGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sizeBtn {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.sizeBtn:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.sizeBtnActive {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* ── Packing Card ── */
+.packingCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+}
+
+.packingTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.9rem;
+}
+
+.packingGrid {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.packingItem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.packingValue {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.packingUnit {
+  font-size: 0.68rem;
+  color: #64748b;
+  font-weight: 500;
+  text-align: center;
+}
+
+.packingDivider {
+  width: 1px;
+  height: 40px;
+  background: #e2e8f0;
+  flex-shrink: 0;
+}
+
+/* ── Discount Card ── */
+.discountCard {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+}
+
+.discountTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #9a3412;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.8rem;
+}
+
+.discountTiers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.discountTier {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+}
+
+.discountQty {
+  font-size: 0.8rem;
+  color: #78350f;
+  font-weight: 500;
+}
+
+.discountPct {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #c2410c;
+  background: #fed7aa;
+  padding: 0.15rem 0.55rem;
+  border-radius: 20px;
+}
+
+.discountNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+  font-size: 0.72rem;
+  color: #92400e;
+  line-height: 1.4;
+}
+
+/* ── Action Buttons ── */
+.actionRow {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.addToCartBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: #f8fafc;
+  border: 2px solid #2563eb;
+  color: #2563eb;
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 0.85rem 1.25rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.addToCartBtn:hover {
+  background: #eff6ff;
+  transform: translateY(-1px);
+}
+
+.addedBtn {
+  background: #f0fdf4 !important;
+  border-color: #16a34a !important;
+  color: #16a34a !important;
+}
+
+.buyNowBtn {
+  flex: 1;
+  background: #2563eb;
+  color: white;
+  border: none;
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 0.85rem 1.25rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.buyNowBtn:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
+}
+
+.wishlistBtn {
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.wishlistBtn:hover {
+  border-color: #fca5a5;
+  color: #ff4757;
+  transform: scale(1.05);
+}
+
+.wishlistActive {
+  background: #fff1f2;
+  border-color: #ff4757;
+  color: #ff4757;
+}
+
+/* ── Min Order ── */
+.minOrderNote {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: #64748b;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid #f1f5f9;
+}
+
+/* ── Features ── */
+.featuresBlock {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 1rem;
+}
+
+.featuresTitle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.65rem;
+}
+
+.featuresList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.featureItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: #475569;
+}
+
+/* ── Material ── */
+.materialBadge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.materialBadge strong {
+  color: #334155;
+}
+
+@media (max-width: 768px) {
+  .productName {
+    font-size: 1.4rem;
+  }
+  .priceRow {
+    gap: 1rem;
+  }
+  .gstPriceBlock {
+    padding-left: 1rem;
+  }
+  .gstPrice {
+    font-size: 1.5rem;
+  }
+}

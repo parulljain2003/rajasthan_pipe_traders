@@ -2,70 +2,34 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import './Products.css';
+import { products } from '../../data/products';
 
-// The 5 requested products with placeholder data
-const productsData = [
-  {
-    id: 1,
-    name: "Cable Clip",
-    description: "Durable plastic cable clip for secure wire management",
-    size: "4mm - 14mm",
-    originalPrice: 12.00,
-    salePrice: 8.50,
-    image: "/Cable_Clip.png",
-    isNew: true
-  },
-  {
-    id: 2,
-    name: "Nail Cable Clip",
-    description: "Heavy-duty nail clip for wall-mounted cable routing",
-    size: "6mm, 8mm, 10mm",
-    originalPrice: 15.50,
-    salePrice: 11.00,
-    image: "/Nail_Cable_Clip.png",
-    isNew: false
-  },
-  {
-    id: 3,
-    name: "Circle Nail Cable Clip",
-    description: "Round nail clip ideal for circular cables and wires",
-    size: "5mm - 20mm",
-    originalPrice: 9.00,
-    salePrice: 6.75,
-    image: "/Nail_Cable_Clip.png",
-    isNew: false
-  },
-  {
-    id: 4,
-    name: "Double Nail Clamp",
-    description: "Twin-nail clamp for extra-strong cable fastening",
-    size: "12mm, 16mm, 20mm",
-    originalPrice: 22.00,
-    salePrice: 18.50,
-    image: "/Nail_Cable_Clip.png",
-    isNew: true
-  },
-  // {
-  //   id: 5,
-  //   name: "Wire Clip",
-  //   size: "Standard",
-  //   originalPrice: 8.00,
-  //   salePrice: 5.50,
-  //   image: "/Nail_Cable_Clip.png",
-  //   isNew: false
-  // }
-];
+const CATEGORIES = ['All', 'Cable Clips', 'Fasteners & Hardware', 'Electrical Accessories', 'Boxes & Plates', 'Sanitaryware'];
+
+const BRAND_COLORS: Record<string, string> = {
+  'Hitech Square / Tejas Craft': '#2563eb',
+  'RPT': '#0891b2',
+  'N-Star': '#059669',
+  'Hitech Square': '#7c3aed',
+};
 
 export default function Products() {
-  // Simple state to toggle wishlist heart icons (for visual only)
   const [wishlist, setWishlist] = useState<number[]>([]);
+  const [activeCategory, setActiveCategory] = useState('All');
 
-  const toggleWishlist = (id: number) => {
+  const toggleWishlist = (e: React.MouseEvent, id: number) => {
+    e.preventDefault();
+    e.stopPropagation();
     setWishlist(prev =>
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
   };
+
+  const filtered = activeCategory === 'All'
+    ? products
+    : products.filter(p => p.category === activeCategory);
 
   return (
     <section className="products-section">
@@ -73,76 +37,171 @@ export default function Products() {
 
         {/* Section Header */}
         <div className="section-header">
-          <h2 className="section-title">Featured Brands</h2>
-          <p className="section-subtitle">Premium quality industrial cable management solutions</p>
+          <div className="section-label-pill">Our Catalogue</div>
+          <h2 className="section-title">
+            Featured <span className="title-accent">Products</span>
+          </h2>
+          <p className="section-subtitle">
+            Premium quality electrical, plumbing &amp; hardware solutions — direct from Ahmedabad
+          </p>
         </div>
 
-        {/* CSS Grid for Products */}
+        {/* Category Filter Tabs */}
+        <div className="filter-tabs-wrapper">
+          <div className="filter-tabs">
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                className={`filter-tab ${activeCategory === cat ? 'filter-tab-active' : ''}`}
+                onClick={() => setActiveCategory(cat)}
+              >
+                {cat}
+                {cat !== 'All' && (
+                  <span className="filter-count">
+                    {products.filter(p => p.category === cat).length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Products Grid */}
         <div className="products-grid">
-          {productsData.map((product) => {
+          {filtered.map((product) => {
             const isWishlisted = wishlist.includes(product.id);
+            const brandColor = BRAND_COLORS[product.brand] ?? '#2563eb';
+            const lowestPrice = product.sizes[0].withGST;
+            const lowestBasic = product.sizes[0].basicPrice;
 
             return (
-              <div key={product.id} className="product-card">
-
+              <Link
+                key={product.id}
+                href={`/products/${product.slug}`}
+                className="product-card"
+              >
                 {/* Image Container */}
                 <div className="product-image-wrapper">
                   {/* Badges */}
-                  {product.isNew && <span className="badge-new">New</span>}
+                  <div className="badge-group">
+                    {product.isNew && <span className="badge-new">New</span>}
+                    {product.isBestseller && <span className="badge-hot">Hot</span>}
+                  </div>
 
-                  {/* Wishlist Button (Heart) */}
+                  {/* Wishlist */}
                   <button
                     className={`wishlist-btn ${isWishlisted ? 'active' : ''}`}
-                    onClick={() => toggleWishlist(product.id)}
+                    onClick={(e) => toggleWishlist(e, product.id)}
                     aria-label="Add to Wishlist"
                   >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill={isWishlisted ? "#ff4757" : "none"} stroke={isWishlisted ? "#ff4757" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="18" height="18" viewBox="0 0 24 24"
+                      fill={isWishlisted ? "#ff4757" : "none"}
+                      stroke={isWishlisted ? "#ff4757" : "currentColor"}
+                      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
                     </svg>
                   </button>
 
-                  <div className="image-placeholder">
-                    {/* Placeholder div until images are added. Next/Image handles it cleanly */}
+                  {/* Product Image */}
+                  <div className="image-inner">
                     <Image
                       src={product.image}
                       alt={product.name}
                       fill
-                      style={{ objectFit: 'contain' }} // Ensures product isn't cropped unpleasantly
+                      style={{ objectFit: 'contain', padding: '1.5rem' }}
                     />
-                    <div className="fallback-text">Img</div>
+                  </div>
+
+                  {/* Hover Overlay */}
+                  <div className="image-overlay">
+                    <span className="overlay-cta">
+                      View Details
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="m9 18 6-6-6-6" />
+                      </svg>
+                    </span>
                   </div>
                 </div>
 
-                {/* Content Container */}
+                {/* Card Content */}
                 <div className="product-info">
-                  <div className="info-top">
-                    <span className="product-size">Size: {product.size}</span>
+                  {/* Brand + Category row */}
+                  <div className="info-meta">
+                    <span
+                      className="product-brand"
+                      style={{ '--brand-color': brandColor } as React.CSSProperties}
+                    >
+                      {product.brand}
+                    </span>
+                    <span className="product-category-tag">{product.subCategory}</span>
                   </div>
 
+                  {/* Name */}
                   <h3 className="product-title">{product.name}</h3>
+
+                  {/* Description */}
                   <p className="product-description">{product.description}</p>
 
-                  <div className="product-pricing">
-                    <span className="original-price">₹{product.originalPrice.toFixed(2)}</span>
-                    <span className="sale-price">₹{product.salePrice.toFixed(2)}</span>
+                  {/* Size Range */}
+                  <div className="size-range-row">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                    </svg>
+                    <span>
+                      {product.sizes.length === 1
+                        ? product.sizes[0].size
+                        : `${product.sizes[0].size} – ${product.sizes[product.sizes.length - 1].size}`}
+                    </span>
+                    <span className="size-count">{product.sizes.length} sizes</span>
                   </div>
 
-                  <button className="add-to-cart-btn" data-tooltip={`Price: \u20b9${product.salePrice.toFixed(2)}`}>
-                    <div className="btn-wrapper">
-                      <div className="btn-text">Buy Now</div>
-                      <span className="btn-icon">
-                        <svg viewBox="0 0 16 16" fill="currentColor" height="24" width="24" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5zM3.14 5l1.25 5h8.22l1.25-5H3.14zM5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0z" />
-                        </svg>
-                      </span>
+                  {/* Pricing */}
+                  <div className="product-pricing">
+                    <div className="pricing-left">
+                      <span className="price-from">from</span>
+                      <span className="sale-price">₹{lowestPrice.toFixed(2)}</span>
+                      <span className="gst-tag">incl. GST</span>
                     </div>
-                  </button>
-                </div>
+                    <span className="original-price">₹{lowestBasic.toFixed(2)}</span>
+                  </div>
 
-              </div>
+                  {/* CTA */}
+                  <div className="card-cta-row">
+                    <div className="buy-now-btn">
+                      <span>Buy Now</span>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5zM3.14 5l1.25 5h8.22l1.25-5H3.14zM5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0z" />
+                      </svg>
+                    </div>
+                    <div className="details-link">
+                      Details
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="m9 18 6-6-6-6" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </Link>
             );
           })}
         </div>
+
+        {/* Footer row */}
+        <div className="products-footer">
+          <p className="footer-note">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            Min. order ₹25,000 (incl. GST) · 100% advance · Prices effective 01-04-2026
+          </p>
+          <Link href="/#shop" className="view-catalogue-btn">
+            View Full Catalogue
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </Link>
+        </div>
+
       </div>
     </section>
   );

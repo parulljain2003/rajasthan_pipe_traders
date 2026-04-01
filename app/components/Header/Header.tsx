@@ -2,39 +2,80 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import './Header.css';
+import { products } from '../../data/products';
 
+/* ── Build flat search index from real product data ── */
+const searchIndex = products.map(p => ({
+  name: p.name,
+  category: p.category,
+  brand: p.brand,
+  slug: p.slug,
+}));
+
+/* ── Mega menu navigation (slug-mapped) ── */
 const coreProducts = [
   {
     category: "Cable Clips",
-    items: ["Nail Cable Clip", "Circle Nail Cable Clip", "Double Nail Cable Clip / Clamp", "Wire Clip", "Plastic Wire Clip", "Nylon Cable Tie", "UV Nylon Cable Tie", "UPVC Nail Clamp", "CPVC Nail Clamp", "SWR PVC Nail Clamp"]
-  },
-  {
-    category: "Fasteners & Hardware",
-    items: ["Concrete Nails", "China Concrete Nails", "Dry Wall Screw", "Kaju Pin", "Casing Pin"]
+    items: [
+      { name: "Cable Nail Clips", slug: "cable-nail-clips" },
+      { name: "Double Nail Clamp", slug: "double-nail-clamp" },
+      { name: "Nylon Cable Ties", slug: "nylon-cable-ties" },
+      { name: "UPVC Pipe Clamp", slug: "upvc-pipe-clamp" },
+      { name: "CPVC Pipe Clamp", slug: "cpvc-pipe-clamp" },
+      { name: "Wall Plug (Gitti)", slug: "wall-plug-gitti" },
+    ],
   },
   {
     category: "Electrical Accessories",
-    items: ["Electrical Fittings & Accessories", "Bulb Holder", "Black Pendant Holder", "White Pendant Holder", "Skirt Pendant Holder", "2 Pin Top", "16 Amp Top", "Male Female Top"]
+    items: [
+      { name: "FR Insulation Tape", slug: "electric-insulation-tape" },
+      { name: "Plain Modular Gang Box", slug: "plain-modular-gang-box" },
+      { name: "Bulb Holder", slug: null },
+      { name: "2 Pin / 3 Pin Top", slug: null },
+      { name: "MCB Distribution Box", slug: null },
+      { name: "Combined Switch Socket", slug: null },
+    ],
   },
   {
-    category: "Boxes & Plates",
-    items: ["GI Modular Box", "PVC MCB Box", "MCB Distribution Box", "Combined Switch Socket Box", "3×3 PVC Round Plate", "4×4 PVC Round Plate", "7×7 Fan Plate"]
+    category: "Ball Valves",
+    items: [
+      { name: "PP White Ball Valve", slug: "ball-valve-white" },
+      { name: "PP Grey Ball Valve", slug: "ball-valve-grey" },
+      { name: "PP Black Ball Valve", slug: "ball-valve-black" },
+      { name: "UPVC Ball Valve", slug: "upvc-ball-valve" },
+      { name: "CPVC Ball Valve", slug: null },
+    ],
   },
   {
-    category: "Other Products",
-    items: ["Wall Plug (Gitti)", "PVC Gitti", "Electrical Insulation Tape", "Cable Tie Variants (multiple sizes)"]
-  }
+    category: "Sanitaryware",
+    items: [
+      { name: "PP Bibcock", slug: null },
+      { name: "PTMT Health Faucet", slug: null },
+      { name: "PTMT Ball Cock", slug: null },
+      { name: "Nani Trap", slug: null },
+      { name: "Back Flow NRV", slug: null },
+      { name: "ABS Square Shower", slug: null },
+    ],
+  },
+  {
+    category: "Fasteners & Hardware",
+    items: [
+      { name: "Concrete Nails", slug: null },
+      { name: "Wall Plugs", slug: "wall-plug-gitti" },
+      { name: "Dry Wall Screw", slug: null },
+      { name: "Metal Gang Boxes", slug: null },
+      { name: "Junction Boxes", slug: null },
+    ],
+  },
 ];
 
-// Flatten all searchable items with their category
-const allSearchItems = coreProducts.flatMap(group =>
-  group.items.map(item => ({ name: item, category: group.category }))
-);
-
-type SearchResult = { name: string; category: string };
+type SearchResult = { name: string; category: string; brand: string; slug: string };
 
 const Header = () => {
+  const router = useRouter();
   const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -43,28 +84,24 @@ const Header = () => {
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Debounced search logic
   const handleSearch = useCallback((query: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
+    if (!query.trim()) { setSearchResults([]); return; }
     const lower = query.toLowerCase();
-    const results = allSearchItems.filter(
+    const results = searchIndex.filter(
       item =>
         item.name.toLowerCase().includes(lower) ||
-        item.category.toLowerCase().includes(lower)
-    ).slice(0, 8); // Max 8 results
+        item.category.toLowerCase().includes(lower) ||
+        item.brand.toLowerCase().includes(lower)
+    ).slice(0, 8);
     setSearchResults(results);
     setActiveIndex(-1);
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => handleSearch(searchQuery), 180);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => handleSearch(searchQuery), 180);
+    return () => clearTimeout(t);
   }, [searchQuery, handleSearch]);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
@@ -83,19 +120,21 @@ const Header = () => {
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActiveIndex(prev => Math.max(prev - 1, -1));
-    } else if (e.key === 'Enter' && activeIndex >= 0) {
+    } else if (e.key === 'Enter') {
       e.preventDefault();
-      selectResult(searchResults[activeIndex]);
+      const target = activeIndex >= 0 ? searchResults[activeIndex] : searchResults[0];
+      if (target) navigateToProduct(target);
     } else if (e.key === 'Escape') {
       setIsSearchFocused(false);
       inputRef.current?.blur();
     }
   };
 
-  const selectResult = (result: SearchResult) => {
+  const navigateToProduct = (result: SearchResult) => {
     setSearchQuery(result.name);
     setSearchResults([]);
     setIsSearchFocused(false);
+    router.push(`/products/${result.slug}`);
   };
 
   const highlightMatch = (text: string, query: string) => {
@@ -116,8 +155,8 @@ const Header = () => {
   return (
     <header className="main-header">
       <div className="header-container">
-        {/* Logo Section */}
-        <div className="logo-section">
+        {/* Logo */}
+        <Link href="/" className="logo-section">
           <div className="logo-container">
             <div className="logo-placeholder-graphic">
               <Image
@@ -130,9 +169,9 @@ const Header = () => {
               />
             </div>
           </div>
-        </div>
+        </Link>
 
-        {/* Navigation Section */}
+        {/* Navigation */}
         <nav className="nav-section">
           <div
             className="nav-item has-dropdown"
@@ -146,7 +185,6 @@ const Header = () => {
               </svg>
             </span>
 
-            {/* Mega Menu */}
             {isMegaMenuOpen && (
               <div className="mega-menu">
                 <div className="mega-menu-content">
@@ -156,7 +194,14 @@ const Header = () => {
                       <ul className="product-list">
                         {group.items.map((item, i) => (
                           <li key={i} className="product-item">
-                            <a href={`/products/${item.toLowerCase().replace(/ /g, '-')}`}>{item}</a>
+                            {item.slug ? (
+                              <Link href={`/products/${item.slug}`}>{item.name}</Link>
+                            ) : (
+                              <a href="#" onClick={e => e.preventDefault()} className="coming-soon-link">
+                                {item.name}
+                                <span className="coming-soon-badge">Soon</span>
+                              </a>
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -168,7 +213,7 @@ const Header = () => {
           </div>
         </nav>
 
-        {/* Search Section */}
+        {/* Search */}
         <div className="search-section" ref={searchRef}>
           <div className={`search-bar ${isSearchFocused ? 'focused' : ''}`}>
             <svg className="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -177,7 +222,7 @@ const Header = () => {
             <input
               ref={inputRef}
               type="text"
-              placeholder="Search for products, categories..."
+              placeholder="Search products..."
               className="search-input"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -188,11 +233,7 @@ const Header = () => {
             {searchQuery && (
               <button
                 className="search-clear-btn"
-                onClick={() => {
-                  setSearchQuery('');
-                  setSearchResults([]);
-                  inputRef.current?.focus();
-                }}
+                onClick={() => { setSearchQuery(''); setSearchResults([]); inputRef.current?.focus(); }}
                 aria-label="Clear search"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -215,7 +256,7 @@ const Header = () => {
                       <li
                         key={i}
                         className={`search-result-item ${i === activeIndex ? 'active' : ''}`}
-                        onMouseDown={() => selectResult(result)}
+                        onMouseDown={() => navigateToProduct(result)}
                         onMouseEnter={() => setActiveIndex(i)}
                       >
                         <svg className="result-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -223,7 +264,7 @@ const Header = () => {
                         </svg>
                         <div className="result-text">
                           <span className="result-name">{highlightMatch(result.name, searchQuery)}</span>
-                          <span className="result-category">{result.category}</span>
+                          <span className="result-category">{result.brand} · {result.category}</span>
                         </div>
                         <svg className="result-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="m9 18 6-6-6-6" />
@@ -238,14 +279,14 @@ const Header = () => {
                     <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
                   </svg>
                   <p>No results for &ldquo;{searchQuery}&rdquo;</p>
-                  <span>Try searching for Cable Clips, Fasteners, or Boxes</span>
+                  <span>Try: Cable Clips, Ball Valve, Nylon Ties…</span>
                 </div>
               ) : null}
             </div>
           )}
         </div>
 
-        {/* Actions Section */}
+        {/* Actions */}
         <div className="actions-section">
           <div className="action-item">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -258,9 +299,9 @@ const Header = () => {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
               </svg>
-              <span className="cart-badge">1</span>
+              <span className="cart-badge">0</span>
             </div>
-            <span className="action-label">Cart (1)</span>
+            <span className="action-label">Cart</span>
           </div>
           <div className="action-item">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
