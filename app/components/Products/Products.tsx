@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import './Products.css';
-import { products } from '../../data/products';
+import { products, type Product } from '../../data/products';
 import WhatsAppPopup from '../WhatsAppPopup/WhatsAppPopup';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 
@@ -29,12 +29,24 @@ export default function Products() {
     ctxToggleWishlist(id);
   };
 
-  const handleAddToCart = (e: React.MouseEvent, name: string) => {
+  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
     e.stopPropagation();
-    setPopupProduct(name);
+    addToCart({
+      productId: product.id,
+      productName: product.name,
+      productSlug: product.slug,
+      productImage: product.image,
+      brand: product.brand,
+      category: product.category,
+      size: product.sizes[0].size,
+      pricePerUnit: product.sizes[0].withGST,
+      basicPricePerUnit: product.sizes[0].basicPrice,
+      qtyPerBag: product.sizes[0].qtyPerBag,
+      pcsPerPacket: product.sizes[0].pcsPerPacket,
+    });
+    setPopupProduct(product.name);
     setPopupOpen(true);
-    addToCart();
   };
 
   const filtered = activeCategory === 'All'
@@ -160,7 +172,7 @@ export default function Products() {
 
                   {/* CTA */}
                   <div className="card-cta-row">
-                    <button type="button" className="buy-now-btn" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => handleAddToCart(e, product.name)}>
+                    <button type="button" className="buy-now-btn" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => handleAddToCart(e, product)}>
                       <span>Add to cart</span>
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                         <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5zM3.14 5l1.25 5h8.22l1.25-5H3.14zM5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0z" />
