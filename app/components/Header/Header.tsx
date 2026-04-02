@@ -5,16 +5,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import './Header.css';
-import { products } from '../../data/products';
+import { searchData } from '../../data/searchData';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 
-/* ── Build flat search index from real product data ── */
-const searchIndex = products.map(p => ({
-  name: p.name,
-  category: p.category,
-  brand: p.brand,
-  slug: p.slug,
-}));
+const searchIndex = searchData;
 
 /* ── Mega menu navigation (slug-mapped) ── */
 const coreProducts = [
@@ -73,7 +67,8 @@ const coreProducts = [
   },
 ];
 
-type SearchResult = { name: string; category: string; brand: string; slug: string };
+import type { SearchEntry } from '../../data/searchData';
+type SearchResult = SearchEntry;
 
 const Header = () => {
   const router = useRouter();
@@ -227,13 +222,13 @@ const Header = () => {
             </svg>
             {wishlist.length > 0 && <span className="header-badge">{wishlist.length}</span>}
           </div>
-          <div className="header-icon-item">
+          <Link href="/cart" className="header-icon-item" aria-label="View cart">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" />
               <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
             </svg>
             {cartCount > 0 && <span className="header-badge">{cartCount}</span>}
-          </div>
+          </Link>
         </div>
 
         {/* Search */}

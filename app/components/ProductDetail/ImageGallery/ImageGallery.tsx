@@ -60,6 +60,7 @@ export default function ImageGallery({ product }: ImageGalleryProps) {
           src={activeImage}
           alt={product.name}
           fill
+          sizes="(max-width: 768px) 100vw, 50vw"
           className={styles.mainImage}
           style={{ objectFit: "contain" }}
           priority
@@ -80,6 +81,7 @@ export default function ImageGallery({ product }: ImageGalleryProps) {
                 src={img}
                 alt={`${product.name} view ${i + 1}`}
                 fill
+                sizes="100px"
                 style={{ objectFit: "contain" }}
               />
             </button>

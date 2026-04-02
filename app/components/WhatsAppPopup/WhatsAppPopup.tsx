@@ -38,29 +38,21 @@ export default function WhatsAppPopup({ isOpen, onClose, productName }: WhatsApp
     if (e.target === overlayRef.current) onClose();
   };
 
-  const validatePhone = (value: string) => {
-    const digits = value.replace(/\D/g, "");
-    return digits.length === 10;
-  };
+  const validatePhone = (value: string) => value.replace(/\D/g, "").length === 10;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const digits = phone.replace(/\D/g, "");
-
     if (!digits) {
-      setError("Please enter your WhatsApp number");
+      setError("Please enter your mobile number");
       return;
     }
     if (!validatePhone(phone)) {
       setError("Please enter a valid 10-digit mobile number");
       return;
     }
-
     setSubmitted(true);
-
-    setTimeout(() => {
-      onClose();
-    }, 2000);
+    setTimeout(() => onClose(), 2000);
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,23 +66,23 @@ export default function WhatsAppPopup({ isOpen, onClose, productName }: WhatsApp
   return (
     <div className={styles.overlay} ref={overlayRef} onClick={handleOverlayClick}>
       <div className={styles.popup}>
-        {/* Close button */}
         <button className={styles.closeBtn} onClick={onClose} aria-label="Close">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
 
-        
-
         {!submitted ? (
           <>
-          
-            <p className={styles.desc}>
-              Enter your WhatsApp number and we&apos;ll connect you with our team for quick order assistance.
-            </p>
+            <div className={styles.iconWrap}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" />
+                <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+              </svg>
+            </div>
 
-           
+            
+            <p className={styles.desc}>Enter your mobile number to confirm your enquiry.</p>
 
             <form onSubmit={handleSubmit} className={styles.form}>
               <div className={styles.inputGroup}>
@@ -107,24 +99,22 @@ export default function WhatsAppPopup({ isOpen, onClose, productName }: WhatsApp
                 />
               </div>
               {error && <p className={styles.error}>{error}</p>}
-
               <button type="submit" className={styles.submitBtn}>
-                
-                Submit
+                Confirm
               </button>
             </form>
-
-            
           </>
         ) : (
           <div className={styles.success}>
             <div className={styles.successIcon}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 7 9 18l-5-5" />
               </svg>
             </div>
-            <h2 className={styles.title}>Added to Cart!</h2>
-            {/* <p className={styles.desc}>{productName ? <><strong>{productName}</strong> has been added.</> : <>Product has been added.</>} Our team will contact you shortly.</p> */}
+            <h2 className={styles.title}>Product Added to Cart!</h2>
+            <p className={styles.desc}>
+              {productName ? <><strong>{productName}</strong> has been added to your cart.</> : <>Product has been added to your cart.</>}
+            </p>
           </div>
         )}
       </div>

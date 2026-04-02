@@ -4,8 +4,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import styles from "./HeroBanner.module.css";
-import { products } from "../../data/products";
-
 /* ════════════════════════════════════
    COUPON DATA
 ════════════════════════════════════ */
@@ -45,15 +43,30 @@ const coupons = [
 ];
 
 /* ════════════════════════════════════
-   CAROUSEL SLIDES
+   CAROUSEL SLIDES — inline to avoid importing the full products bundle
 ════════════════════════════════════ */
 const slides = [
-  { tag: "🔥 Hot Selling",    tagKey: "hot",     productId: 1  },
-  { tag: "⭐ Most Popular",   tagKey: "popular",  productId: 6  },
-  { tag: "🎁 Combo Products", tagKey: "combo",    productId: 2  },
-  { tag: "💎 Premium Range",  tagKey: "premium",  productId: 9  },
-  { tag: "🏆 Bestseller",     tagKey: "best",     productId: 4  },
-].map(s => ({ ...s, product: products.find(p => p.id === s.productId)! }));
+  {
+    tag: "🔥 Hot Selling", tagKey: "hot",
+    product: { slug: "cable-nail-clips",   name: "Premium Cable Nail Clips",       brand: "Hitech Square / Tejas Craft", description: "Premium quality cable nail clips for secure and neat wire management on walls and ceilings.", image: "/Cable_Clip.png",       firstWithGST: 9.30,   firstBasic: 7.88  },
+  },
+  {
+    tag: "⭐ Most Popular", tagKey: "popular",
+    product: { slug: "nylon-cable-ties",   name: "Premium Nylon Cable Ties",       brand: "Hitech Square",               description: "High-tensile nylon cable ties for bundling, organising, and securing cables and wires.",    image: "/Cable_Clip.png",       firstWithGST: 10.95,  firstBasic: 9.28  },
+  },
+  {
+    tag: "🎁 Combo Products", tagKey: "combo",
+    product: { slug: "double-nail-clamp",  name: "RPT Premium Double Nail Clamps", brand: "RPT",                         description: "Heavy-duty double nail clamps providing extra-strong, vibration-resistant cable fastening.",  image: "/Nail_Cable_Clip.png",  firstWithGST: 93.17,  firstBasic: 78.96 },
+  },
+  {
+    tag: "💎 Premium Range", tagKey: "premium",
+    product: { slug: "ball-valve-white",   name: "PP Solid White Ball Valve",      brand: "N-Star",                      description: "N-Star premium quality PP solid white ball valve — short/long handle and plain/threaded.",   image: "/Cable_Clip.png",       firstWithGST: 32.97,  firstBasic: 27.94 },
+  },
+  {
+    tag: "🏆 Bestseller", tagKey: "best",
+    product: { slug: "upvc-pipe-clamp",    name: "RPT UPVC Pipe Fitting Clamps",   brand: "RPT",                         description: "Specially designed clamps for secure fixing of UPVC pipe fittings to walls and surfaces.",   image: "/Cable_Clip.png",       firstWithGST: 167.44, firstBasic: 141.90 },
+  },
+];
 
 /* ════════════════════════════════════
    STATS + QUICK LINKS
@@ -144,7 +157,7 @@ function ProductCarousel() {
         <span className={`${styles.slideTag} ${styles[`tagBg_${s.tagKey}`]}`}>{s.tag}</span>
 
         <Link href={`/products/${p.slug}`} className={styles.slideImg}>
-          <Image src={p.image} alt={p.name} fill style={{ objectFit:"contain", padding:"1.25rem" }} />
+          <Image src={p.image} alt={p.name} fill sizes="(max-width: 768px) 60vw, 30vw" style={{ objectFit:"contain", padding:"1.25rem" }} />
           <div className={`${styles.imgGlow} ${styles[`glow_${s.tagKey}`]}`} aria-hidden />
         </Link>
 
@@ -153,8 +166,8 @@ function ProductCarousel() {
           <h3 className={styles.slideName}>{p.name}</h3>
           <p className={styles.slideDesc}>{p.description}</p>
           <div className={styles.slidePriceRow}>
-            <div><span className={styles.slideFrom}>from </span><span className={styles.slidePrice}>₹{p.sizes[0].withGST.toFixed(2)}</span><span className={styles.slideGst}> incl. GST</span></div>
-            <span className={styles.slideBasic}>₹{p.sizes[0].basicPrice.toFixed(2)} basic</span>
+            <div><span className={styles.slideFrom}>from </span><span className={styles.slidePrice}>₹{p.firstWithGST.toFixed(2)}</span><span className={styles.slideGst}> incl. GST</span></div>
+            <span className={styles.slideBasic}>₹{p.firstBasic.toFixed(2)} basic</span>
           </div>
           <Link href={`/products/${p.slug}`} className={`${styles.slideBtn} ${styles[`slideBtn_${s.tagKey}`]}`}>
             View Product <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
@@ -190,6 +203,7 @@ export default function HeroBanner() {
       {/* BG */}
       <div className={styles.bgImage}>
         <Image src="/banner-1.png" alt="Rajasthan Pipe Traders" fill
+          sizes="100vw"
           style={{ objectFit:"cover", objectPosition:"center" }} priority />
       </div>
       <div className={styles.overlayLeft} aria-hidden />

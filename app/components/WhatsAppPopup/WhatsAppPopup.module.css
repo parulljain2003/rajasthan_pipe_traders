@@ -74,12 +74,12 @@
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 1.25rem;
-  box-shadow: 0 4px 20px rgba(37, 211, 102, 0.2);
+  box-shadow: 0 4px 20px rgba(37, 99, 235, 0.15);
 }
 
 /* Text */
@@ -136,8 +136,8 @@
   background: #fff;
 }
 .inputGroup:focus-within {
-  border-color: #25D366;
-  box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.12);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .prefix {
@@ -194,7 +194,7 @@
   height: 48px;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   color: #fff;
   font-size: 0.95rem;
   font-weight: 700;
@@ -204,12 +204,12 @@
   justify-content: center;
   gap: 0.5rem;
   transition: all 0.22s ease;
-  box-shadow: 0 4px 16px rgba(37, 211, 102, 0.35);
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
 }
 .submitBtn:hover {
-  background: linear-gradient(135deg, #22c55e 0%, #0f766e 100%);
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
   transform: translateY(-1px);
-  box-shadow: 0 6px 22px rgba(37, 211, 102, 0.45);
+  box-shadow: 0 6px 22px rgba(37, 99, 235, 0.4);
 }
 .submitBtn:active {
   transform: translateY(0);

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./ProductInfo.module.css";
 import type { Product } from "../../../data/products";
 import WhatsAppPopup from "../../WhatsAppPopup/WhatsAppPopup";
@@ -11,6 +12,7 @@ interface ProductInfoProps {
 }
 
 export default function ProductInfo({ product }: ProductInfoProps) {
+  const router = useRouter();
   const { toggleWishlist: ctxToggleWishlist, isWishlisted, addToCart } = useCartWishlist();
   const [selectedSizeIndex, setSelectedSizeIndex] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
@@ -19,9 +21,28 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const selectedSize = product.sizes[selectedSizeIndex];
   const wishlist = isWishlisted(product.id);
 
+  const cartPayload = () => ({
+    productId: product.id,
+    productName: product.name,
+    productSlug: product.slug,
+    productImage: product.image,
+    brand: product.brand,
+    category: product.category,
+    size: selectedSize.size,
+    pricePerUnit: selectedSize.withGST,
+    basicPricePerUnit: selectedSize.basicPrice,
+    qtyPerBag: selectedSize.qtyPerBag,
+    pcsPerPacket: selectedSize.pcsPerPacket,
+  });
+
   const handleAddToCart = () => {
+    addToCart(cartPayload());
     setPopupOpen(true);
-    addToCart();
+  };
+
+  const handleBuyNow = () => {
+    addToCart(cartPayload());
+    router.push('/cart');
   };
 
   return (
@@ -197,7 +218,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
           )}
         </button>
 
-        <button className={styles.buyNowBtn}>
+        <button className={styles.buyNowBtn} onClick={handleBuyNow}>
           Buy Now
         </button>
 

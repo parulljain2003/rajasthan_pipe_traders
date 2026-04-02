@@ -48,6 +48,7 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
                   src={product.image}
                   alt={product.name}
                   fill
+                  sizes="(max-width: 640px) 50vw, 25vw"
                   style={{ objectFit: "contain", padding: "1.5rem" }}
                 />
               </div>

@@ -1,0 +1,72 @@
+"use client";
+
+import React, { useState, useMemo } from 'react';
+import CategoryRow from './CategoryRow/CategoryRow';
+import ProductGrid from './ProductGrid/ProductGrid';
+import { products } from '../../data/products';
+import styles from './ShopSection.module.css';
+
+const SHOP_CATEGORIES = [
+  { id: 'All', label: 'All', image: '/Cable_Clip.png', color: '#f1f5f9', textColor: '#475569' },
+  { id: 'Cable Clips', label: 'Cable Clips', image: '/Cable_Clip.png', color: '#dbeafe', textColor: '#1d4ed8' },
+  { id: 'Fasteners & Hardware', label: 'Fasteners & Hardware', image: '/Nail_Cable_Clip.png', color: '#fef3c7', textColor: '#92400e' },
+  { id: 'Electrical Accessories', label: 'Electrical Accessories', image: '/Cable_Clip.png', color: '#dcfce7', textColor: '#166534' },
+  { id: 'Boxes & Plates', label: 'Boxes & Plates', image: '/Cable_Clip.png', color: '#ede9fe', textColor: '#6d28d9' },
+  { id: 'Sanitaryware', label: 'Sanitaryware', image: '/Cable_Clip.png', color: '#ccfbf1', textColor: '#0f766e' },
+];
+
+export default function ShopSection() {
+  const [activeCategory, setActiveCategory] = useState('All');
+
+  const filteredProducts = useMemo(
+    () => activeCategory === 'All' ? products : products.filter(p => p.category === activeCategory),
+    [activeCategory]
+  );
+
+  const activeCat = SHOP_CATEGORIES.find(c => c.id === activeCategory);
+
+  return (
+    <section className={styles.section}>
+      <div className={styles.container}>
+        <CategoryRow
+          categories={SHOP_CATEGORIES}
+          activeCategory={activeCategory}
+          onSelect={setActiveCategory}
+          products={products}
+        />
+
+        <div className={styles.divider} />
+
+        <div className={styles.productsHeader}>
+          <div className={styles.headingRow}>
+            <h2 className={styles.heading}>
+              {activeCategory === 'All' ? 'All Products' : activeCategory}
+            </h2>
+            <span
+              className={styles.countPill}
+              style={activeCat ? { background: activeCat.color, color: activeCat.textColor } : {}}
+            >
+              {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+            </span>
+          </div>
+          <p className={styles.subtext}>
+            {activeCategory === 'All'
+              ? 'Browse our complete range of quality hardware & plumbing products'
+              : `Showing all ${activeCategory.toLowerCase()} products`}
+          </p>
+        </div>
+
+        <ProductGrid products={filteredProducts} />
+
+        <div className={styles.footer}>
+          <p className={styles.footerNote}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            Min. order ₹25,000 (incl. GST) · 100% advance · Prices effective 01-04-2026
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
