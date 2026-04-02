@@ -41,16 +41,14 @@
   background: rgba(0,0,0,0.55);
   border-bottom: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(16px);
-  padding: 0.75rem 2.5rem;
+  padding: 0.75rem 0;
+  overflow: hidden;
 }
 
 .couponBarInner {
-  max-width: 1440px;
-  margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-  flex-wrap: wrap;
+  overflow: hidden;
 }
 
 .couponBarLabel {
@@ -64,13 +62,23 @@
   letter-spacing: 0.09em;
   white-space: nowrap;
   flex-shrink: 0;
+  padding: 0 1rem 0 0.5rem;
 }
 
 .couponRow {
   display: flex;
+  align-items: center;
   gap: 0.65rem;
-  flex: 1;
-  flex-wrap: wrap;
+  width: max-content;
+  animation: couponScroll 28s linear infinite;
+}
+.couponRow:hover {
+  animation-play-state: paused;
+}
+
+@keyframes couponScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
 /* ── Individual coupon ── */
@@ -82,9 +90,9 @@
   border: 1.5px dashed;
   overflow: visible;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  flex: 1;
+  flex-shrink: 0;
   min-width: 190px;
-  max-width: 260px;
+  max-width: 300px;
 }
 .coupon:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.4); }
 
@@ -101,9 +109,8 @@
 .couponStub {
   display:flex; flex-direction:column; align-items:center;
   justify-content:center; gap:0.2rem;
-  padding:0.6rem 0.7rem; min-width:62px; flex-shrink:0;
+  padding:0.6rem 0.7rem; min-width:54px; flex-shrink:0;
 }
-.couponIconWrap { display:flex; align-items:center; justify-content:center; }
 .couponDiscBlock { display:flex; flex-direction:column; align-items:center; gap:0; }
 .couponPct  { font-size:1.05rem; font-weight:900; line-height:1; letter-spacing:-0.02em; }
 .couponLabel{ font-size:0.52rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; line-height:1.2; opacity:0.85; }
@@ -126,7 +133,6 @@
 .coupon_blue    { border-color:rgba(59,130,246,0.45);  background:linear-gradient(115deg,rgba(30,58,138,0.65) 0%,rgba(37,99,235,0.22) 100%); }
 .coupon_blue .couponStub { background:rgba(37,99,235,0.18); }
 .coupon_blue .couponPct  { color:#93c5fd; }
-.coupon_blue .couponIconWrap { color:#60a5fa; }
 .coupon_blue .couponDash  { border-color:#60a5fa; }
 .couponCopy_blue { background:rgba(37,99,235,0.25); color:#93c5fd; }
 .couponCopy_blue:hover { background:#2563eb; color:#fff; }
@@ -134,7 +140,6 @@
 .coupon_indigo  { border-color:rgba(99,102,241,0.45);  background:linear-gradient(115deg,rgba(49,46,129,0.65) 0%,rgba(99,102,241,0.22) 100%); }
 .coupon_indigo .couponStub { background:rgba(99,102,241,0.18); }
 .coupon_indigo .couponPct  { color:#c7d2fe; }
-.coupon_indigo .couponIconWrap { color:#a5b4fc; }
 .coupon_indigo .couponDash  { border-color:#a5b4fc; }
 .couponCopy_indigo { background:rgba(99,102,241,0.25); color:#c7d2fe; }
 .couponCopy_indigo:hover { background:#6366f1; color:#fff; }
@@ -142,7 +147,6 @@
 .coupon_green   { border-color:rgba(16,185,129,0.45);  background:linear-gradient(115deg,rgba(6,78,59,0.65) 0%,rgba(16,185,129,0.22) 100%); }
 .coupon_green .couponStub { background:rgba(16,185,129,0.18); }
 .coupon_green .couponPct  { color:#6ee7b7; }
-.coupon_green .couponIconWrap { color:#34d399; }
 .coupon_green .couponDash  { border-color:#34d399; }
 .couponCopy_green { background:rgba(16,185,129,0.25); color:#6ee7b7; }
 .couponCopy_green:hover { background:#10b981; color:#fff; }
@@ -150,7 +154,6 @@
 .coupon_amber   { border-color:rgba(245,158,11,0.45);  background:linear-gradient(115deg,rgba(120,53,15,0.65) 0%,rgba(245,158,11,0.22) 100%); }
 .coupon_amber .couponStub { background:rgba(245,158,11,0.18); }
 .coupon_amber .couponPct  { color:#fcd34d; }
-.coupon_amber .couponIconWrap { color:#fbbf24; }
 .coupon_amber .couponDash  { border-color:#f59e0b; }
 .couponCopy_amber { background:rgba(245,158,11,0.25); color:#fcd34d; }
 .couponCopy_amber:hover { background:#f59e0b; color:#fff; }
@@ -161,7 +164,7 @@
 .inner {
   position:relative; z-index:2;
   max-width:1440px; margin:0 auto; width:100%;
-  padding:3.5rem 2.5rem 3rem;
+  /* padding:3.5rem 2.5rem 3rem; */
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:3rem;
@@ -424,7 +427,7 @@
 @media (max-width:640px) {
   .headline { font-size:1.85rem; }
   .couponRow { gap:0.4rem; }
-  .coupon { min-width:140px; flex:1; }
+  .coupon { min-width:140px; }
   .statsRow { padding:0.7rem 0.5rem; }
   .statItem { padding:0 0.6rem; }
   .statValue { font-size:1.05rem; }

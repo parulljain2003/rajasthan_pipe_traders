@@ -3,21 +3,25 @@
 import React, { useState } from "react";
 import styles from "./ProductInfo.module.css";
 import type { Product } from "../../../data/products";
+import WhatsAppPopup from "../../WhatsAppPopup/WhatsAppPopup";
+import { useCartWishlist } from "../../../context/CartWishlistContext";
 
 interface ProductInfoProps {
   product: Product;
 }
 
 export default function ProductInfo({ product }: ProductInfoProps) {
+  const { toggleWishlist: ctxToggleWishlist, isWishlisted, addToCart } = useCartWishlist();
   const [selectedSizeIndex, setSelectedSizeIndex] = useState(0);
-  const [wishlist, setWishlist] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
+  const [popupOpen, setPopupOpen] = useState(false);
 
   const selectedSize = product.sizes[selectedSizeIndex];
+  const wishlist = isWishlisted(product.id);
 
   const handleAddToCart = () => {
-    setAddedToCart(true);
-    setTimeout(() => setAddedToCart(false), 2000);
+    setPopupOpen(true);
+    addToCart();
   };
 
   return (
@@ -199,7 +203,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
 
         <button
           className={`${styles.wishlistBtn} ${wishlist ? styles.wishlistActive : ""}`}
-          onClick={() => setWishlist((w) => !w)}
+          onClick={() => ctxToggleWishlist(product.id)}
           aria-label="Add to Wishlist"
         >
           <svg
@@ -250,6 +254,12 @@ export default function ProductInfo({ product }: ProductInfoProps) {
           Material: <strong>{product.material}</strong>
         </div>
       )}
+
+      <WhatsAppPopup
+        isOpen={popupOpen}
+        onClose={() => setPopupOpen(false)}
+        productName={product.name}
+      />
     </div>
   );
 }

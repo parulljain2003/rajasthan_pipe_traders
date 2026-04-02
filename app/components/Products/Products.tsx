@@ -5,6 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import './Products.css';
 import { products } from '../../data/products';
+import WhatsAppPopup from '../WhatsAppPopup/WhatsAppPopup';
+import { useCartWishlist } from '../../context/CartWishlistContext';
 
 const CATEGORIES = ['All', 'Cable Clips', 'Fasteners & Hardware', 'Electrical Accessories', 'Boxes & Plates', 'Sanitaryware'];
 
@@ -16,15 +18,23 @@ const BRAND_COLORS: Record<string, string> = {
 };
 
 export default function Products() {
-  const [wishlist, setWishlist] = useState<number[]>([]);
+  const { toggleWishlist: ctxToggleWishlist, isWishlisted, addToCart } = useCartWishlist();
   const [activeCategory, setActiveCategory] = useState('All');
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupProduct, setPopupProduct] = useState('');
 
   const toggleWishlist = (e: React.MouseEvent, id: number) => {
     e.preventDefault();
     e.stopPropagation();
-    setWishlist(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
+    ctxToggleWishlist(id);
+  };
+
+  const handleAddToCart = (e: React.MouseEvent, name: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPopupProduct(name);
+    setPopupOpen(true);
+    addToCart();
   };
 
   const filtered = activeCategory === 'All'
@@ -35,16 +45,7 @@ export default function Products() {
     <section className="products-section">
       <div className="products-container">
 
-        {/* Section Header */}
-        <div className="section-header">
-          <div className="section-label-pill">Our Catalogue</div>
-          <h2 className="section-title">
-            Featured <span className="title-accent">Products</span>
-          </h2>
-          <p className="section-subtitle">
-            Premium quality electrical, plumbing &amp; hardware solutions — direct from Ahmedabad
-          </p>
-        </div>
+        
 
         {/* Category Filter Tabs */}
         <div className="filter-tabs-wrapper">
@@ -69,7 +70,7 @@ export default function Products() {
         {/* Products Grid */}
         <div className="products-grid">
           {filtered.map((product) => {
-            const isWishlisted = wishlist.includes(product.id);
+            const wishlisted = isWishlisted(product.id);
             const brandColor = BRAND_COLORS[product.brand] ?? '#2563eb';
             const lowestPrice = product.sizes[0].withGST;
             const lowestBasic = product.sizes[0].basicPrice;
@@ -90,13 +91,13 @@ export default function Products() {
 
                   {/* Wishlist */}
                   <button
-                    className={`wishlist-btn ${isWishlisted ? 'active' : ''}`}
+                    className={`wishlist-btn ${wishlisted ? 'active' : ''}`}
                     onClick={(e) => toggleWishlist(e, product.id)}
                     aria-label="Add to Wishlist"
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24"
-                      fill={isWishlisted ? "#ff4757" : "none"}
-                      stroke={isWishlisted ? "#ff4757" : "currentColor"}
+                      fill={wishlisted ? "#ff4757" : "none"}
+                      stroke={wishlisted ? "#ff4757" : "currentColor"}
                       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
                     </svg>
@@ -112,15 +113,7 @@ export default function Products() {
                     />
                   </div>
 
-                  {/* Hover Overlay */}
-                  <div className="image-overlay">
-                    <span className="overlay-cta">
-                      View Details
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="m9 18 6-6-6-6" />
-                      </svg>
-                    </span>
-                  </div>
+                 
                 </div>
 
                 {/* Card Content */}
@@ -167,12 +160,12 @@ export default function Products() {
 
                   {/* CTA */}
                   <div className="card-cta-row">
-                    <div className="buy-now-btn">
-                      <span>Buy Now</span>
+                    <button type="button" className="buy-now-btn" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => handleAddToCart(e, product.name)}>
+                      <span>Add to cart</span>
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                         <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5zM3.14 5l1.25 5h8.22l1.25-5H3.14zM5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0z" />
                       </svg>
-                    </div>
+                    </button>
                     <div className="details-link">
                       Details
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -203,6 +196,12 @@ export default function Products() {
         </div>
 
       </div>
+
+      <WhatsAppPopup
+        isOpen={popupOpen}
+        onClose={() => setPopupOpen(false)}
+        productName={popupProduct}
+      />
     </section>
   );
 }

@@ -17,11 +17,6 @@ const coupons = [
     condition: "On 15+ Cartons / Bags",
     desc: "Mix items · complete price list",
     theme: "blue",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-      </svg>
-    ),
   },
   {
     code: "BULK9",
@@ -30,11 +25,6 @@ const coupons = [
     condition: "On 50+ Cartons / Bags",
     desc: "Mix items · complete price list",
     theme: "indigo",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-      </svg>
-    ),
   },
   {
     code: "BULK12",
@@ -43,12 +33,6 @@ const coupons = [
     condition: "On 85+ Cartons / Bags",
     desc: "Maximum bulk discount",
     theme: "green",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-        <line x1="7" y1="7" x2="7.01" y2="7" />
-      </svg>
-    ),
   },
   {
     code: "MIN25K",
@@ -57,11 +41,6 @@ const coupons = [
     condition: "Min. Order ₹25,000",
     desc: "100% advance · TO PAY freight",
     theme: "amber",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M5 12h14M12 5l7 7-7 7" />
-      </svg>
-    ),
   },
 ];
 
@@ -115,7 +94,6 @@ function CouponCard({ c }: { c: typeof coupons[0] }) {
 
       {/* stub */}
       <div className={styles.couponStub}>
-        <span className={styles.couponIconWrap}>{c.icon}</span>
         <div className={styles.couponDiscBlock}>
           <span className={styles.couponPct}>{c.discount}</span>
           <span className={styles.couponLabel}>{c.label}</span>
@@ -221,15 +199,27 @@ export default function HeroBanner() {
       {/* ══ COUPON STRIP — TOP ══ */}
       <div className={styles.couponBar}>
         <div className={styles.couponBarInner}>
-          <div className={styles.couponBarLabel}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-              <line x1="7" y1="7" x2="7.01" y2="7"/>
-            </svg>
-            Exclusive Bulk Deals
-          </div>
           <div className={styles.couponRow}>
-            {coupons.map(c => <CouponCard key={c.code} c={c} />)}
+            {/* <div className={styles.couponBarLabel}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                <line x1="7" y1="7" x2="7.01" y2="7"/>
+              </svg>
+              Exclusive Bulk Deals
+            </div> */}
+            {coupons.map((c, i) => (
+              <CouponCard key={`${c.code}-a-${i}`} c={c} />
+            ))}
+            {/* <div className={styles.couponBarLabel}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                <line x1="7" y1="7" x2="7.01" y2="7"/>
+              </svg>
+              Exclusive Bulk Deals
+            </div> */}
+            {coupons.map((c, i) => (
+              <CouponCard key={`${c.code}-b-${i}`} c={c} />
+            ))}
           </div>
         </div>
       </div>
@@ -252,16 +242,12 @@ export default function HeroBanner() {
 
           <p className={styles.subtext}>
             Established in Ahmedabad, we are a leading wholesale distributor
-            of <strong>premium electrical fittings</strong>, plumbing hardware,
-            cable management solutions &amp; 500+ industrial products.
-            Direct manufacturer pricing with <strong>Pan India delivery</strong>.
+            of <strong>premium fittings</strong>,Cable Clips, Ball Valves, Modular Boxes, Nylon Ties, Insulation Tape, Wall Plugs and more. 
+            {/* With over 25 years of industry experience, we pride ourselves on delivering top-quality products at competitive prices.
+            Direct manufacturer pricing with <strong>Pan India delivery</strong>. */}
           </p>
 
-          <div className={styles.categoryPills}>
-            {["Cable Clips", "Ball Valves", "Modular Boxes", "Nylon Ties", "Insulation Tape", "Wall Plugs"].map(c => (
-              <span key={c} className={styles.pill}>{c}</span>
-            ))}
-          </div>
+          
 
           <div className={styles.ctaRow}>
             <Link href="#products" className={styles.ctaPrimary}>
@@ -270,12 +256,7 @@ export default function HeroBanner() {
                 <path d="m9 18 6-6-6-6" />
               </svg>
             </Link>
-            <a href="tel:9327071674" className={styles.ctaSecondary}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.72h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8 9.91a16 16 0 0 0 6.09 6.09l.85-.85a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-              </svg>
-              9327071674
-            </a>
+           
           </div>
 
           <div className={styles.statsRow}>

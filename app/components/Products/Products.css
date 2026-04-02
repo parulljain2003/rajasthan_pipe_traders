@@ -3,7 +3,7 @@
 ═══════════════════════════════════════════ */
 
 .products-section {
-  padding: 5rem 0 6rem;
+  padding: 1rem 0 6rem;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 40%, #f1f5f9 100%);
   position: relative;
   overflow: hidden;
@@ -437,6 +437,8 @@
   font-weight: 700;
   padding: 0.65rem 0.9rem;
   border-radius: 10px;
+  border: none;
+  cursor: pointer;
   transition: all 0.22s ease;
 }
 
