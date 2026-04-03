@@ -27,7 +27,7 @@ interface CartWishlistState {
   cartBasicTotal: number;
   toggleWishlist: (id: number) => void;
   isWishlisted: (id: number) => boolean;
-  addToCart: (item: AddCartItemInput) => void;
+  addToCart: (item: AddCartItemInput, qty?: number) => void;
   removeFromCart: (productId: number, size: string) => void;
   updateQuantity: (productId: number, size: string, qty: number) => void;
   updateSize: (productId: number, oldSize: string, newSize: string, newPrice: number, newBasicPrice: number, newQtyPerBag: number, newPcsPerPacket: number) => void;
@@ -48,7 +48,7 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
 
   const isWishlisted = useCallback((id: number) => wishlist.includes(id), [wishlist]);
 
-  const addToCart = useCallback((item: AddCartItemInput) => {
+  const addToCart = useCallback((item: AddCartItemInput, qty: number = 1) => {
     setCartItems(prev => {
       const existing = prev.find(
         ci => ci.productId === item.productId && ci.size === item.size
@@ -56,11 +56,11 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
       if (existing) {
         return prev.map(ci =>
           ci.productId === item.productId && ci.size === item.size
-            ? { ...ci, quantity: ci.quantity + 1 }
+            ? { ...ci, quantity: qty }
             : ci
         );
       }
-      return [...prev, { ...item, quantity: 1 }];
+      return [...prev, { ...item, quantity: qty }];
     });
   }, []);
 

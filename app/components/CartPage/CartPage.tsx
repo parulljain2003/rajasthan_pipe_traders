@@ -55,9 +55,6 @@ export default function CartPage() {
         <div className={styles.pageHeader}>
           <div className={styles.titleRow}>
             <h1 className={styles.pageTitle}>My Cart</h1>
-            {cartCount > 0 && (
-              <span className={styles.cartBadge}>{cartCount} item{cartCount !== 1 ? 's' : ''}</span>
-            )}
           </div>
           {cartCount > 0 && (
             <button className={styles.clearBtn} onClick={clearCart}>
@@ -142,6 +139,7 @@ export default function CartPage() {
                 gstTotal={gstTotal}
                 grandTotal={cartTotal}
                 itemCount={cartItems.length}
+                items={cartItems}
                 onPlaceOrder={handlePlaceOrder}
               />
             </div>

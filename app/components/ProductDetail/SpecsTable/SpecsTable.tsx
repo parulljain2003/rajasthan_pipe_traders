@@ -46,7 +46,6 @@ export default function SpecsTable({ product }: SpecsTableProps) {
                   <th>Price with GST</th>
                   <th>Pkts / Master Bag</th>
                   <th>Pcs / Packet</th>
-                  <th>Note</th>
                 </tr>
               </thead>
               <tbody>
@@ -57,7 +56,6 @@ export default function SpecsTable({ product }: SpecsTableProps) {
                     <td className={styles.gstPriceCell}>₹{s.withGST.toFixed(2)}</td>
                     <td className={styles.centerCell}>{s.qtyPerBag}</td>
                     <td className={styles.centerCell}>{s.pcsPerPacket}</td>
-                    <td className={styles.noteCell}>{s.note ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>

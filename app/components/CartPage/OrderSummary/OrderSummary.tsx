@@ -1,26 +1,22 @@
 import React from 'react';
 import styles from './OrderSummary.module.css';
+import { CartItem } from '../../../context/CartWishlistContext';
 
 interface OrderSummaryProps {
   basicTotal: number;
   gstTotal: number;
   grandTotal: number;
   itemCount: number;
+  items: CartItem[];
   onPlaceOrder: () => void;
 }
-
-const DISCOUNT_TIERS = [
-  { qty: '15 cartons/bags', discount: '7%' },
-  { qty: '30 cartons/bags', discount: '8%' },
-  { qty: '50 cartons/bags', discount: '9%' },
-  { qty: '85 cartons/bags', discount: '12%' },
-];
 
 export default function OrderSummary({
   basicTotal,
   gstTotal,
   grandTotal,
   itemCount,
+  items,
   onPlaceOrder,
 }: OrderSummaryProps) {
   const minOrderMet = grandTotal >= 25000;
@@ -29,15 +25,35 @@ export default function OrderSummary({
     <div className={styles.summary}>
       <h3 className={styles.title}>Order Summary</h3>
 
-      {/* Item count */}
-      <div className={styles.row}>
-        <span className={styles.rowLabel}>Items</span>
-        <span className={styles.rowVal}>{itemCount} product{itemCount !== 1 ? 's' : ''}</span>
-      </div>
+      {/* Product list */}
+      {items.length > 0 && (
+        <div className={styles.productList}>
+          {items.map(item => {
+            const safeQty   = Number(item.quantity)        || 1;
+            const safePrice = Number(item.pricePerUnit)    || 0;
+            const lineTotal = safePrice * safeQty;
+            return (
+              <div key={`${item.productId}-${item.size}`} className={styles.productRow}>
+                <div className={styles.productInfo}>
+                  <span className={styles.productName}>{item.productName}</span>
+                  <span className={styles.productMeta}>
+                    {item.size} · {safeQty} pkt{safeQty !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <span className={styles.productTotal}>₹{lineTotal.toFixed(0)}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className={styles.divider} />
 
       {/* Price breakdown */}
+      <div className={styles.row}>
+        <span className={styles.rowLabel}>Items</span>
+        <span className={styles.rowVal}>{itemCount} product{itemCount !== 1 ? 's' : ''}</span>
+      </div>
       <div className={styles.row}>
         <span className={styles.rowLabel}>Basic price (ex-GST)</span>
         <span className={styles.rowVal}>₹{basicTotal.toFixed(2)}</span>
@@ -74,25 +90,6 @@ export default function OrderSummary({
             Min. order ₹25,000 · Add ₹{(25000 - grandTotal).toFixed(0)} more
           </>
         )}
-      </div>
-
-      {/* Discount tiers */}
-      <div className={styles.discountBox}>
-        <p className={styles.discountTitle}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-          </svg>
-          Bulk Discounts Available
-        </p>
-        <ul className={styles.discountList}>
-          {DISCOUNT_TIERS.map(tier => (
-            <li key={tier.qty} className={styles.discountItem}>
-              <span>{tier.qty}</span>
-              <span className={styles.discountPct}>{tier.discount} off</span>
-            </li>
-          ))}
-        </ul>
-        <p className={styles.discountNote}>2% only on Hitech/Tejas tapes, Ronela accessories & N-Star valves</p>
       </div>
 
       {/* Place order button */}

@@ -1,4 +1,11 @@
+.outerWrapper {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
 .wrapper {
+  flex: 1;
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -14,6 +21,41 @@
   gap: 0.75rem;
   min-width: max-content;
 }
+
+/* ── Scroll arrows ── */
+.scrollArrow {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  padding: 0;
+  align-self: center;
+}
+
+.scrollArrow:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #1e293b;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.14);
+}
+
+.scrollArrowDisabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.scrollArrowLeft  { margin-right: 0.35rem; }
+.scrollArrowRight { margin-left: 0.35rem; }
 
 .item {
   display: flex;

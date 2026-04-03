@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import styles from "./HeroBanner.module.css";
+import { useCartWishlist } from "../../context/CartWishlistContext";
+import WhatsAppPopup from "../WhatsAppPopup/WhatsAppPopup";
 /* ════════════════════════════════════
    COUPON DATA
 ════════════════════════════════════ */
@@ -48,23 +50,23 @@ const coupons = [
 const slides = [
   {
     tag: "🔥 Hot Selling", tagKey: "hot",
-    product: { slug: "cable-nail-clips",   name: "Premium Cable Nail Clips",       brand: "Hitech Square / Tejas Craft", description: "Premium quality cable nail clips for secure and neat wire management on walls and ceilings.", image: "/Cable_Clip.png",       firstWithGST: 9.30,   firstBasic: 7.88  },
+    product: { id: 1,  slug: "cable-nail-clips",  name: "Premium Cable Nail Clips",       brand: "Hitech Square / Tejas Craft", category: "Cable Clips",    description: "Premium quality cable nail clips for secure and neat wire management on walls and ceilings.", image: "/Cable_Clip.png",      firstWithGST: 9.30,   firstBasic: 7.88,  firstSize: "4MM",                       qtyPerBag: 750, pcsPerPacket: 100 },
   },
   {
     tag: "⭐ Most Popular", tagKey: "popular",
-    product: { slug: "nylon-cable-ties",   name: "Premium Nylon Cable Ties",       brand: "Hitech Square",               description: "High-tensile nylon cable ties for bundling, organising, and securing cables and wires.",    image: "/Cable_Clip.png",       firstWithGST: 10.95,  firstBasic: 9.28  },
+    product: { id: 6,  slug: "nylon-cable-ties",  name: "Premium Nylon Cable Ties",       brand: "Hitech Square",               category: "Cable Clips",    description: "High-tensile nylon cable ties for bundling, organising, and securing cables and wires.",    image: "/Cable_Clip.png",      firstWithGST: 10.95,  firstBasic: 9.28,  firstSize: "100 × 1.8mm (4\")",         qtyPerBag: 600, pcsPerPacket: 100 },
   },
   {
     tag: "🎁 Combo Products", tagKey: "combo",
-    product: { slug: "double-nail-clamp",  name: "RPT Premium Double Nail Clamps", brand: "RPT",                         description: "Heavy-duty double nail clamps providing extra-strong, vibration-resistant cable fastening.",  image: "/Nail_Cable_Clip.png",  firstWithGST: 93.17,  firstBasic: 78.96 },
+    product: { id: 2,  slug: "double-nail-clamp", name: "RPT Premium Double Nail Clamps", brand: "RPT",                         category: "Cable Clips",    description: "Heavy-duty double nail clamps providing extra-strong, vibration-resistant cable fastening.",  image: "/Nail_Cable_Clip.png", firstWithGST: 93.17,  firstBasic: 78.96, firstSize: "20MM",                      qtyPerBag: 65,  pcsPerPacket: 50  },
   },
   {
     tag: "💎 Premium Range", tagKey: "premium",
-    product: { slug: "ball-valve-white",   name: "PP Solid White Ball Valve",      brand: "N-Star",                      description: "N-Star premium quality PP solid white ball valve — short/long handle and plain/threaded.",   image: "/Cable_Clip.png",       firstWithGST: 32.97,  firstBasic: 27.94 },
+    product: { id: 9,  slug: "ball-valve-white",  name: "PP Solid White Ball Valve",      brand: "N-Star",                      category: "Sanitaryware",   description: "N-Star premium quality PP solid white ball valve — short/long handle and plain/threaded.",   image: "/Cable_Clip.png",      firstWithGST: 32.97,  firstBasic: 27.94, firstSize: "15MM (1/2\") Short Handle Plain", qtyPerBag: 216, pcsPerPacket: 36  },
   },
   {
     tag: "🏆 Bestseller", tagKey: "best",
-    product: { slug: "upvc-pipe-clamp",    name: "RPT UPVC Pipe Fitting Clamps",   brand: "RPT",                         description: "Specially designed clamps for secure fixing of UPVC pipe fittings to walls and surfaces.",   image: "/Cable_Clip.png",       firstWithGST: 167.44, firstBasic: 141.90 },
+    product: { id: 4,  slug: "upvc-pipe-clamp",   name: "RPT UPVC Pipe Fitting Clamps",   brand: "RPT",                         category: "Cable Clips",    description: "Specially designed clamps for secure fixing of UPVC pipe fittings to walls and surfaces.",   image: "/Cable_Clip.png",      firstWithGST: 167.44, firstBasic: 141.90,firstSize: "U-1/2",                     qtyPerBag: 35,  pcsPerPacket: 100 },
   },
 ];
 
@@ -137,6 +139,10 @@ function ProductCarousel() {
   const [active, setActive]   = useState(0);
   const [dir, setDir]         = useState<"l"|"r">("l");
   const [paused, setPaused]   = useState(false);
+  const [quantities, setQuantities] = useState<Record<number, number>>({});
+  const [popupOpen, setPopupOpen]   = useState(false);
+  const [popupProduct, setPopupProduct] = useState("");
+  const { addToCart } = useCartWishlist();
 
   const goTo = useCallback((i: number, d: "l"|"r" = "l") => { setDir(d); setActive(i); }, []);
   const next = useCallback(() => goTo((active + 1) % slides.length, "l"), [active, goTo]);
@@ -148,10 +154,36 @@ function ProductCarousel() {
     return () => clearInterval(t);
   }, [paused, next]);
 
+  const getQty = (p: typeof slides[0]["product"]) =>
+    quantities[p.id] ?? p.pcsPerPacket;
+  const setQty = (id: number, val: number) =>
+    setQuantities(prev => ({ ...prev, [id]: val }));
+
+  const handleAddToCart = (p: typeof slides[0]["product"]) => {
+    addToCart({
+      productId: p.id,
+      productName: p.name,
+      productSlug: p.slug,
+      productImage: p.image,
+      brand: p.brand,
+      category: p.category,
+      size: p.firstSize,
+      pricePerUnit: p.firstWithGST,
+      basicPricePerUnit: p.firstBasic,
+      qtyPerBag: p.qtyPerBag,
+      pcsPerPacket: p.pcsPerPacket,
+    }, getQty(p));
+    setPopupProduct(p.name);
+    setPopupOpen(true);
+  };
+
   const s = slides[active];
   const p = s.product;
+  const step = p.pcsPerPacket;
+  const qty  = getQty(p);
 
   return (
+    <>
     <div className={styles.carousel} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <div key={active} className={`${styles.slideCard} ${styles[`tag_${s.tagKey}`]} ${styles[dir === "l" ? "animL" : "animR"]}`}>
         <span className={`${styles.slideTag} ${styles[`tagBg_${s.tagKey}`]}`}>{s.tag}</span>
@@ -169,9 +201,40 @@ function ProductCarousel() {
             <div><span className={styles.slideFrom}>from </span><span className={styles.slidePrice}>₹{p.firstWithGST.toFixed(2)}</span><span className={styles.slideGst}> incl. GST</span></div>
             <span className={styles.slideBasic}>₹{p.firstBasic.toFixed(2)} basic</span>
           </div>
-          <Link href={`/products/${p.slug}`} className={`${styles.slideBtn} ${styles[`slideBtn_${s.tagKey}`]}`}>
-            View Product <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
-          </Link>
+
+          <div className={styles.slideCtaRow}>
+            <button
+              className={`${styles.slideBtn} ${styles[`slideBtn_${s.tagKey}`]}`}
+              onClick={() => handleAddToCart(p)}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+              Add to Cart
+            </button>
+
+            <div className={styles.slideQtyCounter} onClick={e => e.stopPropagation()}>
+              <button
+                type="button"
+                className={styles.slideQtyBtn}
+                disabled={qty <= step}
+                onClick={e => { e.stopPropagation(); setQty(p.id, Math.max(step, qty - step)); }}
+              >−</button>
+              <input
+                type="number"
+                className={styles.slideQtyInput}
+                value={qty}
+                min={step}
+                step={step}
+                onClick={e => e.stopPropagation()}
+                onChange={e => { e.stopPropagation(); const v = parseInt(e.target.value); if (!isNaN(v) && v > 0) setQty(p.id, v); }}
+                onBlur={e => { const v = parseInt(e.target.value); if (isNaN(v) || v < step) setQty(p.id, step); }}
+              />
+              <button
+                type="button"
+                className={styles.slideQtyBtn}
+                onClick={e => { e.stopPropagation(); setQty(p.id, qty + step); }}
+              >+</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -189,8 +252,14 @@ function ProductCarousel() {
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
         </button>
       </div>
-
     </div>
+
+    <WhatsAppPopup
+      isOpen={popupOpen}
+      onClose={() => setPopupOpen(false)}
+      productName={popupProduct}
+    />
+    </>
   );
 }
 
@@ -262,16 +331,6 @@ export default function HeroBanner() {
           </p>
 
           
-
-          <div className={styles.ctaRow}>
-            <Link href="#products" className={styles.ctaPrimary}>
-              Browse Products
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="m9 18 6-6-6-6" />
-              </svg>
-            </Link>
-           
-          </div>
 
           <div className={styles.statsRow}>
             {stats.map((s, i) => (

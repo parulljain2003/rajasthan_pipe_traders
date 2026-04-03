@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './CartItemCard.module.css';
@@ -22,14 +22,36 @@ const BRAND_COLORS: Record<string, string> = {
 export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCardProps) {
   const brandColor = BRAND_COLORS[item.brand] ?? '#2563eb';
 
-  // Guard against undefined/NaN values (e.g. items added before the context upgrade)
-  const safePrice = Number(item.pricePerUnit) || 0;
+  const safePrice = Number(item.pricePerUnit)     || 0;
   const safeBasic = Number(item.basicPricePerUnit) || 0;
-  const safeQty   = Number(item.quantity) || 1;
+  const safeQty   = Number(item.quantity)          || 1;
+  const step      = Number(item.pcsPerPacket)      || 1;
 
-  const lineTotal = safePrice * safeQty;
-  const lineBasic = safeBasic * safeQty;
-  const gstAmount = lineTotal - lineBasic;
+  const lineTotal  = safePrice * safeQty;
+  const lineBasic  = safeBasic * safeQty;
+  const gstAmount  = lineTotal - lineBasic;
+
+  /* Simulated MRP: 15 % above GST-inclusive wholesale price */
+  const mrpUnit  = safePrice * 1.15;
+  const mrpTotal = mrpUnit  * safeQty;
+  const saving   = mrpTotal - lineTotal;
+  const savePct  = Math.round(((mrpUnit - safePrice) / mrpUnit) * 100);
+
+  /* Local editable qty state */
+  const [inputVal, setInputVal] = useState(String(safeQty));
+
+  useEffect(() => {
+    setInputVal(String(safeQty));
+  }, [safeQty]);
+
+  const commitQty = (raw: string) => {
+    const n = parseInt(raw, 10);
+    if (!isNaN(n) && n >= 1) {
+      onUpdateQty(item.productId, item.size, n);
+    } else {
+      setInputVal(String(safeQty));
+    }
+  };
 
   return (
     <div className={styles.card}>
@@ -73,7 +95,7 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
           </button>
         </div>
 
-        {/* Size + Pack info row */}
+        {/* Size + Pack info */}
         <div className={styles.midRow}>
           <div className={styles.sizeWrap}>
             <span className={styles.fieldLabel}>Size</span>
@@ -86,23 +108,34 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
           </div>
         </div>
 
-        {/* Quantity + Price row */}
+        {/* Qty + Price row */}
         <div className={styles.bottomRow}>
+          {/* Qty with editable input */}
           <div className={styles.qtyWrap}>
             <span className={styles.fieldLabel}>Qty (packets)</span>
             <div className={styles.qtyControls}>
               <button
                 className={styles.qtyBtn}
-                onClick={() => onUpdateQty(item.productId, item.size, item.quantity - 1)}
-                disabled={item.quantity <= 1}
+                onClick={() => onUpdateQty(item.productId, item.size, Math.max(1, safeQty - step))}
+                disabled={safeQty <= step}
                 aria-label="Decrease"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14" /></svg>
               </button>
-              <span className={styles.qtyVal}>{safeQty}</span>
+              <input
+                type="number"
+                className={styles.qtyInput}
+                value={inputVal}
+                min={step}
+                step={step}
+                onChange={e => setInputVal(e.target.value)}
+                onBlur={e => commitQty(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
+                aria-label="Quantity"
+              />
               <button
                 className={styles.qtyBtn}
-                onClick={() => onUpdateQty(item.productId, item.size, item.quantity + 1)}
+                onClick={() => onUpdateQty(item.productId, item.size, safeQty + step)}
                 aria-label="Increase"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>
@@ -110,16 +143,29 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
             </div>
           </div>
 
+          {/* Price block */}
           <div className={styles.priceGroup}>
-            <div className={styles.unitPrice}>
+            <div className={styles.unitPriceBlock}>
               <span className={styles.fieldLabel}>Unit price</span>
-              <span className={styles.priceVal}>₹{safePrice.toFixed(2)}</span>
+              <div className={styles.priceStack}>
+                <span className={styles.mrpPrice}>MRP ₹{mrpUnit.toFixed(2)}</span>
+                <span className={styles.priceVal}>₹{safePrice.toFixed(2)}</span>
+              </div>
             </div>
+
             <div className={styles.lineTotal}>
               <span className={styles.fieldLabel}>Total (incl. GST)</span>
-              <span className={styles.lineTotalVal}>₹{lineTotal.toFixed(2)}</span>
+              <div className={styles.lineTotalStack}>
+                <span className={styles.lineTotalMrp}>₹{mrpTotal.toFixed(2)}</span>
+                <span className={styles.lineTotalVal}>₹{lineTotal.toFixed(2)}</span>
+              </div>
+              <span className={styles.gstNote}>GST: ₹{gstAmount.toFixed(2)}</span>
             </div>
-            <span className={styles.gstNote}>GST: ₹{gstAmount.toFixed(2)}</span>
+
+            <span className={styles.savingBadge}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+              Save {savePct}% · ₹{saving.toFixed(0)} off
+            </span>
           </div>
         </div>
       </div>

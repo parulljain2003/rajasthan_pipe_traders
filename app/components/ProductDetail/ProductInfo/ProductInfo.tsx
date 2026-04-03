@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import styles from "./ProductInfo.module.css";
 import type { Product } from "../../../data/products";
 import WhatsAppPopup from "../../WhatsAppPopup/WhatsAppPopup";
@@ -12,13 +11,14 @@ interface ProductInfoProps {
 }
 
 export default function ProductInfo({ product }: ProductInfoProps) {
-  const router = useRouter();
   const { toggleWishlist: ctxToggleWishlist, isWishlisted, addToCart } = useCartWishlist();
-  const [selectedSizeIndex, setSelectedSizeIndex] = useState(0);
+  const [selectedSizeIndex] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
+  const [quantity, setQuantity] = useState(() => product.sizes[0].pcsPerPacket);
 
   const selectedSize = product.sizes[selectedSizeIndex];
+  const step = selectedSize.pcsPerPacket;
   const wishlist = isWishlisted(product.id);
 
   const cartPayload = () => ({
@@ -36,32 +36,12 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   });
 
   const handleAddToCart = () => {
-    addToCart(cartPayload());
+    addToCart(cartPayload(), quantity);
     setPopupOpen(true);
-  };
-
-  const handleBuyNow = () => {
-    addToCart(cartPayload());
-    router.push('/cart');
   };
 
   return (
     <div className={styles.infoPanel}>
-      {/* Brand + Category */}
-      <div className={styles.metaRow}>
-        <span className={styles.brandBadge}>{product.brand}</span>
-        <span className={styles.separator}>·</span>
-        <span className={styles.categoryText}>{product.subCategory}</span>
-        {product.certifications?.map((cert) => (
-          <span key={cert} className={styles.certBadge}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M20 7 9 18l-5-5" />
-            </svg>
-            {cert}
-          </span>
-        ))}
-      </div>
-
       {/* Product Name */}
       <h1 className={styles.productName}>{product.name}</h1>
 
@@ -116,26 +96,6 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         </div>
       </div>
 
-      {/* Size Selector */}
-      <div className={styles.sectionBlock}>
-        <div className={styles.sectionLabelRow}>
-          <p className={styles.sectionLabel}>Select Size</p>
-          <span className={styles.selectedSizeTag}>{selectedSize.size}</span>
-        </div>
-        <div className={styles.sizeGrid}>
-          {product.sizes.map((s, i) => (
-            <button
-              key={i}
-              className={`${styles.sizeBtn} ${i === selectedSizeIndex ? styles.sizeBtnActive : ""}`}
-              onClick={() => setSelectedSizeIndex(i)}
-              title={`₹${s.withGST.toFixed(2)} incl. GST`}
-            >
-              {s.size}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Packing Info */}
       <div className={styles.packingCard}>
         <p className={styles.packingTitle}>
@@ -156,42 +116,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
             <span className={styles.packingValue}>{selectedSize.qtyPerBag}</span>
             <span className={styles.packingUnit}>Pkts / Master Bag</span>
           </div>
-          <div className={styles.packingDivider} />
-          <div className={styles.packingItem}>
-            <span className={styles.packingValue}>
-              {selectedSize.pcsPerPacket * selectedSize.qtyPerBag}
-            </span>
-            <span className={styles.packingUnit}>Pcs / Master Bag</span>
-          </div>
         </div>
-      </div>
-
-      {/* Discount Tiers */}
-      <div className={styles.discountCard}>
-        <p className={styles.discountTitle}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-            <path d="M2 17l10 5 10-5M2 12l10 5 10-5" />
-          </svg>
-          Bulk Discount Structure
-        </p>
-        <div className={styles.discountTiers}>
-          {product.discountTiers.map((tier, i) => (
-            <div key={i} className={styles.discountTier}>
-              <span className={styles.discountQty}>{tier.qty}</span>
-              <span className={styles.discountPct}>{tier.discount} OFF</span>
-            </div>
-          ))}
-        </div>
-        {product.note && (
-          <p className={styles.discountNote}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4M12 8h.01" />
-            </svg>
-            {product.note}
-          </p>
-        )}
       </div>
 
       {/* Action Buttons */}
@@ -218,9 +143,34 @@ export default function ProductInfo({ product }: ProductInfoProps) {
           )}
         </button>
 
-        <button className={styles.buyNowBtn} onClick={handleBuyNow}>
-          Buy Now
-        </button>
+        <div className={styles.qtyCounter}>
+          <button
+            type="button"
+            className={styles.qtyCounterBtn}
+            disabled={quantity <= step}
+            onClick={() => setQuantity(q => Math.max(step, q - step))}
+          >−</button>
+          <input
+            type="number"
+            className={styles.qtyCounterInput}
+            value={quantity}
+            min={step}
+            step={step}
+            onChange={e => {
+              const v = parseInt(e.target.value);
+              if (!isNaN(v) && v > 0) setQuantity(v);
+            }}
+            onBlur={e => {
+              const v = parseInt(e.target.value);
+              if (isNaN(v) || v < step) setQuantity(step);
+            }}
+          />
+          <button
+            type="button"
+            className={styles.qtyCounterBtn}
+            onClick={() => setQuantity(q => q + step)}
+          >+</button>
+        </div>
 
         <button
           className={`${styles.wishlistBtn} ${wishlist ? styles.wishlistActive : ""}`}
@@ -238,14 +188,6 @@ export default function ProductInfo({ product }: ProductInfoProps) {
             <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
           </svg>
         </button>
-      </div>
-
-      {/* Min Order Note */}
-      <div className={styles.minOrderNote}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        </svg>
-        Minimum Order: {product.minOrder} · Subject to Ahmedabad Jurisdiction
       </div>
 
       {/* Quick Features */}

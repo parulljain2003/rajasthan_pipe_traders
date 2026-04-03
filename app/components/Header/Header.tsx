@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import './Header.css';
 import { searchData } from '../../data/searchData';
 import { useCartWishlist } from '../../context/CartWishlistContext';
@@ -72,7 +72,24 @@ type SearchResult = SearchEntry;
 
 const Header = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileCatOpen, setMobileCatOpen] = useState(false);
+
+  useEffect(() => {
+    setIsMegaMenuOpen(false);
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileMenuOpen]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -192,7 +209,7 @@ const Header = () => {
                         {group.items.map((item, i) => (
                           <li key={i} className="product-item">
                             {item.slug ? (
-                              <Link href={`/products/${item.slug}`}>{item.name}</Link>
+                              <Link href={`/products/${item.slug}`} onClick={() => setIsMegaMenuOpen(false)}>{item.name}</Link>
                             ) : (
                               <a href="#" onClick={e => e.preventDefault()} className="coming-soon-link">
                                 {item.name}
@@ -229,7 +246,87 @@ const Header = () => {
             </svg>
             {cartCount > 0 && <span className="header-badge">{cartCount}</span>}
           </Link>
+
+          {/* Hamburger — mobile only */}
+          <button
+            className="hamburger-btn"
+            onClick={() => setMobileMenuOpen(o => !o)}
+            aria-label="Toggle menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            ) : (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            )}
+          </button>
         </div>
+
+        {/* Mobile menu overlay */}
+        {mobileMenuOpen && (
+          <div className="mobile-menu-overlay" onClick={() => setMobileMenuOpen(false)}>
+            <nav className="mobile-menu" onClick={e => e.stopPropagation()}>
+              <div className="mobile-menu-header">
+                <span className="mobile-menu-title">Menu</span>
+                <button className="mobile-menu-close" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+
+              <div className="mobile-menu-search">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  className="mobile-search-input"
+                  value={searchQuery}
+                  onChange={e => { setSearchQuery(e.target.value); handleSearch(e.target.value); }}
+                  onKeyDown={e => { if (e.key === 'Enter' && searchResults.length > 0) { navigateToProduct(searchResults[0]); setMobileMenuOpen(false); } }}
+                />
+              </div>
+
+              {searchResults.length > 0 && (
+                <ul className="mobile-search-results">
+                  {searchResults.slice(0, 5).map((result, i) => (
+                    <li key={i} onMouseDown={() => { navigateToProduct(result); setMobileMenuOpen(false); }} className="mobile-search-result-item">
+                      <span>{result.name}</span>
+                      <span className="mobile-result-category">{result.category}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <ul className="mobile-nav-links">
+                <li><Link href="/" className="mobile-nav-link">Home</Link></li>
+                <li>
+                  <button className="mobile-nav-link mobile-cat-toggle" onClick={() => setMobileCatOpen(o => !o)}>
+                    Category
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: mobileCatOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><path d="m6 9 6 6 6-6"/></svg>
+                  </button>
+                  {mobileCatOpen && (
+                    <div className="mobile-cat-list">
+                      {coreProducts.map((group, gi) => (
+                        <div key={gi} className="mobile-cat-group">
+                          <span className="mobile-cat-group-title">{group.category}</span>
+                          {group.items.filter(item => item.slug).map((item, ii) => (
+                            <Link key={ii} href={`/products/${item.slug}`} className="mobile-cat-link" onClick={() => setMobileMenuOpen(false)}>
+                              {item.name}
+                            </Link>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </li>
+                <li><Link href="/about" className="mobile-nav-link">About Us</Link></li>
+                <li><Link href="/blogs" className="mobile-nav-link">Blogs</Link></li>
+                <li><Link href="/contact" className="mobile-nav-link">Contact Us</Link></li>
+                <li><Link href="/cart" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
+                  Cart {cartCount > 0 && <span className="mobile-cart-badge">{cartCount}</span>}
+                </Link></li>
+              </ul>
+            </nav>
+          </div>
+        )}
 
         {/* Search */}
         <div className="search-section" ref={searchRef}>

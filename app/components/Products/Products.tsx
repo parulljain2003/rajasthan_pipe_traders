@@ -22,6 +22,13 @@ export default function Products() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupProduct, setPopupProduct] = useState('');
+  const [quantities, setQuantities] = useState<Record<number, number>>({});
+
+  const getQty = (product: Product) =>
+    quantities[product.id] ?? product.sizes[0].pcsPerPacket;
+
+  const setQty = (productId: number, val: number) =>
+    setQuantities(prev => ({ ...prev, [productId]: val }));
 
   const toggleWishlist = (e: React.MouseEvent, id: number) => {
     e.preventDefault();
@@ -44,7 +51,7 @@ export default function Products() {
       basicPricePerUnit: product.sizes[0].basicPrice,
       qtyPerBag: product.sizes[0].qtyPerBag,
       pcsPerPacket: product.sizes[0].pcsPerPacket,
-    });
+    }, getQty(product));
     setPopupProduct(product.name);
     setPopupOpen(true);
   };
@@ -178,11 +185,49 @@ export default function Products() {
                         <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5zM3.14 5l1.25 5h8.22l1.25-5H3.14zM5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0z" />
                       </svg>
                     </button>
-                    <div className="details-link">
-                      Details
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="m9 18 6-6-6-6" />
-                      </svg>
+                    <div
+                      className="qty-counter"
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); }}
+                    >
+                      <button
+                        type="button"
+                        className="qty-counter-btn"
+                        disabled={getQty(product) <= product.sizes[0].pcsPerPacket}
+                        onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
+                        onClick={e => {
+                          e.preventDefault(); e.stopPropagation();
+                          const step = product.sizes[0].pcsPerPacket;
+                          setQty(product.id, Math.max(step, getQty(product) - step));
+                        }}
+                      >−</button>
+                      <input
+                        type="number"
+                        className="qty-counter-input"
+                        value={getQty(product)}
+                        min={product.sizes[0].pcsPerPacket}
+                        step={product.sizes[0].pcsPerPacket}
+                        onChange={e => {
+                          e.stopPropagation();
+                          const v = parseInt(e.target.value);
+                          if (!isNaN(v) && v > 0) setQty(product.id, v);
+                        }}
+                        onBlur={e => {
+                          const step = product.sizes[0].pcsPerPacket;
+                          const v = parseInt(e.target.value);
+                          if (isNaN(v) || v < step) setQty(product.id, step);
+                        }}
+                        onClick={e => { e.preventDefault(); e.stopPropagation(); }}
+                      />
+                      <button
+                        type="button"
+                        className="qty-counter-btn"
+                        onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
+                        onClick={e => {
+                          e.preventDefault(); e.stopPropagation();
+                          const step = product.sizes[0].pcsPerPacket;
+                          setQty(product.id, getQty(product) + step);
+                        }}
+                      >+</button>
                     </div>
                   </div>
                 </div>

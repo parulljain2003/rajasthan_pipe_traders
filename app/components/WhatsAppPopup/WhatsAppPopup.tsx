@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import styles from "./WhatsAppPopup.module.css";
+
+const STORAGE_KEY = "rpt_customer_phone";
 
 interface WhatsAppPopupProps {
   isOpen: boolean;
@@ -10,29 +13,48 @@ interface WhatsAppPopupProps {
 }
 
 export default function WhatsAppPopup({ isOpen, onClose, productName }: WhatsAppPopupProps) {
-  const [phone, setPhone] = useState("");
-  const [error, setError] = useState("");
+  const [phone, setPhone]       = useState("");
+  const [error, setError]       = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [savedPhone, setSavedPhone] = useState<string | null>(null);
+  const inputRef   = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setPhone("");
-      setError("");
-      setSubmitted(false);
-      setTimeout(() => inputRef.current?.focus(), 150);
+      const stored = localStorage.getItem(STORAGE_KEY);
+      setSavedPhone(stored);
+
+      if (stored) {
+        /* Already have a number — skip form, go straight to success */
+        setSubmitted(true);
+      } else {
+        setPhone("");
+        setError("");
+        setSubmitted(false);
+        setTimeout(() => inputRef.current?.focus(), 150);
+      }
+
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
     }
+    return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handleEsc);
     return () => document.removeEventListener("keydown", handleEsc);
   }, [isOpen, onClose]);
+
+  /* Auto-close after 2 s when in success state */
+  useEffect(() => {
+    if (!submitted || !isOpen) return;
+    const t = setTimeout(onClose, 2000);
+    return () => clearTimeout(t);
+  }, [submitted, isOpen, onClose]);
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === overlayRef.current) onClose();
@@ -43,16 +65,12 @@ export default function WhatsAppPopup({ isOpen, onClose, productName }: WhatsApp
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const digits = phone.replace(/\D/g, "");
-    if (!digits) {
-      setError("Please enter your mobile number");
-      return;
-    }
-    if (!validatePhone(phone)) {
-      setError("Please enter a valid 10-digit mobile number");
-      return;
-    }
+    if (!digits) { setError("Please enter your mobile number"); return; }
+    if (!validatePhone(phone)) { setError("Please enter a valid 10-digit mobile number"); return; }
+
+    localStorage.setItem(STORAGE_KEY, digits);
+    setSavedPhone(digits);
     setSubmitted(true);
-    setTimeout(() => onClose(), 2000);
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,9 +79,19 @@ export default function WhatsAppPopup({ isOpen, onClose, productName }: WhatsApp
     if (error) setError("");
   };
 
+  /* Allow user to change their saved number */
+  const handleChangeNumber = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setSavedPhone(null);
+    setSubmitted(false);
+    setPhone("");
+    setError("");
+    setTimeout(() => inputRef.current?.focus(), 150);
+  };
+
   if (!isOpen) return null;
 
-  return (
+  const content = (
     <div className={styles.overlay} ref={overlayRef} onClick={handleOverlayClick}>
       <div className={styles.popup}>
         <button className={styles.closeBtn} onClick={onClose} aria-label="Close">
@@ -81,8 +109,8 @@ export default function WhatsAppPopup({ isOpen, onClose, productName }: WhatsApp
               </svg>
             </div>
 
-            
-            <p className={styles.desc}>Enter your mobile number to confirm your enquiry.</p>
+            {productName && <p className={styles.productTag}>{productName}</p>}
+            <p className={styles.desc}>Enter your mobile number to confirm your order.</p>
 
             <form onSubmit={handleSubmit} className={styles.form}>
               <div className={styles.inputGroup}>
@@ -100,9 +128,14 @@ export default function WhatsAppPopup({ isOpen, onClose, productName }: WhatsApp
               </div>
               {error && <p className={styles.error}>{error}</p>}
               <button type="submit" className={styles.submitBtn}>
-                Confirm
+                Add to Cart
               </button>
             </form>
+
+            <p className={styles.privacy}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Saved locally · never shared
+            </p>
           </>
         ) : (
           <div className={styles.success}>
@@ -111,13 +144,25 @@ export default function WhatsAppPopup({ isOpen, onClose, productName }: WhatsApp
                 <path d="M20 7 9 18l-5-5" />
               </svg>
             </div>
-            <h2 className={styles.title}>Product Added to Cart!</h2>
+            <h2 className={styles.title}>Added to Cart!</h2>
             <p className={styles.desc}>
-              {productName ? <><strong>{productName}</strong> has been added to your cart.</> : <>Product has been added to your cart.</>}
+              {productName
+                ? <><strong>{productName}</strong> has been added to your cart.</>
+                : <>Product has been added to your cart.</>}
             </p>
+            {savedPhone && (
+              <p className={styles.savedNote}>
+                Order linked to +91 {savedPhone}
+                <button className={styles.changeNumBtn} onClick={handleChangeNumber}>
+                  Change
+                </button>
+              </p>
+            )}
           </div>
         )}
       </div>
     </div>
   );
+
+  return createPortal(content, document.body);
 }

@@ -23,7 +23,10 @@ export default function FilterSidebar({
   isOpen,
   onClose,
 }: FilterSidebarProps) {
-  const allBrands = Array.from(new Set(products.map(p => p.brand))).sort();
+  const BRAND_FILTERS = [
+    { label: 'Hitech Square', value: 'Hitech Square' },
+    { label: 'Tejas Craft',   value: 'Hitech Square / Tejas Craft' },
+  ];
   const allPrices = products.map(p => p.sizes[0].withGST);
   const globalMin = Math.floor(Math.min(...allPrices));
   const globalMax = Math.ceil(Math.max(...allPrices));
@@ -67,17 +70,17 @@ export default function FilterSidebar({
           <div className={styles.filterGroup}>
             <h4 className={styles.groupTitle}>Brand / Company</h4>
             <div className={styles.checkList}>
-              {allBrands.map(brand => {
-                const count = products.filter(p => p.brand === brand).length;
+              {BRAND_FILTERS.map(({ label, value }) => {
+                const count = products.filter(p => p.brand === value).length;
                 return (
-                  <label key={brand} className={styles.checkItem}>
+                  <label key={value} className={styles.checkItem}>
                     <input
                       type="checkbox"
-                      checked={selectedBrands.has(brand)}
-                      onChange={() => onBrandToggle(brand)}
+                      checked={selectedBrands.has(value)}
+                      onChange={() => onBrandToggle(value)}
                       className={styles.checkbox}
                     />
-                    <span className={styles.checkLabel}>{brand}</span>
+                    <span className={styles.checkLabel}>{label}</span>
                     <span className={styles.checkCount}>{count}</span>
                   </label>
                 );
