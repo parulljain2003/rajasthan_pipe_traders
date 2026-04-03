@@ -452,6 +452,71 @@
   border: 1px solid #f1f5f9;
 }
 
+/* ── Master Bag counter (cable-nail-clips only) ── */
+.masterBagRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1.5px solid #7dd3fc;
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+}
+
+.masterBagLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  font-size: 0.88rem;
+  color: #0c4a6e;
+}
+
+.masterBagLabel svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #0284c7;
+}
+
+.masterBagLabel strong {
+  font-weight: 800;
+  color: #075985;
+}
+
+.masterBagHint {
+  display: block;
+  font-style: normal;
+  font-size: 0.75rem;
+  color: #0369a1;
+  margin-top: 0.15rem;
+  font-weight: 500;
+}
+
+.masterBagControls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.masterBagCartBtn {
+  background: linear-gradient(135deg, #49a2c8 0%, #66b0d8 100%) !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35) !important;
+  flex: 1;
+  font-size: 0.88rem !important;
+  height: 46px !important;
+}
+
+.masterBagCartBtn:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%) !important;
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45) !important;
+}
+
+.masterBagUnit {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0369a1;
+  white-space: nowrap;
+}
+
 /* ── Features ── */
 .featuresBlock {
   border-top: 1px solid #f1f5f9;

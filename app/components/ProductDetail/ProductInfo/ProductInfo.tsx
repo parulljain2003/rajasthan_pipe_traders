@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./ProductInfo.module.css";
 import type { Product } from "../../../data/products";
 import WhatsAppPopup from "../../WhatsAppPopup/WhatsAppPopup";
@@ -11,15 +12,20 @@ interface ProductInfoProps {
 }
 
 export default function ProductInfo({ product }: ProductInfoProps) {
+  const router = useRouter();
   const { toggleWishlist: ctxToggleWishlist, isWishlisted, addToCart } = useCartWishlist();
   const [selectedSizeIndex] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
   const [quantity, setQuantity] = useState(() => product.sizes[0].pcsPerPacket);
 
+  /* Master-bag counter — only used for cable-nail-clips */
+  const [masterBags, setMasterBags] = useState(1);
+
   const selectedSize = product.sizes[selectedSizeIndex];
   const step = selectedSize.pcsPerPacket;
   const wishlist = isWishlisted(product.id);
+  const showMasterBagCounter = product.slug === "cable-nail-clips";
 
   const cartPayload = () => ({
     productId: product.id,
@@ -38,6 +44,12 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const handleAddToCart = () => {
     addToCart(cartPayload(), quantity);
     setPopupOpen(true);
+  };
+
+  const handleMasterBagAddToCart = () => {
+    const totalPkts = masterBags * selectedSize.qtyPerBag;
+    addToCart(cartPayload(), totalPkts);
+    router.push("/cart");
   };
 
   return (
@@ -189,6 +201,69 @@ export default function ProductInfo({ product }: ProductInfoProps) {
           </svg>
         </button>
       </div>
+
+      {/* Master Bag counter — cable-nail-clips only */}
+      {showMasterBagCounter && (
+        <div className={styles.masterBagRow}>
+          <div className={styles.masterBagLabel}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="3.29 7 12 12 20.71 7" />
+              <line x1="12" y1="22" x2="12" y2="12" />
+            </svg>
+            <span>
+              Order by <strong>Master Bag</strong>
+              <em className={styles.masterBagHint}>
+                1 bag = {selectedSize.qtyPerBag} pkts · Total: {masterBags * selectedSize.qtyPerBag} pkts
+              </em>
+            </span>
+          </div>
+
+          <div className={styles.masterBagControls}>
+            <button
+              className={`${styles.addToCartBtn} ${styles.masterBagCartBtn}`}
+              onClick={handleMasterBagAddToCart}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" />
+                <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+              </svg>
+              Add to Cart
+            </button>
+
+            <div className={styles.qtyCounter}>
+              <button
+                type="button"
+                className={styles.qtyCounterBtn}
+                disabled={masterBags <= 1}
+                onClick={() => setMasterBags(n => Math.max(1, n - 1))}
+              >−</button>
+              <input
+                type="number"
+                className={styles.qtyCounterInput}
+                value={masterBags}
+                min={1}
+                step={1}
+                onChange={e => {
+                  const v = parseInt(e.target.value);
+                  if (!isNaN(v) && v >= 1) setMasterBags(v);
+                }}
+                onBlur={e => {
+                  const v = parseInt(e.target.value);
+                  if (isNaN(v) || v < 1) setMasterBags(1);
+                }}
+              />
+              <button
+                type="button"
+                className={styles.qtyCounterBtn}
+                onClick={() => setMasterBags(n => n + 1)}
+              >+</button>
+            </div>
+
+            <span className={styles.masterBagUnit}>bags</span>
+          </div>
+        </div>
+      )}
 
       {/* Quick Features */}
       {product.features.length > 0 && (
