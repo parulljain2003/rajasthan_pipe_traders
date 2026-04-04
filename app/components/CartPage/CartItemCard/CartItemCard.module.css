@@ -1,5 +1,6 @@
 .card {
   display: flex;
+  align-items: flex-start;
   gap: 1.25rem;
   background: #fff;
   border: 1px solid #e2e8f0;
@@ -15,8 +16,8 @@
 /* ── Image ── */
 .imageWrap {
   position: relative;
-  width: 96px;
-  height: 96px;
+  width: 150px;
+  height: 200px;
   border-radius: 12px;
   background: #f8fafc;
   border: 1px solid #f1f5f9;
@@ -24,16 +25,15 @@
   overflow: hidden;
 }
 
-/* ── Info ── */
-.info {
+/* ── Column 1: product details ── */
+.detailsCol {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  min-width: 0;
 }
 
-/* ── Top row ── */
 .topRow {
   display: flex;
   align-items: flex-start;
@@ -102,21 +102,6 @@
   color: #dc2626;
 }
 
-/* ── Mid row ── */
-.midRow {
-  display: flex;
-  align-items: flex-end;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.sizeWrap,
-.packInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
 .fieldLabel {
   font-size: 0.65rem;
   font-weight: 600;
@@ -125,63 +110,107 @@
   letter-spacing: 0.04em;
 }
 
-.sizeSelect {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 0.35rem 0.6rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #334155;
-  cursor: pointer;
-  outline: none;
-  max-width: 180px;
-  transition: border-color 0.15s;
-}
-
-.sizeSelect:focus {
-  border-color: #93c5fd;
-}
-
-.sizeStatic {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #334155;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 0.35rem 0.6rem;
-}
-
-.packVal {
-  font-size: 0.75rem;
-  color: #64748b;
-  font-weight: 500;
-}
-
-/* ── Bottom row ── */
-.bottomRow {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.qtyWrap {
-  display: flex;
+.detailsQtyWrap {
+  /* display: flex; */
+  
   flex-direction: column;
   gap: 0.3rem;
+  align-items: flex-start;
+}
+
+/* ── Column 2: pricing (3 rows) ── */
+.pricingCol {
+  flex-shrink: 0;
+  width: min(100%, 280px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding-left: 1.25rem;
+  border-left: 1px solid #f1f5f9;
+}
+
+.pricingRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.pricingLabel {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pricingValues {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.45rem 0.65rem;
+}
+
+.strike {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.priceMain {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.totalMain {
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.gstNote {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  width: 100%;
+}
+
+.qtySummary {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.35;
 }
 
 .qtyControls {
   display: flex;
-  align-items: center;
-  gap: 0;
+  justify-content: center;
   border: 1px solid #e2e8f0;
   border-radius: 9px;
   overflow: hidden;
   width: fit-content;
+  max-width: 100%;
+  align-self: center;
+}
+
+.qtyControlsInner {
+  display: flex;
+  align-items: stretch;
+  width: max-content;
+  max-width: 100%;
+}
+
+.qtyValueCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0 0.35rem 0 0.05rem;
+  border-left: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  background: #fff;
 }
 
 .qtyBtn {
@@ -207,95 +236,44 @@
   cursor: not-allowed;
 }
 
-/* Editable qty input */
 .qtyInput {
-  width: 54px;
+  width: auto;
+  min-width: 1.35rem;
+  max-width: 4.5rem;
+  flex: 0 1 auto;
   height: 32px;
   text-align: center;
   font-size: 0.88rem;
   font-weight: 700;
   color: #0f172a;
   border: none;
-  border-left: 1px solid #e2e8f0;
-  border-right: 1px solid #e2e8f0;
-  background: #fff;
-  padding: 0 0.25rem;
+  background: transparent;
+  padding: 0 0.15rem;
   outline: none;
+  appearance: textfield;
   -moz-appearance: textfield;
 }
-.qtyInput::-webkit-outer-spin-button,
-.qtyInput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.qtyInput:focus { background: #eff6ff; color: #1d4ed8; }
 
-.qtyPiecesLabel {
-  font-size: 0.68rem;
-  font-weight: 600;
+.qtyInput::-webkit-outer-spin-button,
+.qtyInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.qtyInput:focus {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.qtyPc {
+  font-size: 0.65rem;
+  font-weight: 700;
   color: #64748b;
-  padding: 0 0.5rem 0 0.15rem;
   white-space: nowrap;
   flex-shrink: 0;
-  background: #fff;
+  line-height: 1;
 }
 
-/* Price group */
-.priceGroup {
-  display: flex;
-  align-items: flex-end;
-  gap: 1.25rem;
-  flex-wrap: wrap;
-}
-
-.unitPriceBlock,
-.lineTotal {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  align-items: flex-end;
-}
-
-.priceStack,
-.lineTotalStack {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.05rem;
-}
-
-/* MRP (strikethrough) */
-.mrpPrice {
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: #94a3b8;
-  text-decoration: line-through;
-}
-
-.lineTotalMrp {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #94a3b8;
-  text-decoration: line-through;
-}
-
-.priceVal {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.lineTotalVal {
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.gstNote {
-  font-size: 0.65rem;
-  color: #94a3b8;
-  align-self: flex-end;
-  margin-top: 0.05rem;
-}
-
-/* Savings badge */
 .savingBadge {
   display: inline-flex;
   align-items: center;
@@ -308,10 +286,32 @@
   border-radius: 20px;
   border: 1px solid #86efac;
   white-space: nowrap;
-  align-self: flex-end;
+  width: fit-content;
+  margin-top: 0.15rem;
 }
 
-/* ── Mobile ── */
+@media (max-width: 900px) {
+  .card {
+    flex-wrap: wrap;
+  }
+
+  .detailsCol {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .pricingCol {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: none;
+    padding-left: 0;
+    border-left: none;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 1rem;
+    margin-top: 0.25rem;
+  }
+}
+
 @media (max-width: 640px) {
   .card {
     flex-direction: column;
@@ -323,19 +323,12 @@
     height: 80px;
   }
 
-  .midRow {
-    gap: 1rem;
+  .detailsCol {
+    width: 100%;
   }
 
-  .priceGroup {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .unitPrice,
-  .lineTotal {
-    align-items: flex-start;
+  .pricingCol {
+    width: 100%;
   }
 }
 
@@ -355,21 +348,24 @@
     font-size: 0.82rem;
   }
 
-  /* Larger touch targets for qty buttons */
   .qtyBtn {
     width: 40px;
     height: 40px;
   }
 
+  .qtyValueCell {
+    height: 40px;
+  }
+
   .qtyInput {
-    width: 48px;
     height: 40px;
     font-size: 0.85rem;
+    min-width: 1.75rem;
+    max-width: 4.5rem;
   }
 
   .removeBtn {
     padding: 0.4rem 0.65rem;
-    font-size: 0.7rem;
     min-height: 36px;
   }
 

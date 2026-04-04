@@ -150,45 +150,50 @@ export default function ProductGrid({ products }: ProductGridProps) {
                   className={styles.qtyCounter}
                   onClick={e => { e.preventDefault(); e.stopPropagation(); }}
                 >
-                  <button
-                    type="button"
-                    className={styles.qtyCounterBtn}
-                    disabled={getQty(product) <= 0}
-                    onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
-                    onClick={e => {
-                      e.preventDefault(); e.stopPropagation();
-                      const step = product.sizes[0].pcsPerPacket;
-                      setQty(product.id, Math.max(0, getQty(product) - step));
-                    }}
-                  >−</button>
-                  <input
-                    type="number"
-                    className={styles.qtyCounterInput}
-                    value={getQty(product)}
-                    min={0}
-                    step={product.sizes[0].pcsPerPacket}
-                    onChange={e => {
-                      e.stopPropagation();
-                      const v = parseInt(e.target.value);
-                      if (!isNaN(v) && v >= 0) setQty(product.id, v);
-                    }}
-                    onBlur={e => {
-                      const v = parseInt(e.target.value);
-                      if (isNaN(v) || v < 0) setQty(product.id, 0);
-                    }}
-                    onClick={e => { e.preventDefault(); e.stopPropagation(); }}
-                  />
-                  <button
-                    type="button"
-                    className={styles.qtyCounterBtn}
-                    onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
-                    onClick={e => {
-                      e.preventDefault(); e.stopPropagation();
-                      const step = product.sizes[0].pcsPerPacket;
-                      setQty(product.id, getQty(product) + step);
-                    }}
-                  >+</button>
-                  <span className={styles.qtyPiecesSuffix} aria-hidden>pieces</span>
+                  <div className={styles.qtyCounterInner}>
+                    <button
+                      type="button"
+                      className={styles.qtyCounterBtn}
+                      disabled={getQty(product) <= 0}
+                      onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
+                      onClick={e => {
+                        e.preventDefault(); e.stopPropagation();
+                        const step = product.sizes[0].pcsPerPacket;
+                        setQty(product.id, Math.max(0, getQty(product) - step));
+                      }}
+                    >−</button>
+                    <div className={styles.qtyValueCell}>
+                      <input
+                        type="number"
+                        className={styles.qtyCounterInput}
+                        value={getQty(product)}
+                        min={0}
+                        step={product.sizes[0].pcsPerPacket}
+                        onChange={e => {
+                          e.stopPropagation();
+                          const v = parseInt(e.target.value);
+                          if (!isNaN(v) && v >= 0) setQty(product.id, v);
+                        }}
+                        onBlur={e => {
+                          const v = parseInt(e.target.value);
+                          if (isNaN(v) || v < 0) setQty(product.id, 0);
+                        }}
+                        onClick={e => { e.preventDefault(); e.stopPropagation(); }}
+                        aria-label="Quantity in pc"
+                      />
+                      <span className={styles.qtyPc} aria-hidden>pc</span>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.qtyCounterBtn}
+                      onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
+                      onClick={e => {
+                        e.preventDefault(); e.stopPropagation();
+                        const step = product.sizes[0].pcsPerPacket;
+                        setQty(product.id, getQty(product) + step);
+                      }}
+                    >+</button>
+                  </div>
                 </div>
                 <button
                   type="button"

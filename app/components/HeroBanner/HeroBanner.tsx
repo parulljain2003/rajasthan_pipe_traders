@@ -218,28 +218,33 @@ function ProductCarousel() {
 
           <div className={styles.slideCtaRow}>
             <div className={styles.slideQtyCounter} onClick={e => e.stopPropagation()}>
-              <button
-                type="button"
-                className={styles.slideQtyBtn}
-                disabled={qty <= 0}
-                onClick={e => { e.stopPropagation(); setQty(p.id, Math.max(0, qty - step)); }}
-              >−</button>
-              <input
-                type="number"
-                className={styles.slideQtyInput}
-                value={qty}
-                min={0}
-                step={step}
-                onClick={e => e.stopPropagation()}
-                onChange={e => { e.stopPropagation(); const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) setQty(p.id, v); }}
-                onBlur={e => { const v = parseInt(e.target.value); if (isNaN(v) || v < 0) setQty(p.id, 0); }}
-              />
-              <button
-                type="button"
-                className={styles.slideQtyBtn}
-                onClick={e => { e.stopPropagation(); setQty(p.id, qty + step); }}
-              >+</button>
-              <span className={styles.slideQtyPieces} aria-hidden>pieces</span>
+              <div className={styles.slideQtyInner}>
+                <button
+                  type="button"
+                  className={styles.slideQtyBtn}
+                  disabled={qty <= 0}
+                  onClick={e => { e.stopPropagation(); setQty(p.id, Math.max(0, qty - step)); }}
+                >−</button>
+                <div className={styles.slideQtyValueCell}>
+                  <input
+                    type="number"
+                    className={styles.slideQtyInput}
+                    value={qty}
+                    min={0}
+                    step={step}
+                    onClick={e => e.stopPropagation()}
+                    onChange={e => { e.stopPropagation(); const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) setQty(p.id, v); }}
+                    onBlur={e => { const v = parseInt(e.target.value); if (isNaN(v) || v < 0) setQty(p.id, 0); }}
+                    aria-label="Quantity in pc"
+                  />
+                  <span className={styles.slideQtyPc} aria-hidden>pc</span>
+                </div>
+                <button
+                  type="button"
+                  className={styles.slideQtyBtn}
+                  onClick={e => { e.stopPropagation(); setQty(p.id, qty + step); }}
+                >+</button>
+              </div>
             </div>
 
             <button

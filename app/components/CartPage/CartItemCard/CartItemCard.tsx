@@ -20,6 +20,10 @@ const BRAND_COLORS: Record<string, string> = {
   'Hitech Square': '#7c3aed',
 };
 
+function formatPieces(n: number) {
+  return n.toLocaleString('en-IN');
+}
+
 export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCardProps) {
   const brandColor = BRAND_COLORS[item.brand] ?? '#2563eb';
 
@@ -29,16 +33,18 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
   const step      = Number(item.pcsPerPacket)      || 1;
 
   const lineTotal  = safePrice * safeQty;
-  const lineBasic  = safeBasic * safeQty;
-  const gstAmount  = lineTotal - lineBasic;
+  const gstAmount  = lineTotal - safeBasic * safeQty;
 
-  /* Simulated MRP: 15 % above GST-inclusive wholesale price */
   const mrpUnit  = safePrice * 1.15;
-  const mrpTotal = mrpUnit  * safeQty;
+  const mrpTotal = mrpUnit * safeQty;
   const saving   = mrpTotal - lineTotal;
-  const savePct  = Math.round(((mrpUnit - safePrice) / mrpUnit) * 100);
+  const savePct  = mrpUnit > 0 ? Math.round(((mrpUnit - safePrice) / mrpUnit) * 100) : 0;
 
-  /* Local editable qty state */
+  const packetCount = step > 0 ? safeQty / step : 0;
+  const packetLabel = Number.isInteger(packetCount)
+    ? String(packetCount)
+    : packetCount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
   const [inputVal, setInputVal] = useState(String(safeQty));
 
   useEffect(() => {
@@ -56,7 +62,6 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
 
   return (
     <div className={styles.card}>
-      {/* Image */}
       <Link href={`/products/${item.productSlug}`} className={styles.imageWrap}>
         <Image
           src={item.productImage}
@@ -67,8 +72,8 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
         />
       </Link>
 
-      {/* Info */}
-      <div className={styles.info}>
+      {/* Column 1 — product details */}
+      <div className={styles.detailsCol}>
         <div className={styles.topRow}>
           <div className={styles.nameGroup}>
             {shouldShowBrandBadge(item.brand) && (
@@ -98,21 +103,12 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
           </button>
         </div>
 
-        {/* Pack info */}
-        <div className={styles.midRow}>
-          <div className={styles.packInfo}>
-            <span className={styles.fieldLabel}>Pack info</span>
-            <span className={styles.packVal}>{item.pcsPerPacket} pcs/pkt · {item.qtyPerBag} pkts/bag</span>
-          </div>
-        </div>
-
-        {/* Qty + Price row */}
-        <div className={styles.bottomRow}>
-          {/* Qty with editable input */}
-          <div className={styles.qtyWrap}>
-            <span className={styles.fieldLabel}>Quantity</span>
-            <div className={styles.qtyControls}>
+        <div className={styles.detailsQtyWrap}>
+          <span className={styles.fieldLabel}>Quantity</span>
+          <div className={styles.qtyControls}>
+            <div className={styles.qtyControlsInner}>
               <button
+                type="button"
                 className={styles.qtyBtn}
                 onClick={() => onUpdateQty(item.productId, item.size, Math.max(1, safeQty - step))}
                 disabled={safeQty <= step}
@@ -120,53 +116,63 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14" /></svg>
               </button>
-              <input
-                type="number"
-                className={styles.qtyInput}
-                value={inputVal}
-                min={step}
-                step={step}
-                onChange={e => setInputVal(e.target.value)}
-                onBlur={e => commitQty(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
-                aria-label="Quantity in pieces"
-              />
+              <div className={styles.qtyValueCell}>
+                <input
+                  type="number"
+                  className={styles.qtyInput}
+                  value={inputVal}
+                  min={step}
+                  step={step}
+                  onChange={e => setInputVal(e.target.value)}
+                  onBlur={e => commitQty(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
+                  aria-label="Quantity in pc"
+                />
+                <span className={styles.qtyPc} aria-hidden>pc</span>
+              </div>
               <button
+                type="button"
                 className={styles.qtyBtn}
                 onClick={() => onUpdateQty(item.productId, item.size, safeQty + step)}
                 aria-label="Increase"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>
               </button>
-              <span className={styles.qtyPiecesLabel} aria-hidden>pieces</span>
             </div>
-          </div>
-
-          {/* Price block */}
-          <div className={styles.priceGroup}>
-            <div className={styles.unitPriceBlock}>
-              <span className={styles.fieldLabel}>Unit price</span>
-              <div className={styles.priceStack}>
-                <span className={styles.mrpPrice}>MRP ₹{mrpUnit.toFixed(2)}</span>
-                <span className={styles.priceVal}>₹{safePrice.toFixed(2)}</span>
-              </div>
-            </div>
-
-            <div className={styles.lineTotal}>
-              <span className={styles.fieldLabel}>Total (incl. GST)</span>
-              <div className={styles.lineTotalStack}>
-                <span className={styles.lineTotalMrp}>₹{mrpTotal.toFixed(2)}</span>
-                <span className={styles.lineTotalVal}>₹{lineTotal.toFixed(2)}</span>
-              </div>
-              <span className={styles.gstNote}>GST: ₹{gstAmount.toFixed(2)}</span>
-            </div>
-
-            <span className={styles.savingBadge}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-              Save {savePct}% · ₹{saving.toFixed(0)} off
-            </span>
           </div>
         </div>
+      </div>
+
+      {/* Column 2 — unit price, quantity, total */}
+      <div className={styles.pricingCol}>
+        <div className={styles.pricingRow}>
+          <span className={styles.pricingLabel}>Unit price</span>
+          <div className={styles.pricingValues}>
+            <span className={styles.strike}>₹{mrpUnit.toFixed(2)}</span>
+            <span className={styles.priceMain}>₹{safePrice.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div className={styles.pricingRow}>
+          <span className={styles.pricingLabel}>Quantity</span>
+          <p className={styles.qtySummary}>
+            {packetLabel} pckts ({formatPieces(safeQty)} pc)
+          </p>
+        </div>
+
+        <div className={styles.pricingRow}>
+          <span className={styles.pricingLabel}>Total</span>
+          <div className={styles.pricingValues}>
+            <span className={styles.strike}>₹{mrpTotal.toFixed(2)}</span>
+            <span className={styles.totalMain}>₹{lineTotal.toFixed(2)}</span>
+            <span className={styles.gstNote}>incl. GST · GST ₹{gstAmount.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <span className={styles.savingBadge}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+          Save {savePct}% · ₹{saving.toFixed(0)} off
+        </span>
       </div>
     </div>
   );

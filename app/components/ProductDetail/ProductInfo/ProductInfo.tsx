@@ -139,38 +139,47 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         </div>
       </div>
 
+      {/* Quantity Section */}
+      <div className={styles.qtySection}>
+        <label className={styles.qtyLabel}>QUANTITY</label>
+        <div className={styles.qtyCounter}>
+          <div className={styles.qtyCounterInner}>
+            <button
+              type="button"
+              className={styles.qtyCounterBtn}
+              disabled={quantity <= 0}
+              onClick={() => setQuantity(q => Math.max(0, q - step))}
+            >−</button>
+            <div className={styles.qtyValueCell}>
+              <input
+                type="number"
+                className={styles.qtyCounterInput}
+                value={quantity}
+                min={0}
+                step={step}
+                onChange={e => {
+                  const v = parseInt(e.target.value);
+                  if (!isNaN(v) && v >= 0) setQuantity(v);
+                }}
+                onBlur={e => {
+                  const v = parseInt(e.target.value);
+                  if (isNaN(v) || v < 0) setQuantity(0);
+                }}
+                aria-label="Quantity in pc"
+              />
+              <span className={styles.qtyUnit} aria-hidden>pc</span>
+            </div>
+            <button
+              type="button"
+              className={styles.qtyCounterBtn}
+              onClick={() => setQuantity(q => q + step)}
+            >+</button>
+          </div>
+        </div>
+      </div>
+
       {/* Action Buttons */}
       <div className={styles.actionRow}>
-        <div className={styles.qtyCounter}>
-          <button
-            type="button"
-            className={styles.qtyCounterBtn}
-            disabled={quantity <= 0}
-            onClick={() => setQuantity(q => Math.max(0, q - step))}
-          >−</button>
-          <input
-            type="number"
-            className={styles.qtyCounterInput}
-            value={quantity}
-            min={0}
-            step={step}
-            onChange={e => {
-              const v = parseInt(e.target.value);
-              if (!isNaN(v) && v >= 0) setQuantity(v);
-            }}
-            onBlur={e => {
-              const v = parseInt(e.target.value);
-              if (isNaN(v) || v < 0) setQuantity(0);
-            }}
-          />
-          <button
-            type="button"
-            className={styles.qtyCounterBtn}
-            onClick={() => setQuantity(q => q + step)}
-          >+</button>
-          <span className={styles.qtyPiecesSuffix} aria-hidden>pieces</span>
-        </div>
-
         <button
           className={`${styles.addToCartBtn} ${addedToCart ? styles.addedBtn : ""}`}
           onClick={handleAddToCart}
@@ -230,33 +239,38 @@ export default function ProductInfo({ product }: ProductInfoProps) {
 
           <div className={styles.masterBagControls}>
             <div className={styles.qtyCounter}>
-              <button
-                type="button"
-                className={styles.qtyCounterBtn}
-                disabled={masterBags <= 1}
-                onClick={() => setMasterBags(n => Math.max(1, n - 1))}
-              >−</button>
-              <input
-                type="number"
-                className={styles.qtyCounterInput}
-                value={masterBags}
-                min={1}
-                step={1}
-                onChange={e => {
-                  const v = parseInt(e.target.value);
-                  if (!isNaN(v) && v >= 1) setMasterBags(v);
-                }}
-                onBlur={e => {
-                  const v = parseInt(e.target.value);
-                  if (isNaN(v) || v < 1) setMasterBags(1);
-                }}
-              />
-              <button
-                type="button"
-                className={styles.qtyCounterBtn}
-                onClick={() => setMasterBags(n => n + 1)}
-              >+</button>
-              <span className={styles.qtyPiecesSuffix} aria-hidden>bags</span>
+              <div className={styles.qtyCounterInner}>
+                <button
+                  type="button"
+                  className={styles.qtyCounterBtn}
+                  disabled={masterBags <= 1}
+                  onClick={() => setMasterBags(n => Math.max(1, n - 1))}
+                >−</button>
+                <div className={styles.qtyValueCell}>
+                  <input
+                    type="number"
+                    className={styles.qtyCounterInput}
+                    value={masterBags}
+                    min={1}
+                    step={1}
+                    onChange={e => {
+                      const v = parseInt(e.target.value);
+                      if (!isNaN(v) && v >= 1) setMasterBags(v);
+                    }}
+                    onBlur={e => {
+                      const v = parseInt(e.target.value);
+                      if (isNaN(v) || v < 1) setMasterBags(1);
+                    }}
+                    aria-label="Master bags"
+                  />
+                  <span className={styles.qtyUnit} aria-hidden>bags</span>
+                </div>
+                <button
+                  type="button"
+                  className={styles.qtyCounterBtn}
+                  onClick={() => setMasterBags(n => n + 1)}
+                >+</button>
+              </div>
             </div>
 
             <button

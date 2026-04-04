@@ -460,7 +460,8 @@
 
 .qty-counter {
   display: flex;
-  align-items: center;
+  align-items: stretch;
+  justify-content: center;
   border: 1.5px solid #2563eb;
   border-radius: 10px;
   overflow: hidden;
@@ -468,13 +469,32 @@
   flex-shrink: 0;
 }
 
-.qty-pieces-suffix {
+.qty-counter-inner {
+  display: flex;
+  align-items: stretch;
+  width: max-content;
+  max-width: 100%;
+}
+
+.qty-value-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  min-width: 0;
+  padding: 0 0.35rem;
+  border-left: 1px solid #bfdbfe;
+  border-right: 1px solid #bfdbfe;
+  background: #eff6ff;
+}
+
+.qty-pc {
   font-size: 0.62rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #64748b;
-  padding: 0 0.45rem 0 0.15rem;
   white-space: nowrap;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .qty-counter-btn {
@@ -503,17 +523,19 @@
 }
 
 .qty-counter-input {
-  width: 52px;
+  width: auto;
+  min-width: 1.35rem;
+  max-width: 4.25rem;
+  flex: 1 1 auto;
   border: none;
-  border-left: 1px solid #bfdbfe;
-  border-right: 1px solid #bfdbfe;
-  text-align: center;
+  text-align: right;
   font-size: 0.78rem;
   font-weight: 700;
   color: #1d4ed8;
-  background: #eff6ff;
+  background: transparent;
   padding: 0;
   outline: none;
+  appearance: textfield;
   -moz-appearance: textfield;
 }
 
@@ -615,7 +637,7 @@
   .gst-tag {
     display: none;
   }
-  /* Stack CTA: qty + pieces, then Add to Cart full width */
+  /* Stack CTA: qty, then Add to Cart full width */
   .card-cta-row {
     flex-direction: column;
     gap: 0.4rem;
@@ -642,10 +664,13 @@
     height: 36px;
     font-size: 1.05rem;
   }
+  .qty-value-cell {
+    min-width: 2.5rem;
+    justify-content: center;
+  }
+
   .qty-counter-input {
-    flex: 1;
-    width: auto;
-    min-width: 0;
+    max-width: 5rem;
     font-size: 0.85rem;
   }
 }
