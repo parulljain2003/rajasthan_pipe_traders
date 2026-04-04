@@ -5,23 +5,19 @@ import Image from 'next/image';
 import Link from 'next/link';
 import './Products.css';
 import { products, type Product } from '../../data/products';
+import { productHeading, listingBrandPill } from '../../lib/productHeading';
 import WhatsAppPopup from '../WhatsAppPopup/WhatsAppPopup';
+import QtyRequiredPopup from '../QtyRequiredPopup/QtyRequiredPopup';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 
 const CATEGORIES = ['All', 'Cable Clips', 'Fasteners & Hardware', 'Electrical Accessories', 'Boxes & Plates', 'Sanitaryware'];
-
-const BRAND_COLORS: Record<string, string> = {
-  'Hitech Square / Tejas Craft': '#2563eb',
-  'RPT': '#0891b2',
-  'N-Star': '#059669',
-  'Hitech Square': '#7c3aed',
-};
 
 export default function Products() {
   const { toggleWishlist: ctxToggleWishlist, isWishlisted, addToCart } = useCartWishlist();
   const [activeCategory, setActiveCategory] = useState('All');
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupProduct, setPopupProduct] = useState('');
+  const [qtyHintOpen, setQtyHintOpen] = useState(false);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
 
   const getQty = (product: Product) =>
@@ -39,8 +35,11 @@ export default function Products() {
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
     e.stopPropagation();
+    if (getQty(product) <= 0) {
+      setQtyHintOpen(true);
+      return;
+    }
     const qty = getQty(product);
-    if (qty <= 0) return;
     addToCart({
       productId: product.id,
       productName: product.name,
@@ -92,7 +91,7 @@ export default function Products() {
         <div className="products-grid">
           {filtered.map((product) => {
             const wishlisted = isWishlisted(product.id);
-            const brandColor = BRAND_COLORS[product.brand] ?? '#2563eb';
+            const brandPill = listingBrandPill(product.brand);
             const lowestPrice = product.sizes[0].withGST;
             const lowestBasic = product.sizes[0].basicPrice;
 
@@ -139,35 +138,21 @@ export default function Products() {
 
                 {/* Card Content */}
                 <div className="product-info">
-                  {/* Brand + Category row */}
-                  <div className="info-meta">
-                    <span
-                      className="product-brand"
-                      style={{ '--brand-color': brandColor } as React.CSSProperties}
-                    >
-                      {product.brand}
-                    </span>
-                    <span className="product-category-tag">{product.subCategory}</span>
-                  </div>
+                  {brandPill && (
+                    <div className="info-meta">
+                      <span
+                        className={`listing-brand-pill ${brandPill === 'HiTech' ? 'listing-brand-pill-hitech' : 'listing-brand-pill-tejas'}`}
+                      >
+                        {brandPill}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Name */}
-                  <h3 className="product-title">{product.name}</h3>
+                  <h3 className="product-title">{productHeading(product.name, product.sizes[0].size)}</h3>
 
                   {/* Description */}
                   <p className="product-description">{product.description}</p>
-
-                  {/* Size Range */}
-                  <div className="size-range-row">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                    </svg>
-                    <span>
-                      {product.sizes.length === 1
-                        ? product.sizes[0].size
-                        : `${product.sizes[0].size} – ${product.sizes[product.sizes.length - 1].size}`}
-                    </span>
-                    <span className="size-count">{product.sizes.length} sizes</span>
-                  </div>
 
                   {/* Pricing */}
                   <div className="product-pricing">
@@ -181,12 +166,6 @@ export default function Products() {
 
                   {/* CTA */}
                   <div className="card-cta-row">
-                    <button type="button" className="buy-now-btn" disabled={getQty(product) <= 0} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => handleAddToCart(e, product)}>
-                      <span>Add to cart</span>
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5zM3.14 5l1.25 5h8.22l1.25-5H3.14zM5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0z" />
-                      </svg>
-                    </button>
                     <div
                       className="qty-counter"
                       onClick={e => { e.preventDefault(); e.stopPropagation(); }}
@@ -229,7 +208,14 @@ export default function Products() {
                           setQty(product.id, getQty(product) + step);
                         }}
                       >+</button>
+                      <span className="qty-pieces-suffix" aria-hidden>pieces</span>
                     </div>
+                    <button type="button" className="buy-now-btn" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => handleAddToCart(e, product)}>
+                      <span>Add to cart</span>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5zM3.14 5l1.25 5h8.22l1.25-5H3.14zM5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0z" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </Link>
@@ -255,6 +241,7 @@ export default function Products() {
 
       </div>
 
+      <QtyRequiredPopup isOpen={qtyHintOpen} onClose={() => setQtyHintOpen(false)} />
       <WhatsAppPopup
         isOpen={popupOpen}
         onClose={() => setPopupOpen(false)}

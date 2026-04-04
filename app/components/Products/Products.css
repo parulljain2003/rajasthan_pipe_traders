@@ -148,6 +148,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
   gap: 1.75rem;
+  align-items: start;
 }
 
 /* ── Product Card ── */
@@ -303,7 +304,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-  flex-grow: 1;
 }
 
 /* ── Meta row ── */
@@ -326,13 +326,25 @@
   border: 1px solid color-mix(in srgb, var(--brand-color, #2563eb) 20%, white);
 }
 
-.product-category-tag {
+.listing-brand-pill {
   font-size: 0.65rem;
-  font-weight: 500;
-  color: #64748b;
-  background: #f1f5f9;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   padding: 0.15rem 0.5rem;
   border-radius: 4px;
+}
+
+.listing-brand-pill-hitech {
+  color: #6d28d9;
+  background: color-mix(in srgb, #7c3aed 12%, white);
+  border: 1px solid color-mix(in srgb, #7c3aed 25%, white);
+}
+
+.listing-brand-pill-tejas {
+  color: #1d4ed8;
+  background: color-mix(in srgb, #2563eb 12%, white);
+  border: 1px solid color-mix(in srgb, #2563eb 25%, white);
 }
 
 /* ── Title & Desc ── */
@@ -366,20 +378,14 @@
   color: #94a3b8;
 }
 
-.size-range-row svg {
-  flex-shrink: 0;
-  color: #cbd5e1;
+.size-label {
+  font-weight: 600;
+  color: #64748b;
 }
 
-.size-count {
-  margin-left: auto;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  color: #64748b;
-  font-size: 0.65rem;
-  font-weight: 600;
-  padding: 0.1rem 0.45rem;
-  border-radius: 20px;
+.size-value {
+  font-weight: 700;
+  color: #334155;
 }
 
 /* ── Pricing ── */
@@ -421,8 +427,8 @@
 .card-cta-row {
   display: flex;
   gap: 0.6rem;
-  margin-top: auto;
-  padding-top: 0.6rem;
+  margin-top: 0;
+  padding-top: 0.5rem;
 }
 
 .buy-now-btn {
@@ -448,18 +454,26 @@
 }
 
 .buy-now-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.6;
   cursor: not-allowed;
-  background: #93c5fd;
 }
 
 .qty-counter {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   border: 1.5px solid #2563eb;
   border-radius: 10px;
   overflow: hidden;
   background: #fff;
+  flex-shrink: 0;
+}
+
+.qty-pieces-suffix {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #64748b;
+  padding: 0 0.45rem 0 0.15rem;
+  white-space: nowrap;
   flex-shrink: 0;
 }
 
@@ -601,11 +615,11 @@
   .gst-tag {
     display: none;
   }
-  /* Stack CTA: qty counter on top, Add to Cart below */
+  /* Stack CTA: qty + pieces, then Add to Cart full width */
   .card-cta-row {
     flex-direction: column;
     gap: 0.4rem;
-    margin-top: auto;
+    margin-top: 0;
     padding-top: 0.5rem;
   }
   .buy-now-btn, .add-to-cart-btn {

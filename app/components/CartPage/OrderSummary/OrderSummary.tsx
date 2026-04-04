@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import styles from './OrderSummary.module.css';
 import { CartItem } from '../../../context/CartWishlistContext';
+import { productHeading } from '../../../lib/productHeading';
 
 interface OrderSummaryProps {
   basicTotal: number;
@@ -48,9 +49,9 @@ export default function OrderSummary({
             return (
               <div key={`${item.productId}-${item.size}`} className={styles.productRow}>
                 <div className={styles.productInfo}>
-                  <span className={styles.productName}>{item.productName}</span>
+                  <span className={styles.productName}>{productHeading(item.productName, item.size)}</span>
                   <span className={styles.productMeta}>
-                    {item.size} · {safeQty} pkt{safeQty !== 1 ? 's' : ''}
+                    {safeQty} pkt{safeQty !== 1 ? 's' : ''}
                   </span>
                 </div>
                 <span className={styles.productTotal}>₹{lineTotal.toFixed(0)}</span>
@@ -82,27 +83,6 @@ export default function OrderSummary({
       <div className={`${styles.row} ${styles.totalRow}`}>
         <span className={styles.totalLabel}>Grand Total (incl. GST)</span>
         <span className={styles.totalVal}>₹{grandTotal.toFixed(2)}</span>
-      </div>
-
-      {/* Min order notice */}
-      <div className={`${styles.notice} ${minOrderMet ? styles.noticeGreen : styles.noticeAmber}`}>
-        {minOrderMet ? (
-          <>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            Minimum order of ₹25,000 met
-          </>
-        ) : (
-          <>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            Min. order ₹25,000 · Add ₹{(25000 - grandTotal).toFixed(0)} more
-          </>
-        )}
       </div>
 
       {/* Min order error */}

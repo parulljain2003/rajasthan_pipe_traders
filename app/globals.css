@@ -4,6 +4,10 @@
   box-sizing: border-box;
 }
 
+:root {
+  --header-height: 72px;
+}
+
 html {
   overflow-x: hidden;
 }
@@ -14,6 +18,17 @@ body {
   background-color: #fff;
   overflow-x: hidden;
   min-width: 0;
+}
+
+/* Offset for fixed site header (sticky breaks when body has overflow-x: hidden) */
+main {
+  padding-top: var(--header-height);
+}
+
+/* Home only: layout already wraps in <main>; avoid nested <main> */
+.home-root {
+  min-height: 100vh;
+  background: #fff;
 }
 
 img, video, iframe {

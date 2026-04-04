@@ -2,9 +2,11 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { productHeading } from "../../../lib/productHeading";
 import styles from "./ProductInfo.module.css";
 import type { Product } from "../../../data/products";
 import WhatsAppPopup from "../../WhatsAppPopup/WhatsAppPopup";
+import QtyRequiredPopup from "../../QtyRequiredPopup/QtyRequiredPopup";
 import { useCartWishlist } from "../../../context/CartWishlistContext";
 
 interface ProductInfoProps {
@@ -17,6 +19,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const [selectedSizeIndex] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
+  const [qtyHintOpen, setQtyHintOpen] = useState(false);
   const [quantity, setQuantity] = useState(0);
 
   /* Master-bag counter — only used for cable-nail-clips */
@@ -42,7 +45,12 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   });
 
   const handleAddToCart = () => {
+    if (quantity <= 0) {
+      setQtyHintOpen(true);
+      return;
+    }
     addToCart(cartPayload(), quantity);
+    setAddedToCart(true);
     setPopupOpen(true);
   };
 
@@ -55,7 +63,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   return (
     <div className={styles.infoPanel}>
       {/* Product Name */}
-      <h1 className={styles.productName}>{product.name}</h1>
+      <h1 className={styles.productName}>{productHeading(product.name, selectedSize.size)}</h1>
 
       {/* Product Code */}
       {product.brandCode && (
@@ -133,29 +141,6 @@ export default function ProductInfo({ product }: ProductInfoProps) {
 
       {/* Action Buttons */}
       <div className={styles.actionRow}>
-        <button
-          className={`${styles.addToCartBtn} ${addedToCart ? styles.addedBtn : ""}`}
-          disabled={quantity <= 0}
-          onClick={handleAddToCart}
-        >
-          {addedToCart ? (
-            <>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M20 7 9 18l-5-5" />
-              </svg>
-              Added!
-            </>
-          ) : (
-            <>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" />
-                <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
-              </svg>
-              Add to Cart
-            </>
-          )}
-        </button>
-
         <div className={styles.qtyCounter}>
           <button
             type="button"
@@ -183,7 +168,30 @@ export default function ProductInfo({ product }: ProductInfoProps) {
             className={styles.qtyCounterBtn}
             onClick={() => setQuantity(q => q + step)}
           >+</button>
+          <span className={styles.qtyPiecesSuffix} aria-hidden>pieces</span>
         </div>
+
+        <button
+          className={`${styles.addToCartBtn} ${addedToCart ? styles.addedBtn : ""}`}
+          onClick={handleAddToCart}
+        >
+          {addedToCart ? (
+            <>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M20 7 9 18l-5-5" />
+              </svg>
+              Added!
+            </>
+          ) : (
+            <>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" />
+                <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+              </svg>
+              Add to Cart
+            </>
+          )}
+        </button>
 
         <button
           className={`${styles.wishlistBtn} ${wishlist ? styles.wishlistActive : ""}`}
@@ -221,17 +229,6 @@ export default function ProductInfo({ product }: ProductInfoProps) {
           </div>
 
           <div className={styles.masterBagControls}>
-            <button
-              className={`${styles.addToCartBtn} ${styles.masterBagCartBtn}`}
-              onClick={handleMasterBagAddToCart}
-            >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" />
-                <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
-              </svg>
-              Add to Cart
-            </button>
-
             <div className={styles.qtyCounter}>
               <button
                 type="button"
@@ -259,9 +256,19 @@ export default function ProductInfo({ product }: ProductInfoProps) {
                 className={styles.qtyCounterBtn}
                 onClick={() => setMasterBags(n => n + 1)}
               >+</button>
+              <span className={styles.qtyPiecesSuffix} aria-hidden>bags</span>
             </div>
 
-            <span className={styles.masterBagUnit}>bags</span>
+            <button
+              className={`${styles.addToCartBtn} ${styles.masterBagCartBtn}`}
+              onClick={handleMasterBagAddToCart}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" />
+                <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+              </svg>
+              Add to Cart
+            </button>
           </div>
         </div>
       )}
@@ -294,6 +301,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         </div>
       )}
 
+      <QtyRequiredPopup isOpen={qtyHintOpen} onClose={() => setQtyHintOpen(false)} />
       <WhatsAppPopup
         isOpen={popupOpen}
         onClose={() => setPopupOpen(false)}

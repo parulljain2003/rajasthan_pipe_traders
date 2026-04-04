@@ -358,7 +358,7 @@
 
 .qtyCounter {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   border: 2px solid #2563eb;
   border-radius: 10px;
   overflow: hidden;
@@ -415,6 +415,15 @@
 
 .qtyCounterInput:focus {
   background: #dbeafe;
+}
+
+.qtyPiecesSuffix {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  padding: 0 0.55rem 0 0.2rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .wishlistBtn {
@@ -640,7 +649,7 @@
     font-size: 1.15rem;
   }
 
-  /* Action row: Add to Cart full width row 1, counter + wishlist on row 2 */
+  /* Action row: qty + wishlist row 1, Add to Cart full width row 2 */
   .actionRow {
     flex-wrap: wrap;
     gap: 0.5rem;

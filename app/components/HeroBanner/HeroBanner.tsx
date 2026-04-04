@@ -6,6 +6,8 @@ import Link from "next/link";
 import styles from "./HeroBanner.module.css";
 import { useCartWishlist } from "../../context/CartWishlistContext";
 import WhatsAppPopup from "../WhatsAppPopup/WhatsAppPopup";
+import QtyRequiredPopup from "../QtyRequiredPopup/QtyRequiredPopup";
+import { productHeading, listingBrandPill } from "../../lib/productHeading";
 /* ════════════════════════════════════
    COUPON DATA
 ════════════════════════════════════ */
@@ -142,6 +144,7 @@ function ProductCarousel() {
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [popupOpen, setPopupOpen]   = useState(false);
   const [popupProduct, setPopupProduct] = useState("");
+  const [qtyHintOpen, setQtyHintOpen] = useState(false);
   const { addToCart } = useCartWishlist();
 
   const goTo = useCallback((i: number, d: "l"|"r" = "l") => { setDir(d); setActive(i); }, []);
@@ -161,7 +164,10 @@ function ProductCarousel() {
 
   const handleAddToCart = (p: typeof slides[0]["product"]) => {
     const qty = getQty(p);
-    if (qty <= 0) return;
+    if (qty <= 0) {
+      setQtyHintOpen(true);
+      return;
+    }
     addToCart({
       productId: p.id,
       productName: p.name,
@@ -183,9 +189,11 @@ function ProductCarousel() {
   const p = s.product;
   const step = p.pcsPerPacket;
   const qty  = getQty(p);
+  const brandPill = listingBrandPill(p.brand);
 
   return (
     <>
+    <QtyRequiredPopup isOpen={qtyHintOpen} onClose={() => setQtyHintOpen(false)} />
     <div className={styles.carousel} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <div key={active} className={`${styles.slideCard} ${styles[`tag_${s.tagKey}`]} ${styles[dir === "l" ? "animL" : "animR"]}`}>
         <span className={`${styles.slideTag} ${styles[`tagBg_${s.tagKey}`]}`}>{s.tag}</span>
@@ -196,8 +204,12 @@ function ProductCarousel() {
         </Link>
 
         <div className={styles.slideContent}>
-          <span className={styles.slideBrand}>{p.brand}</span>
-          <h3 className={styles.slideName}>{p.name}</h3>
+          {brandPill && (
+            <span className={`${styles.slideListingBrand} ${brandPill === "HiTech" ? styles.slideListingBrandHitech : styles.slideListingBrandTejas}`}>
+              {brandPill}
+            </span>
+          )}
+          <h3 className={styles.slideName}>{productHeading(p.name, p.firstSize)}</h3>
           <p className={styles.slideDesc}>{p.description}</p>
           <div className={styles.slidePriceRow}>
             <div><span className={styles.slideFrom}>from </span><span className={styles.slidePrice}>₹{p.firstWithGST.toFixed(2)}</span><span className={styles.slideGst}> incl. GST</span></div>
@@ -205,15 +217,6 @@ function ProductCarousel() {
           </div>
 
           <div className={styles.slideCtaRow}>
-            <button
-              className={`${styles.slideBtn} ${styles[`slideBtn_${s.tagKey}`]}`}
-              disabled={qty <= 0}
-              onClick={() => handleAddToCart(p)}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
-              Add to Cart
-            </button>
-
             <div className={styles.slideQtyCounter} onClick={e => e.stopPropagation()}>
               <button
                 type="button"
@@ -236,7 +239,17 @@ function ProductCarousel() {
                 className={styles.slideQtyBtn}
                 onClick={e => { e.stopPropagation(); setQty(p.id, qty + step); }}
               >+</button>
+              <span className={styles.slideQtyPieces} aria-hidden>pieces</span>
             </div>
+
+            <button
+              type="button"
+              className={`${styles.slideBtn} ${styles[`slideBtn_${s.tagKey}`]}`}
+              onClick={() => handleAddToCart(p)}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+              Add to Cart
+            </button>
           </div>
         </div>
       </div>

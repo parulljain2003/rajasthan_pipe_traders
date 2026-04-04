@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import styles from './CartItemCard.module.css';
 import { CartItem } from '../../../context/CartWishlistContext';
+import { productHeading, shouldShowBrandBadge } from '../../../lib/productHeading';
 
 interface CartItemCardProps {
   item: CartItem;
@@ -70,14 +71,16 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
       <div className={styles.info}>
         <div className={styles.topRow}>
           <div className={styles.nameGroup}>
-            <span
-              className={styles.brand}
-              style={{ '--brand-color': brandColor } as React.CSSProperties}
-            >
-              {item.brand}
-            </span>
+            {shouldShowBrandBadge(item.brand) && (
+              <span
+                className={styles.brand}
+                style={{ '--brand-color': brandColor } as React.CSSProperties}
+              >
+                {item.brand}
+              </span>
+            )}
             <Link href={`/products/${item.productSlug}`} className={styles.name}>
-              {item.productName}
+              {productHeading(item.productName, item.size)}
             </Link>
             <span className={styles.category}>{item.category}</span>
           </div>
@@ -95,13 +98,8 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
           </button>
         </div>
 
-        {/* Size + Pack info */}
+        {/* Pack info */}
         <div className={styles.midRow}>
-          <div className={styles.sizeWrap}>
-            <span className={styles.fieldLabel}>Size</span>
-            <span className={styles.sizeStatic}>{item.size}</span>
-          </div>
-
           <div className={styles.packInfo}>
             <span className={styles.fieldLabel}>Pack info</span>
             <span className={styles.packVal}>{item.pcsPerPacket} pcs/pkt · {item.qtyPerBag} pkts/bag</span>
@@ -112,7 +110,7 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
         <div className={styles.bottomRow}>
           {/* Qty with editable input */}
           <div className={styles.qtyWrap}>
-            <span className={styles.fieldLabel}>Qty (packets)</span>
+            <span className={styles.fieldLabel}>Quantity</span>
             <div className={styles.qtyControls}>
               <button
                 className={styles.qtyBtn}
@@ -131,7 +129,7 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
                 onChange={e => setInputVal(e.target.value)}
                 onBlur={e => commitQty(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
-                aria-label="Quantity"
+                aria-label="Quantity in pieces"
               />
               <button
                 className={styles.qtyBtn}
@@ -140,6 +138,7 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>
               </button>
+              <span className={styles.qtyPiecesLabel} aria-hidden>pieces</span>
             </div>
           </div>
 

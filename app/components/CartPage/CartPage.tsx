@@ -129,6 +129,22 @@ export default function CartPage() {
                   </svg>
                   Prices as on 01-04-2026
                 </div>
+                <div className={`${styles.policyItem} ${cartTotal >= 25000 ? styles.policyItemOk : styles.policyItemWarn}`}>
+                  {cartTotal >= 25000 ? (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                  )}
+                  {cartTotal >= 25000
+                    ? 'Minimum order ₹25,000 met'
+                    : `Min. order ₹25,000 · Add ₹${(25000 - cartTotal).toFixed(0)} more`}
+                </div>
               </div>
             </div>
 

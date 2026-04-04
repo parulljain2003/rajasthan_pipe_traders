@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import styles from "./RelatedProducts.module.css";
 import type { Product } from "../../../data/products";
+import { productHeading, listingBrandPill } from "../../../lib/productHeading";
 
 interface RelatedProductsProps {
   products: Product[];
@@ -31,7 +32,9 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
 
       {/* Cards */}
       <div className={styles.grid}>
-        {products.map((product) => (
+        {products.map((product) => {
+          const brandPill = listingBrandPill(product.brand);
+          return (
           <Link
             key={product.id}
             href={`/products/${product.slug}`}
@@ -56,8 +59,12 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
 
             {/* Info */}
             <div className={styles.cardInfo}>
-              <span className={styles.cardBrand}>{product.brand}</span>
-              <h3 className={styles.cardName}>{product.name}</h3>
+              {brandPill && (
+                <span className={`${styles.listingBrand} ${brandPill === "HiTech" ? styles.listingBrandHitech : styles.listingBrandTejas}`}>
+                  {brandPill}
+                </span>
+              )}
+              <h3 className={styles.cardName}>{productHeading(product.name, product.sizes[0].size)}</h3>
               <p className={styles.cardDesc}>{product.description}</p>
               <div className={styles.cardPricing}>
                 <span className={styles.fromLabel}>From</span>
@@ -74,7 +81,8 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
               </div>
             </div>
           </Link>
-        ))}
+        );
+        })}
       </div>
     </section>
   );

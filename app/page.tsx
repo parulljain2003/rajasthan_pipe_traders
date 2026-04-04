@@ -5,10 +5,10 @@ import HomeProductsSection from './components/HomeProductsSection/HomeProductsSe
 
 export default function Home() {
   return (
-    <main style={{ backgroundColor: '#fff', minHeight: '100vh' }}>
+    <div className="home-root">
       <HeroBanner />
       <HomeCategoryGrid />
       <HomeProductsSection />
-    </main>
+    </div>
   );
 }

@@ -24,8 +24,8 @@ export default function FilterSidebar({
   onClose,
 }: FilterSidebarProps) {
   const BRAND_FILTERS = [
-    { label: 'Hitech Square', value: 'Hitech Square' },
-    { label: 'Tejas Craft',   value: 'Hitech Square / Tejas Craft' },
+    { label: 'HiTech', value: 'Hitech Square' },
+    { label: 'Tejas', value: 'Hitech Square / Tejas Craft' },
   ];
   const allPrices = products.map(p => p.sizes[0].withGST);
   const globalMin = Math.floor(Math.min(...allPrices));

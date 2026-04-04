@@ -323,7 +323,26 @@
   display:flex; flex-direction:column; gap:0.32rem;
   background:rgba(0,0,0,0.3); backdrop-filter:blur(8px);
 }
-.slideBrand { font-size:0.6rem; font-weight:800; color:#60a5fa; text-transform:uppercase; letter-spacing:0.07em; }
+.slideListingBrand {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 0.12rem 0.45rem;
+  border-radius: 4px;
+  width: fit-content;
+}
+.slideListingBrandHitech {
+  color: #c4b5fd;
+  background: rgba(124, 58, 237, 0.28);
+  border: 1px solid rgba(167, 139, 250, 0.4);
+}
+.slideListingBrandTejas {
+  color: #93c5fd;
+  background: rgba(37, 99, 235, 0.28);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
 .slideName  { font-size:0.95rem; font-weight:800; color:#f1f5f9; line-height:1.25; margin:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .slideDesc  { font-size:0.7rem; color:#94a3b8; line-height:1.4; margin:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .slidePriceRow { display:flex; align-items:baseline; justify-content:space-between; margin-top:0.2rem; }
@@ -347,7 +366,15 @@
 .slideQtyCounter {
   display:inline-flex; align-items:center;
   border:1.5px solid rgba(255,255,255,0.18); border-radius:8px;
-  overflow:hidden; height:30px; background:rgba(255,255,255,0.07);
+  overflow:hidden; min-height:30px; background:rgba(255,255,255,0.07);
+}
+.slideQtyPieces {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: #94a3b8;
+  padding: 0 0.4rem 0 0.1rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .slideQtyBtn {
   width:28px; height:30px; background:none; border:none;

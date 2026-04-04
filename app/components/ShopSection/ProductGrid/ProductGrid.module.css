@@ -3,6 +3,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
   gap: 1.75rem;
+  align-items: start;
 }
 
 .empty {
@@ -128,7 +129,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-  flex-grow: 1;
 }
 
 .meta {
@@ -150,13 +150,25 @@
   border: 1px solid color-mix(in srgb, var(--brand-color, #2563eb) 20%, white);
 }
 
-.categoryTag {
+.listingBrand {
   font-size: 0.65rem;
-  font-weight: 500;
-  color: #64748b;
-  background: #f1f5f9;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   padding: 0.15rem 0.5rem;
   border-radius: 4px;
+}
+
+.listingBrandHitech {
+  color: #6d28d9;
+  background: color-mix(in srgb, #7c3aed 12%, white);
+  border: 1px solid color-mix(in srgb, #7c3aed 25%, white);
+}
+
+.listingBrandTejas {
+  color: #1d4ed8;
+  background: color-mix(in srgb, #2563eb 12%, white);
+  border: 1px solid color-mix(in srgb, #2563eb 25%, white);
 }
 
 .title {
@@ -189,20 +201,14 @@
   color: #94a3b8;
 }
 
-.sizeRow svg {
-  flex-shrink: 0;
-  color: #cbd5e1;
+.sizeLabel {
+  font-weight: 600;
+  color: #64748b;
 }
 
-.sizeCount {
-  margin-left: auto;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  color: #64748b;
-  font-size: 0.65rem;
-  font-weight: 600;
-  padding: 0.1rem 0.45rem;
-  border-radius: 20px;
+.sizeValue {
+  font-weight: 700;
+  color: #334155;
 }
 
 /* ── Pricing ── */
@@ -244,8 +250,8 @@
 .ctaRow {
   display: flex;
   gap: 0.6rem;
-  margin-top: auto;
-  padding-top: 0.6rem;
+  margin-top: 0;
+  padding-top: 0.5rem;
 }
 
 .cartBtn {
@@ -271,18 +277,26 @@
 }
 
 .cartBtn:disabled {
-  opacity: 0.45;
+  opacity: 0.6;
   cursor: not-allowed;
-  background: #93c5fd;
 }
 
 .qtyCounter {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   border: 1.5px solid #2563eb;
   border-radius: 10px;
   overflow: hidden;
   background: #fff;
+  flex-shrink: 0;
+}
+
+.qtyPiecesSuffix {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #64748b;
+  padding: 0 0.45rem 0 0.15rem;
+  white-space: nowrap;
   flex-shrink: 0;
 }
 
@@ -376,11 +390,11 @@
     display: none;
   }
 
-  /* Stack: qty counter on top, Add to Cart below */
+  /* Stack: qty + pieces, then Add to Cart full width */
   .ctaRow {
     flex-direction: column;
     gap: 0.4rem;
-    margin-top: auto;
+    margin-top: 0;
     padding-top: 0.5rem;
   }
 

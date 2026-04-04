@@ -227,6 +227,16 @@
 .qtyInput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .qtyInput:focus { background: #eff6ff; color: #1d4ed8; }
 
+.qtyPiecesLabel {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #64748b;
+  padding: 0 0.5rem 0 0.15rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: #fff;
+}
+
 /* Price group */
 .priceGroup {
   display: flex;
