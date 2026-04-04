@@ -265,9 +265,15 @@
   transition: all 0.22s ease;
 }
 
-.card:hover .cartBtn {
+.card:hover .cartBtn:not(:disabled) {
   background: #1d4ed8;
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.cartBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #93c5fd;
 }
 
 .qtyCounter {
@@ -358,23 +364,24 @@
   }
 
   .cartBtn {
-    font-size: 0.7rem;
-    padding: 0.5rem 0.5rem;
+    font-size: 0.72rem;
+    padding: 0.55rem 0.4rem;
+    min-height: 38px;
   }
 
   .qtyCounter {
-    height: 28px;
+    height: 38px;
   }
 
   .qtyCounterBtn {
-    width: 24px;
-    height: 28px;
-    font-size: 0.95rem;
+    width: 36px;
+    height: 38px;
+    font-size: 1rem;
   }
 
   .qtyCounterInput {
     width: 36px;
-    font-size: 0.7rem;
+    font-size: 0.78rem;
   }
 }
 

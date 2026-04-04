@@ -25,7 +25,7 @@ export default function Products() {
   const [quantities, setQuantities] = useState<Record<number, number>>({});
 
   const getQty = (product: Product) =>
-    quantities[product.id] ?? product.sizes[0].pcsPerPacket;
+    quantities[product.id] ?? 0;
 
   const setQty = (productId: number, val: number) =>
     setQuantities(prev => ({ ...prev, [productId]: val }));
@@ -39,6 +39,8 @@ export default function Products() {
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
     e.stopPropagation();
+    const qty = getQty(product);
+    if (qty <= 0) return;
     addToCart({
       productId: product.id,
       productName: product.name,
@@ -51,7 +53,7 @@ export default function Products() {
       basicPricePerUnit: product.sizes[0].basicPrice,
       qtyPerBag: product.sizes[0].qtyPerBag,
       pcsPerPacket: product.sizes[0].pcsPerPacket,
-    }, getQty(product));
+    }, qty);
     setPopupProduct(product.name);
     setPopupOpen(true);
   };
@@ -179,7 +181,7 @@ export default function Products() {
 
                   {/* CTA */}
                   <div className="card-cta-row">
-                    <button type="button" className="buy-now-btn" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => handleAddToCart(e, product)}>
+                    <button type="button" className="buy-now-btn" disabled={getQty(product) <= 0} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => handleAddToCart(e, product)}>
                       <span>Add to cart</span>
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                         <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5zM3.14 5l1.25 5h8.22l1.25-5H3.14zM5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0z" />
@@ -192,29 +194,28 @@ export default function Products() {
                       <button
                         type="button"
                         className="qty-counter-btn"
-                        disabled={getQty(product) <= product.sizes[0].pcsPerPacket}
+                        disabled={getQty(product) <= 0}
                         onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
                         onClick={e => {
                           e.preventDefault(); e.stopPropagation();
                           const step = product.sizes[0].pcsPerPacket;
-                          setQty(product.id, Math.max(step, getQty(product) - step));
+                          setQty(product.id, Math.max(0, getQty(product) - step));
                         }}
                       >−</button>
                       <input
                         type="number"
                         className="qty-counter-input"
                         value={getQty(product)}
-                        min={product.sizes[0].pcsPerPacket}
+                        min={0}
                         step={product.sizes[0].pcsPerPacket}
                         onChange={e => {
                           e.stopPropagation();
                           const v = parseInt(e.target.value);
-                          if (!isNaN(v) && v > 0) setQty(product.id, v);
+                          if (!isNaN(v) && v >= 0) setQty(product.id, v);
                         }}
                         onBlur={e => {
-                          const step = product.sizes[0].pcsPerPacket;
                           const v = parseInt(e.target.value);
-                          if (isNaN(v) || v < step) setQty(product.id, step);
+                          if (isNaN(v) || v < 0) setQty(product.id, 0);
                         }}
                         onClick={e => { e.preventDefault(); e.stopPropagation(); }}
                       />

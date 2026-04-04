@@ -17,7 +17,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const [selectedSizeIndex] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
-  const [quantity, setQuantity] = useState(() => product.sizes[0].pcsPerPacket);
+  const [quantity, setQuantity] = useState(0);
 
   /* Master-bag counter — only used for cable-nail-clips */
   const [masterBags, setMasterBags] = useState(1);
@@ -135,6 +135,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       <div className={styles.actionRow}>
         <button
           className={`${styles.addToCartBtn} ${addedToCart ? styles.addedBtn : ""}`}
+          disabled={quantity <= 0}
           onClick={handleAddToCart}
         >
           {addedToCart ? (
@@ -159,22 +160,22 @@ export default function ProductInfo({ product }: ProductInfoProps) {
           <button
             type="button"
             className={styles.qtyCounterBtn}
-            disabled={quantity <= step}
-            onClick={() => setQuantity(q => Math.max(step, q - step))}
+            disabled={quantity <= 0}
+            onClick={() => setQuantity(q => Math.max(0, q - step))}
           >−</button>
           <input
             type="number"
             className={styles.qtyCounterInput}
             value={quantity}
-            min={step}
+            min={0}
             step={step}
             onChange={e => {
               const v = parseInt(e.target.value);
-              if (!isNaN(v) && v > 0) setQuantity(v);
+              if (!isNaN(v) && v >= 0) setQuantity(v);
             }}
             onBlur={e => {
               const v = parseInt(e.target.value);
-              if (isNaN(v) || v < step) setQuantity(step);
+              if (isNaN(v) || v < 0) setQuantity(0);
             }}
           />
           <button

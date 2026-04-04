@@ -249,3 +249,41 @@
     gap: 1rem;
   }
 }
+
+@media (max-width: 480px) {
+  .inner {
+    padding: 1rem 0.75rem;
+  }
+
+  .pageHeader {
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+  }
+
+  .titleRow {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pageTitle {
+    font-size: 1.15rem;
+  }
+
+  .clearBtn {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.65rem;
+  }
+
+  .empty {
+    padding: 3rem 1rem;
+  }
+
+  .policyBar {
+    gap: 0.65rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .policyItem {
+    font-size: 0.7rem;
+  }
+}

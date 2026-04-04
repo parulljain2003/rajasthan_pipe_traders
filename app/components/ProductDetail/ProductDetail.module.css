@@ -192,4 +192,28 @@
   .companyStats {
     gap: 1rem;
   }
+  .descriptionBlock {
+    padding: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 1rem 0.75rem;
+    gap: 1.25rem;
+  }
+  .descriptionBlock {
+    padding: 1rem;
+    border-radius: 14px;
+  }
+  .descTitle {
+    font-size: 0.95rem;
+  }
+  .descText {
+    font-size: 0.85rem;
+  }
+  .companyBanner {
+    padding: 1.25rem;
+    border-radius: 14px;
+  }
 }

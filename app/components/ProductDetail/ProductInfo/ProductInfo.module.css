@@ -339,9 +339,15 @@
   transition: all 0.25s ease;
 }
 
-.addToCartBtn:hover {
+.addToCartBtn:hover:not(:disabled) {
   background: #eff6ff;
   transform: translateY(-1px);
+}
+
+.addToCartBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .addedBtn {
@@ -566,11 +572,87 @@
   }
   .priceRow {
     gap: 1rem;
+    flex-wrap: wrap;
   }
   .gstPriceBlock {
     padding-left: 1rem;
   }
   .gstPrice {
     font-size: 1.5rem;
+  }
+  .packingGrid {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .packingItem {
+    flex: 0 0 calc(50% - 0.25rem);
+  }
+}
+
+@media (max-width: 480px) {
+  .infoPanel {
+    padding: 0;
+  }
+  .productName {
+    font-size: 1.2rem;
+  }
+  .priceRow {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .gstPriceBlock {
+    border-left: none;
+    border-top: 2px solid #bfdbfe;
+    padding-left: 0;
+    padding-top: 0.5rem;
+  }
+  .gstPrice {
+    font-size: 1.4rem;
+  }
+  .basicPrice {
+    font-size: 1.1rem;
+  }
+  /* Action row: stack Add to Cart above qty counter on very small screens */
+  .actionRow {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .addToCartBtn {
+    flex: 1 1 100%;
+    padding: 0.9rem 1rem;
+    font-size: 0.95rem;
+    min-height: 48px;
+  }
+  .qtyCounter {
+    flex: 1;
+    height: 48px;
+  }
+  .qtyCounterBtn {
+    width: 44px;
+    min-height: 44px;
+    font-size: 1.3rem;
+  }
+  .qtyCounterInput {
+    min-width: 48px;
+    font-size: 1rem;
+  }
+  /* Packing grid: 2 columns */
+  .packingGrid {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .packingItem {
+    flex: 0 0 calc(50% - 0.25rem);
+  }
+  .packingValue {
+    font-size: 1.1rem;
+  }
+  /* Master bag controls: wrap */
+  .masterBagControls {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .masterBagCartBtn {
+    flex: 1 1 100%;
   }
 }

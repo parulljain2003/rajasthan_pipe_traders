@@ -379,7 +379,7 @@
 /* nav */
 .carouselNav { display:flex; align-items:center; justify-content:center; gap:0.7rem; }
 .arrowBtn {
-  width:30px; height:30px; border-radius:50%;
+  width:40px; height:40px; border-radius:50%;
   background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);
   color:#94a3b8; display:flex; align-items:center; justify-content:center;
   cursor:pointer; transition:all 0.18s ease; padding:0;
@@ -470,4 +470,7 @@
   .statsDivider { display:none; }
   .statItem { padding:0.4rem 0.85rem; background:rgba(255,255,255,0.05); border-radius:8px; }
   .subtext { font-size:0.83rem; }
+  .arrowBtn { width:36px; height:36px; }
+  .slideQtyBtn { min-width:44px; min-height:44px; }
+  .slideBtn { min-height:44px; font-size:0.85rem; }
 }

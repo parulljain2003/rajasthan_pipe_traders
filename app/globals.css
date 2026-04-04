@@ -4,8 +4,18 @@
   box-sizing: border-box;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color: #333;
   background-color: #fff;
+  overflow-x: hidden;
+  min-width: 0;
+}
+
+img, video, iframe {
+  max-width: 100%;
 }

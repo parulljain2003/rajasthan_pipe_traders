@@ -1,4 +1,6 @@
-import React from 'react';
+"use client";
+
+import React, { useState } from 'react';
 import styles from './OrderSummary.module.css';
 import { CartItem } from '../../../context/CartWishlistContext';
 
@@ -20,6 +22,17 @@ export default function OrderSummary({
   onPlaceOrder,
 }: OrderSummaryProps) {
   const minOrderMet = grandTotal >= 25000;
+  const [showMinError, setShowMinError] = useState(false);
+
+  const handlePlaceOrder = () => {
+    if (!minOrderMet) {
+      setShowMinError(true);
+      setTimeout(() => setShowMinError(false), 4000);
+      return;
+    }
+    setShowMinError(false);
+    onPlaceOrder();
+  };
 
   return (
     <div className={styles.summary}>
@@ -92,10 +105,22 @@ export default function OrderSummary({
         )}
       </div>
 
+      {/* Min order error */}
+      {showMinError && (
+        <div className={styles.minOrderError}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          Order total must be ₹25,000 or more. Add ₹{(25000 - grandTotal).toFixed(0)} more to place order.
+        </div>
+      )}
+
       {/* Place order button */}
       <button
         className={styles.placeOrderBtn}
-        onClick={onPlaceOrder}
+        onClick={handlePlaceOrder}
         disabled={itemCount === 0}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

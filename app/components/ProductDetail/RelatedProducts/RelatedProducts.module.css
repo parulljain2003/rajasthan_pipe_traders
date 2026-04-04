@@ -202,4 +202,28 @@
   .sectionTitle {
     font-size: 1.2rem;
   }
+  .sectionHeader {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+  }
+  .sectionTitle {
+    font-size: 1.05rem;
+  }
+  .sectionSubtitle {
+    font-size: 0.78rem;
+  }
+  .viewAllBtn {
+    font-size: 0.78rem;
+  }
+  .cardName {
+    font-size: 0.78rem;
+  }
 }

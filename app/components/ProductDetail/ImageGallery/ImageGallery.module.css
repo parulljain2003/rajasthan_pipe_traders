@@ -90,7 +90,16 @@
 .thumbnailStrip {
   display: flex;
   gap: 0.65rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.25rem;
 }
+
+.thumbnailStrip::-webkit-scrollbar {
+  height: 3px;
+}
+.thumbnailStrip::-webkit-scrollbar-track { background: transparent; }
+.thumbnailStrip::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
 
 .thumbnail {
   position: relative;
@@ -147,5 +156,24 @@
   .trustBadges {
     flex-direction: column;
     gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .mainImage {
+    padding: 1rem;
+  }
+
+  .thumbnail {
+    width: 56px;
+    height: 56px;
+  }
+
+  .trustBadges {
+    padding: 0.65rem 0.85rem;
+  }
+
+  .trustItem {
+    font-size: 0.7rem;
   }
 }

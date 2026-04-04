@@ -87,6 +87,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 175px;
+  min-width: 0;
 }
 
 .productMeta {
@@ -160,10 +161,76 @@
   box-shadow: none;
 }
 
+.minOrderError {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  color: #b91c1c;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.4;
+  animation: errorSlide 0.2s ease;
+}
+
+.minOrderError svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+@keyframes errorSlide {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .terms {
   font-size: 0.65rem;
   color: #94a3b8;
   text-align: center;
   margin: 0;
   line-height: 1.5;
+}
+
+@media (max-width: 480px) {
+  .summary {
+    padding: 1rem;
+    border-radius: 14px;
+    position: static;
+  }
+
+  .title {
+    font-size: 0.95rem;
+  }
+
+  .productName {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .productTotal {
+    font-size: 0.72rem;
+  }
+
+  .totalVal {
+    font-size: 1.1rem;
+  }
+
+  .placeOrderBtn {
+    padding: 0.85rem 1rem;
+    font-size: 0.88rem;
+    min-height: 48px;
+  }
+
+  .notice {
+    font-size: 0.72rem;
+    padding: 0.5rem 0.7rem;
+  }
+
+  .minOrderError {
+    font-size: 0.76rem;
+    padding: 0.65rem 0.75rem;
+  }
 }

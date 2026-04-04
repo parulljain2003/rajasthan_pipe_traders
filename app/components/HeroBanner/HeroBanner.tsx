@@ -155,11 +155,13 @@ function ProductCarousel() {
   }, [paused, next]);
 
   const getQty = (p: typeof slides[0]["product"]) =>
-    quantities[p.id] ?? p.pcsPerPacket;
+    quantities[p.id] ?? 0;
   const setQty = (id: number, val: number) =>
     setQuantities(prev => ({ ...prev, [id]: val }));
 
   const handleAddToCart = (p: typeof slides[0]["product"]) => {
+    const qty = getQty(p);
+    if (qty <= 0) return;
     addToCart({
       productId: p.id,
       productName: p.name,
@@ -172,7 +174,7 @@ function ProductCarousel() {
       basicPricePerUnit: p.firstBasic,
       qtyPerBag: p.qtyPerBag,
       pcsPerPacket: p.pcsPerPacket,
-    }, getQty(p));
+    }, qty);
     setPopupProduct(p.name);
     setPopupOpen(true);
   };
@@ -205,6 +207,7 @@ function ProductCarousel() {
           <div className={styles.slideCtaRow}>
             <button
               className={`${styles.slideBtn} ${styles[`slideBtn_${s.tagKey}`]}`}
+              disabled={qty <= 0}
               onClick={() => handleAddToCart(p)}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
@@ -215,18 +218,18 @@ function ProductCarousel() {
               <button
                 type="button"
                 className={styles.slideQtyBtn}
-                disabled={qty <= step}
-                onClick={e => { e.stopPropagation(); setQty(p.id, Math.max(step, qty - step)); }}
+                disabled={qty <= 0}
+                onClick={e => { e.stopPropagation(); setQty(p.id, Math.max(0, qty - step)); }}
               >−</button>
               <input
                 type="number"
                 className={styles.slideQtyInput}
                 value={qty}
-                min={step}
+                min={0}
                 step={step}
                 onClick={e => e.stopPropagation()}
-                onChange={e => { e.stopPropagation(); const v = parseInt(e.target.value); if (!isNaN(v) && v > 0) setQty(p.id, v); }}
-                onBlur={e => { const v = parseInt(e.target.value); if (isNaN(v) || v < step) setQty(p.id, step); }}
+                onChange={e => { e.stopPropagation(); const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) setQty(p.id, v); }}
+                onBlur={e => { const v = parseInt(e.target.value); if (isNaN(v) || v < 0) setQty(p.id, 0); }}
               />
               <button
                 type="button"

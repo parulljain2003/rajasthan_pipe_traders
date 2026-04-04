@@ -25,8 +25,8 @@
 /* ── Scroll arrows ── */
 .scrollArrow {
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: #fff;
   border: 1.5px solid #e2e8f0;
