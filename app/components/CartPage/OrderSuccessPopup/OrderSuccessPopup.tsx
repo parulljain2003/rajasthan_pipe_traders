@@ -1,4 +1,7 @@
+"use client";
+
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './OrderSuccessPopup.module.css';
 import { CartItem } from '../../../context/CartWishlistContext';
 
@@ -25,7 +28,7 @@ export default function OrderSuccessPopup({
 
   if (!isOpen) return null;
 
-  return (
+  const content = (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
         {/* Success icon */}
@@ -40,7 +43,7 @@ export default function OrderSuccessPopup({
         {/* Heading */}
         <h2 className={styles.title}>Order Request Placed!</h2>
         <p className={styles.subtitle}>
-          Your enquiry has been received. Our team will contact you within 24 hours.
+          Your enquiry has been received. Our team will contact you shortly.
         </p>
 
         {/* Items summary */}
@@ -76,4 +79,6 @@ export default function OrderSuccessPopup({
       </div>
     </div>
   );
+
+  return typeof window !== 'undefined' ? createPortal(content, document.body) : null;
 }

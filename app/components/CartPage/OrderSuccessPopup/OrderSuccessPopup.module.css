@@ -8,6 +8,7 @@
   justify-content: center;
   z-index: 1000;
   padding: 1rem;
+  overflow-y: auto;
   animation: fadeIn 0.2s ease;
 }
 
@@ -28,6 +29,7 @@
   gap: 1rem;
   animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   box-shadow: 0 32px 80px rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
 }
 
 @keyframes slideUp {
@@ -188,11 +190,67 @@
 }
 
 @media (max-width: 480px) {
+  .overlay {
+    padding: 0.75rem;
+    align-items: flex-end;
+  }
+
   .modal {
-    padding: 1.75rem 1.25rem;
+    padding: 1.5rem 1.25rem 1.75rem;
+    border-radius: 20px 20px 16px 16px;
+    gap: 0.75rem;
+    max-width: 100%;
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .circle {
+    width: 60px;
+    height: 60px;
+  }
+
+  .circle svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .title {
+    font-size: 1.2rem;
+  }
+
+  .subtitle {
+    font-size: 0.8rem;
+    max-width: 100%;
+  }
+
+  .summaryBox {
+    padding: 0.85rem;
+  }
+
+  .summaryHeader {
+    font-size: 0.75rem;
+  }
+
+  .summaryTotal {
+    font-size: 0.82rem;
+  }
+
+  .itemRow {
+    font-size: 0.74rem;
+  }
+
+  .continueBtn {
+    padding: 0.9rem 1rem;
+    font-size: 0.88rem;
+    min-height: 48px;
+  }
+
+  .paymentNote {
+    font-size: 0.66rem;
   }
 
   .actions {
+    display: flex;
     flex-direction: column;
+    width: 100%;
   }
 }

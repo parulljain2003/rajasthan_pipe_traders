@@ -180,6 +180,16 @@
   }
 }
 
+@media (max-width: 768px) {
+  .breadcrumbInner {
+    padding: 0 1rem;
+  }
+
+  .breadcrumbActive {
+    max-width: 160px;
+  }
+}
+
 @media (max-width: 640px) {
   .container {
     padding: 1.5rem 1rem;

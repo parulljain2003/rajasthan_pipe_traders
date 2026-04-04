@@ -210,7 +210,6 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-top: 0.15rem;
 }
 
 .pricingLeft {
@@ -245,7 +244,8 @@
 .ctaRow {
   display: flex;
   gap: 0.6rem;
-  margin-top: 0.4rem;
+  margin-top: auto;
+  padding-top: 0.6rem;
 }
 
 .cartBtn {
@@ -347,41 +347,73 @@
 @media (max-width: 480px) {
   .grid {
     grid-template-columns: 1fr 1fr;
-    gap: 0.9rem;
+    gap: 0.75rem;
+  }
+
+  .imageWrapper {
+    aspect-ratio: 4 / 3;
   }
 
   .info {
-    padding: 0.8rem;
-    gap: 0.35rem;
+    padding: 0.65rem;
+    gap: 0.3rem;
   }
 
   .title {
-    font-size: 0.82rem;
+    font-size: 0.78rem;
+    line-height: 1.35;
+  }
+
+  .description {
+    display: none;
   }
 
   .salePrice {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+  }
+
+  .gstTag {
+    display: none;
+  }
+
+  /* Stack: qty counter on top, Add to Cart below */
+  .ctaRow {
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: auto;
+    padding-top: 0.5rem;
   }
 
   .cartBtn {
-    font-size: 0.72rem;
-    padding: 0.55rem 0.4rem;
-    min-height: 38px;
+    width: 100%;
+    font-size: 0.75rem;
+    padding: 0.5rem 0.4rem;
+    min-height: 36px;
+    white-space: nowrap;
+    gap: 0.25rem;
+  }
+
+  /* Hide cart icon on very small cards to save space */
+  .cartBtn svg {
+    display: none;
   }
 
   .qtyCounter {
-    height: 38px;
+    width: 100%;
+    height: 36px;
   }
 
   .qtyCounterBtn {
-    width: 36px;
-    height: 38px;
-    font-size: 1rem;
+    flex: 0 0 36px;
+    height: 36px;
+    font-size: 1.05rem;
   }
 
   .qtyCounterInput {
-    width: 36px;
-    font-size: 0.78rem;
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    font-size: 0.85rem;
   }
 }
 

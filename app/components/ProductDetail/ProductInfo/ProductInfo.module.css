@@ -593,66 +593,99 @@
   .infoPanel {
     padding: 0;
   }
+
   .productName {
-    font-size: 1.2rem;
+    font-size: 1.15rem;
+    line-height: 1.35;
   }
+
+  /* Price card: keep side-by-side, reduce sizes */
+  .priceCard {
+    padding: 1rem;
+  }
+
   .priceRow {
-    flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    flex-wrap: nowrap;
   }
+
   .gstPriceBlock {
-    border-left: none;
-    border-top: 2px solid #bfdbfe;
-    padding-left: 0;
-    padding-top: 0.5rem;
+    padding-left: 0.75rem;
   }
+
   .gstPrice {
-    font-size: 1.4rem;
+    font-size: 1.35rem;
   }
+
   .basicPrice {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
   }
-  /* Action row: stack Add to Cart above qty counter on very small screens */
+
+  .priceLabel {
+    font-size: 0.65rem;
+  }
+
+  /* Packing grid: 2 columns side by side */
+  .packingGrid {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .packingItem {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .packingValue {
+    font-size: 1.15rem;
+  }
+
+  /* Action row: Add to Cart full width row 1, counter + wishlist on row 2 */
   .actionRow {
     flex-wrap: wrap;
     gap: 0.5rem;
   }
+
   .addToCartBtn {
     flex: 1 1 100%;
-    padding: 0.9rem 1rem;
-    font-size: 0.95rem;
+    padding: 0.85rem 1rem;
+    font-size: 0.9rem;
     min-height: 48px;
   }
+
   .qtyCounter {
     flex: 1;
     height: 48px;
   }
+
   .qtyCounterBtn {
     width: 44px;
     min-height: 44px;
-    font-size: 1.3rem;
+    font-size: 1.25rem;
   }
+
   .qtyCounterInput {
-    min-width: 48px;
+    min-width: 44px;
     font-size: 1rem;
   }
-  /* Packing grid: 2 columns */
-  .packingGrid {
-    flex-wrap: wrap;
-    gap: 0.5rem;
+
+  .wishlistBtn {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
   }
-  .packingItem {
-    flex: 0 0 calc(50% - 0.25rem);
-  }
-  .packingValue {
-    font-size: 1.1rem;
-  }
+
   /* Master bag controls: wrap */
   .masterBagControls {
     flex-wrap: wrap;
     gap: 0.5rem;
   }
+
   .masterBagCartBtn {
     flex: 1 1 100%;
+  }
+
+  .masterBagRow {
+    padding: 1rem;
   }
 }
