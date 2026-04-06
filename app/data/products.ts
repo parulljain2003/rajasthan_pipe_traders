@@ -115,7 +115,7 @@ export const products: Product[] = [
   {
     id: 1,
     slug: "cable-nail-clips",
-    name: "Cable Nail Clips",
+    name: "Single Cable Nail Clips",
     brand: "Hitech Square",
     brandCode: "HITECH / TEJAS",
     category: "Cable Clips",

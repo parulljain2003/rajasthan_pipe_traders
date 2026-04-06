@@ -111,7 +111,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       )}
 
       {/* Star Rating */}
-      <div className={styles.ratingRow}>
+      {/* <div className={styles.ratingRow}>
         <div className={styles.stars}>
           {[1, 2, 3, 4, 5].map((star) => (
             <svg
@@ -128,7 +128,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
           ))}
         </div>
         <span className={styles.ratingText}>4.0 / 5 (Wholesale Rating)</span>
-      </div>
+      </div> */}
 
       {/* Divider */}
       <div className={styles.divider} />
@@ -137,7 +137,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       <div className={styles.priceCard}>
         <div className={styles.priceRow}>
           <div>
-            <p className={styles.priceLabel}>Basic Price (Per Packet)</p>
+            <p className={styles.priceLabel}>Basic Price (Per PC)</p>
             <p className={styles.basicPrice}>₹{selectedSize.basicPrice.toFixed(2)}</p>
           </div>
           <div className={styles.gstPriceBlock}>
@@ -168,11 +168,11 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         <div className={styles.packingGrid}>
           <div className={`${styles.packingCard} ${styles.packItem}`}>
             <span className={styles.packValue}>{selectedSize.pcsPerPacket}</span>
-            <span className={styles.packLabel}>Pieces per Packet</span>
+            <span className={styles.packLabel}>Pcs/Packet</span>
           </div>
           <div className={`${styles.packingCard} ${styles.bagItem}`}>
             <span className={styles.packValue}>{selectedSize.qtyPerBag}</span>
-            <span className={styles.packLabel}>Packets per Master Bag</span>
+            <span className={styles.packLabel}>Packets/Master Bag</span>
           </div>
         </div>
       </div>

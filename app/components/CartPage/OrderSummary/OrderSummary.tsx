@@ -68,7 +68,7 @@ export default function OrderSummary({
                 <div className={styles.productInfo}>
                   <span className={styles.productName}>{productHeading(item.productName, item.size)}</span>
                   <span className={styles.productMeta}>
-                    {safeQty} pkt{safeQty !== 1 ? 's' : ''}
+                    {safeQty} pc{safeQty !== 1 ? 's' : ''}
                   </span>
                 </div>
                 <span className={styles.productTotal}>₹{lineTotal.toFixed(0)}</span>
