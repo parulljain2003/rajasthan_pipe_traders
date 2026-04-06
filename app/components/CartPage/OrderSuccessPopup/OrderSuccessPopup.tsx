@@ -43,7 +43,7 @@ export default function OrderSuccessPopup({
         {/* Heading */}
         <h2 className={styles.title}>Order Request Placed!</h2>
         <p className={styles.subtitle}>
-          Your enquiry has been received. Our team will contact you shortly.
+          Your order request has been received. Our team will contact you shortly.
         </p>
 
         {/* Items summary */}
