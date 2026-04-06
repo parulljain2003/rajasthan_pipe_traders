@@ -6,7 +6,7 @@
 .container {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 4rem;
 }
 
 /* ── Header row with arrows ── */
@@ -208,14 +208,14 @@
 /* ── Responsive ── */
 @media (max-width: 1024px) {
   .card {
-    flex: 0 0 calc(25% - 1rem);
+    flex: 0 0 calc(33.333% - 1.25rem);
     min-width: 190px;
   }
 }
 
 @media (max-width: 768px) {
   .section {
-    padding: 2rem 0 1.5rem;
+    padding: 2.5rem 0 1.5rem;
   }
 
   .container {
@@ -223,23 +223,23 @@
   }
 
   .title {
-    font-size: 1.3rem;
+    font-size: 1.4rem;
   }
 
   .card {
-    flex: 0 0 calc(45vw - 1rem);
-    min-width: 160px;
+    flex: 0 0 52%;
+    min-width: 170px;
   }
 
   .name {
-    font-size: 0.8rem;
+    font-size: 0.82rem;
   }
 }
 
 @media (max-width: 480px) {
   .card {
-    flex: 0 0 calc(70vw - 1rem);
-    min-width: 140px;
+    flex: 0 0 68%;
+    min-width: 150px;
   }
 
   .navArrow {

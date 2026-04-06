@@ -164,11 +164,11 @@
 .inner {
   position:relative; z-index:2;
   max-width:1440px; margin:0 auto; width:100%;
-  /* padding:3.5rem 2.5rem 3rem; */
+  padding:3.5rem 4rem 3rem;
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:3rem;
-  align-items:center;
+  align-items: flex-start;
   min-height:490px;
 }
 
@@ -176,12 +176,17 @@
    LEFT
 ═══════════════════════ */
 .left {
+  position: relative;
   display:flex; flex-direction:column; gap:1.2rem;
+  padding-top: 1rem;
   animation: fadeL 0.65s cubic-bezier(0.4,0,0.2,1) both;
 }
 @keyframes fadeL { from{opacity:0;transform:translateX(-24px)} to{opacity:1;transform:translateX(0)} }
 
 .trustBadge {
+  position: absolute;
+  top: -1.5rem;
+  left: 0;
   display:inline-flex; align-items:center; gap:0.5rem;
   background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.13);
   backdrop-filter:blur(8px); border-radius:20px;
@@ -197,10 +202,11 @@
 
 /* Company name headline */
 .headline {
-  font-size:clamp(1.9rem,3.4vw,2.85rem);
-  font-weight:900; line-height:1.05;
-  letter-spacing:-0.025em;
-  margin:0;
+  font-size: clamp(1.75rem, 6vw, 2.85rem);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0;
 }
 .companyName {
   display:inline;
@@ -265,7 +271,7 @@
    RIGHT — CAROUSEL
 ═══════════════════════ */
 .right {
-  display:flex; justify-content:center; align-items:flex-start;
+  display:flex; justify-content:center; align-items: flex-start;
   animation: fadeR 0.65s 0.1s cubic-bezier(0.4,0,0.2,1) both;
 }
 @keyframes fadeR { from{opacity:0;transform:translateX(24px)} to{opacity:1;transform:translateX(0)} }
@@ -478,13 +484,32 @@
 /* ═══════════════════════
    RESPONSIVE
 ═══════════════════════ */
-@media (max-width:1024px) {
-  .inner { grid-template-columns:1fr; gap:2rem; padding:3rem 1.75rem 2.5rem; min-height:unset; }
-  .right { justify-content:flex-start; }
-  .carousel { max-width:100%; }
-  .couponRow { gap:0.5rem; }
+@media (max-width: 1024px) {
+  .inner { 
+    grid-template-columns: 1fr; 
+    gap: 3rem; 
+    padding: 3rem 1.5rem 2.5rem; 
+    min-height: unset; 
+  }
+  .left {
+    text-align: center;
+    align-items: center;
+  }
+  .subtext {
+    margin: 0 auto;
+  }
+  .statsRow {
+    margin: 0 auto;
+  }
+  .right { 
+    justify-content: center; 
+  }
+  .carousel { 
+    max-width: 500px; 
+    margin: 0 auto;
+  }
   .overlayLeft {
-    background:linear-gradient(180deg,rgba(5,11,26,0.95) 0%,rgba(5,11,26,0.82) 100%);
+    background: linear-gradient(180deg, rgba(5,11,26,0.96) 0%, rgba(5,11,26,0.7) 100%);
   }
 }
 
@@ -508,15 +533,29 @@
   .slideQtyCounter { width:100%; justify-content:center; }
 }
 
-@media (max-width:480px) {
-  .inner { padding:2rem 1rem 1.5rem; }
-  .statsRow { flex-wrap:wrap; gap:0.5rem; justify-content:center; border-radius:12px; }
-  .statsDivider { display:none; }
-  .statItem { padding:0.4rem 0.85rem; background:rgba(255,255,255,0.05); border-radius:8px; }
-  .subtext { font-size:0.83rem; }
-  .arrowBtn { width:36px; height:36px; }
-  .slideQtyBtn { min-width:44px; min-height:44px; }
-  .slideBtn { min-height:44px; font-size:0.85rem; }
+@media (max-width: 480px) {
+  .inner { padding: 2rem 1rem 1.5rem; }
+  .statsRow { 
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+  }
+  .statsDivider { display: none; }
+  .statItem { 
+    padding: 0.75rem 0.5rem; 
+    background: rgba(255,255,255,0.05); 
+    border-radius: 8px; 
+    width: 100%;
+  }
+  .statValue { font-size: 1.1rem; }
+  .headline { font-size: 1.9rem; }
+  .subtext { font-size: 0.85rem; }
+  .arrowBtn { width: 36px; height: 36px; }
+  .slideQtyBtn { min-width: 40px; min-height: 40px; }
+  .slideBtn { min-height: 40px; font-size: 0.8rem; }
 }
 
 /* ── Qty Error Message ── */
