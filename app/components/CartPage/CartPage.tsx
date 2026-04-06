@@ -23,11 +23,18 @@ export default function CartPage() {
 
   const [successOpen, setSuccessOpen] = useState(false);
   const [orderedItems, setOrderedItems] = useState(cartItems);
+  const [orderedTotal, setOrderedTotal] = useState(0);
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
 
   const gstTotal = cartTotal - cartBasicTotal;
 
+  const COUPON_PCT: Record<string, number> = { BULK7: 0.07, BULK9: 0.09, BULK12: 0.12, MIN25K: 0 };
+  const couponDiscount = appliedCoupon ? Math.round(cartTotal * (COUPON_PCT[appliedCoupon] ?? 0)) : 0;
+  const finalTotal = cartTotal - couponDiscount;
+
   const handlePlaceOrder = () => {
     setOrderedItems([...cartItems]);
+    setOrderedTotal(finalTotal);
     setSuccessOpen(true);
   };
 
@@ -150,6 +157,8 @@ export default function CartPage() {
                 grandTotal={cartTotal}
                 itemCount={cartItems.length}
                 items={cartItems}
+                appliedCoupon={appliedCoupon}
+                onCouponChange={setAppliedCoupon}
                 onPlaceOrder={handlePlaceOrder}
               />
             </div>
@@ -160,7 +169,7 @@ export default function CartPage() {
       <OrderSuccessPopup
         isOpen={successOpen}
         items={orderedItems}
-        total={orderedItems.reduce((s, i) => s + Number(i.pricePerUnit || 0) * Number(i.quantity || 1), 0)}
+        total={orderedTotal}
         onClose={() => setSuccessOpen(false)}
         onContinue={handleContinue}
       />

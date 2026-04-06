@@ -17,6 +17,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const { toggleWishlist: ctxToggleWishlist, isWishlisted, addToCart } = useCartWishlist();
   const [selectedSizeIndex] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
+  const [bulkAddedToCart, setBulkAddedToCart] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
   const [showQtyError, setShowQtyError] = useState(false);
   const [quantity, setQuantity] = useState(0);
@@ -62,7 +63,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
     setShowQtyError(false);
     const totalPkts = masterBags * selectedSize.qtyPerBag * selectedSize.pcsPerPacket;
     addToCart(cartPayload(), totalPkts);
-    setAddedToCart(true);
+    setBulkAddedToCart(true);
     setPopupOpen(true);
   };
 
@@ -241,9 +242,12 @@ export default function ProductInfo({ product }: ProductInfoProps) {
               <button onClick={() => setMasterBags(n => n + 1)}>+</button>
               <span className={styles.bagQtyUnit}>bags</span>
             </div>
-            <button className={styles.bagAddToCartBtn} onClick={handleMasterBagAddToCart}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
-              <span>Bulk Add</span>
+            <button className={`${styles.bagAddToCartBtn} ${bulkAddedToCart ? styles.btnSuccess : ""}`} onClick={handleMasterBagAddToCart}>
+              {bulkAddedToCart ? (
+                <><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 7 9 18l-5-5"/></svg> <span>Bulk Added</span></>
+              ) : (
+                <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg> <span>Bulk Add</span></>
+              )}
             </button>
           </div>
         </div>

@@ -5,12 +5,21 @@ import styles from './OrderSummary.module.css';
 import { CartItem } from '../../../context/CartWishlistContext';
 import { productHeading } from '../../../lib/productHeading';
 
+const COUPONS = [
+  { code: "BULK7",  discount: "7%",   condition: "On 15+ Cartons / Bags",  desc: "Mix items · complete price list",  color: "#2563eb", pct: 0.07 },
+  { code: "BULK9",  discount: "9%",   condition: "On 50+ Cartons / Bags",  desc: "Mix items · complete price list",  color: "#4f46e5", pct: 0.09 },
+  { code: "BULK12", discount: "12%",  condition: "On 85+ Cartons / Bags",  desc: "Maximum bulk discount",            color: "#059669", pct: 0.12 },
+  { code: "MIN25K", discount: "FREE", condition: "Min. Order ₹25,000",      desc: "100% advance · TO PAY freight",    color: "#d97706", pct: 0    },
+];
+
 interface OrderSummaryProps {
   basicTotal: number;
   gstTotal: number;
   grandTotal: number;
   itemCount: number;
   items: CartItem[];
+  appliedCoupon: string | null;
+  onCouponChange: (code: string | null) => void;
   onPlaceOrder: () => void;
 }
 
@@ -20,9 +29,17 @@ export default function OrderSummary({
   grandTotal,
   itemCount,
   items,
+  appliedCoupon,
+  onCouponChange,
   onPlaceOrder,
 }: OrderSummaryProps) {
-  const minOrderMet = grandTotal >= 25000;
+  const [couponOpen, setCouponOpen] = useState(false);
+
+  const couponMeta = appliedCoupon ? COUPONS.find(c => c.code === appliedCoupon) ?? null : null;
+  const couponDiscount = couponMeta ? Math.round(grandTotal * couponMeta.pct) : 0;
+  const finalTotal = grandTotal - couponDiscount;
+
+  const minOrderMet = finalTotal >= 25000;
   const [showMinError, setShowMinError] = useState(false);
 
   const handlePlaceOrder = () => {
@@ -77,12 +94,84 @@ export default function OrderSummary({
         <span className={styles.rowVal}>₹{gstTotal.toFixed(2)}</span>
       </div>
 
+      {couponDiscount > 0 && (
+        <div className={styles.row}>
+          <span className={styles.rowLabel}>Coupon Discount ({couponMeta?.code})</span>
+          <span className={styles.discountVal}>−₹{couponDiscount.toFixed(0)}</span>
+        </div>
+      )}
+      {couponMeta?.code === 'MIN25K' && (
+        <div className={styles.row}>
+          <span className={styles.rowLabel}>Dispatch</span>
+          <span className={styles.freeTag}>FREE</span>
+        </div>
+      )}
+
       <div className={styles.divider} />
 
       {/* Grand total */}
       <div className={`${styles.row} ${styles.totalRow}`}>
         <span className={styles.totalLabel}>Grand Total (incl. GST)</span>
-        <span className={styles.totalVal}>₹{grandTotal.toFixed(2)}</span>
+        <span className={styles.totalVal}>₹{finalTotal.toFixed(2)}</span>
+      </div>
+
+      {/* Apply Coupon */}
+      <div className={styles.couponSection}>
+        {appliedCoupon ? (
+          <div className={styles.appliedCoupon}>
+            <div className={styles.appliedLeft}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <div>
+                <span className={styles.appliedCode}>{appliedCoupon}</span>
+                <span className={styles.appliedDesc}>{COUPONS.find(c => c.code === appliedCoupon)?.discount} · {COUPONS.find(c => c.code === appliedCoupon)?.condition}</span>
+              </div>
+            </div>
+            <button className={styles.removeBtn} onClick={() => onCouponChange(null)} aria-label="Remove coupon">
+              Remove
+            </button>
+          </div>
+        ) : (
+          <button className={styles.couponToggle} onClick={() => setCouponOpen(o => !o)}>
+            <div className={styles.couponToggleLeft}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                <line x1="7" y1="7" x2="7.01" y2="7"/>
+              </svg>
+              <span>Apply Coupon</span>
+            </div>
+            <svg
+              width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+              style={{ transform: couponOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+        )}
+
+        {couponOpen && !appliedCoupon && (
+          <div className={styles.couponList}>
+            {COUPONS.map(c => (
+              <button
+                key={c.code}
+                className={styles.couponCard}
+                style={{ '--coupon-color': c.color } as React.CSSProperties}
+                onClick={() => { onCouponChange(c.code); setCouponOpen(false); }}
+              >
+                <div className={styles.couponCardStrip} />
+                <div className={styles.couponCardBody}>
+                  <div className={styles.couponCardTop}>
+                    <span className={styles.couponCardCode}>{c.code}</span>
+                    <span className={styles.couponCardDiscount}>{c.discount}</span>
+                  </div>
+                  <span className={styles.couponCardCondition}>{c.condition}</span>
+                  <span className={styles.couponCardDesc}>{c.desc}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Min order error */}
@@ -93,7 +182,7 @@ export default function OrderSummary({
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          Order total must be ₹25,000 or more. Add ₹{(25000 - grandTotal).toFixed(0)} more to place order.
+          Order total must be ₹25,000 or more. Add ₹{(25000 - finalTotal).toFixed(0)} more to place order.
         </div>
       )}
 

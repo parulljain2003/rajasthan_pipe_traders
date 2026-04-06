@@ -31,6 +31,13 @@ export default function OrderSuccessPopup({
   const content = (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        {/* Close button */}
+        <button className={styles.closeBtn} onClick={onClose} aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+
         {/* Success icon */}
         <div className={styles.iconWrap}>
           <div className={styles.circle}>
@@ -57,7 +64,6 @@ export default function OrderSuccessPopup({
               <li key={i} className={styles.itemRow}>
                 <span className={styles.itemName}>{item.productName}</span>
                 <span className={styles.itemMeta}>{item.size} × {item.quantity}</span>
-                <span className={styles.itemPrice}>₹{(Number(item.pricePerUnit || 0) * Number(item.quantity || 1)).toFixed(2)}</span>
               </li>
             ))}
             {items.length > 3 && (
