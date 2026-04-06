@@ -7,6 +7,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import './Header.css';
 import { searchData } from '../../data/searchData';
 import { useCartWishlist } from '../../context/CartWishlistContext';
+import { categoryToSlug } from '../../data/categories';
 
 const searchIndex = searchData;
 
@@ -204,7 +205,13 @@ const Header = () => {
                 <div className="mega-menu-content">
                   {coreProducts.map((group, idx) => (
                     <div key={idx} className="mega-menu-column">
-                      <h3 className="column-title">{group.category}</h3>
+                      <Link 
+                        href={`/category/${categoryToSlug(group.category)}`} 
+                        className="column-title-link"
+                        onClick={() => setIsMegaMenuOpen(false)}
+                      >
+                        <h3 className="column-title">{group.category}</h3>
+                      </Link>
                       <ul className="product-list">
                         {group.items.map((item, i) => (
                           <li key={i} className="product-item">

@@ -105,17 +105,17 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
   const clearCart = useCallback(() => setCartItems([]), []);
 
   const cartCount = useMemo(
-    () => cartItems.reduce((sum, ci) => sum + ci.quantity, 0),
+    () => cartItems.reduce((sum, ci) => sum + (ci.quantity / ci.pcsPerPacket), 0),
     [cartItems]
   );
 
   const cartTotal = useMemo(
-    () => cartItems.reduce((sum, ci) => sum + ci.pricePerUnit * ci.quantity, 0),
+    () => cartItems.reduce((sum, ci) => sum + (ci.pricePerUnit * (ci.quantity / ci.pcsPerPacket)), 0),
     [cartItems]
   );
 
   const cartBasicTotal = useMemo(
-    () => cartItems.reduce((sum, ci) => sum + ci.basicPricePerUnit * ci.quantity, 0),
+    () => cartItems.reduce((sum, ci) => sum + (ci.basicPricePerUnit * (ci.quantity / ci.pcsPerPacket)), 0),
     [cartItems]
   );
 

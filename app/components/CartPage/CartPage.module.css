@@ -234,6 +234,7 @@
 .summaryCol {
   position: sticky;
   top: calc(var(--header-height, 72px) + 1rem);
+  margin-top: 2.75rem;
 }
 
 /* ── Responsive ── */

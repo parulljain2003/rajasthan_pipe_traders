@@ -60,9 +60,10 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       return;
     }
     setShowQtyError(false);
-    const totalPkts = masterBags * selectedSize.qtyPerBag;
+    const totalPkts = masterBags * selectedSize.qtyPerBag * selectedSize.pcsPerPacket;
     addToCart(cartPayload(), totalPkts);
-    router.push("/cart");
+    setAddedToCart(true);
+    setPopupOpen(true);
   };
 
   return (

@@ -171,6 +171,16 @@
   text-transform: uppercase;
   margin-bottom: 1.5rem;
   letter-spacing: 0.1em;
+  transition: color 0.2s ease;
+}
+
+.column-title-link {
+  text-decoration: none;
+  display: inline-block;
+}
+
+.column-title-link:hover .column-title {
+  color: var(--primary-hover);
 }
 
 .product-list {
