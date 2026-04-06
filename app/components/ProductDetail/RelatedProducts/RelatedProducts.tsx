@@ -178,6 +178,9 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
                     Please add product quantity first
                   </div>
                 )}
+                <div className={styles.moqLabel}>
+                  Minimum Order Quantity: {product.moq ?? step} pc
+                </div>
               </div>
             </div>
           );

@@ -34,6 +34,7 @@ export interface Product {
   minOrder: string;
   certifications?: string[];
   material?: string;
+  moq?: number;
 }
 
 export const discountTiers: DiscountTier[] = [

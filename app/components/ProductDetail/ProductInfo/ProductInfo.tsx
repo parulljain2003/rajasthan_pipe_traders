@@ -150,6 +150,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       <div className={styles.modernQtyWrap}>
         <div className={styles.qtyHeader}>
           <label className={styles.modernQtyLabel}>QUANTITY</label>
+          <span className={styles.moqDetailBadge}>MOQ: {product.moq ?? step} pc</span>
         </div>
         
         <div className={styles.interactiveActionRow}>
