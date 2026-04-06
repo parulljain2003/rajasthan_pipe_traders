@@ -60,6 +60,7 @@
   text-decoration: none;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
   transition: all 0.3s ease;
+  min-height: 520px;
 }
 
 .card:hover {
@@ -122,7 +123,7 @@
   padding: 1.1rem;
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
+  flex: 1;
   gap: 0.3rem;
 }
 
@@ -193,19 +194,132 @@
   color: #94a3b8;
 }
 
-.cardCta {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #2563eb;
-  margin-top: 0.5rem;
-  transition: gap 0.2s;
+.imageLink {
+  text-decoration: none;
+  display: block;
 }
 
-.card:hover .cardCta {
-  gap: 0.5rem;
+.titleLink {
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.cardCtaRow {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  align-items: center;
+}
+
+.qtyCounter {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 36px;
+  background: #f8fafc;
+}
+
+.qtyBtn {
+  width: 28px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.qtyBtn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #2563eb;
+}
+
+.qtyBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.qtyInputBlock {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0 0.3rem;
+  border-left: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  background: #fff;
+  height: 100%;
+}
+
+.qtyInputBlock input {
+  width: 32px;
+  border: none;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0f172a;
+  outline: none;
+  padding: 0;
+  background: transparent;
+}
+
+/* Remove arrows */
+.qtyInputBlock input::-webkit-outer-spin-button,
+.qtyInputBlock input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.qtyUnit {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.addToCartBtn {
+  flex: 1;
+  height: auto;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  padding: 0.65rem 0.9rem;
+  transition: all 0.22s ease;
+}
+
+.addToCartBtn:hover:not(:disabled) {
+  background: #1d4ed8;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.addToCartBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.addToCartBtn:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.addToCartBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 @media (max-width: 640px) {
@@ -220,6 +334,18 @@
     flex-wrap: wrap;
     gap: 0.5rem;
     align-items: flex-start;
+  }
+  .cardCtaRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
+  }
+  .qtyCounter {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .qtyBtn {
+    flex: 1;
   }
 }
 
@@ -240,4 +366,25 @@
   .cardName {
     font-size: 0.78rem;
   }
+  .cardCtaRow {
+    margin-top: 0.5rem;
+  }
+  .addToCartBtn span {
+    display: none;
+  }
+  .addToCartBtn {
+    width: 100%;
+  }
+}
+
+/* ── Error Message ── */
+.qtyError {
+  color: #dc2626;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  background: #fee2e2;
+  border-left: 2px solid #dc2626;
+  border-radius: 3px;
 }

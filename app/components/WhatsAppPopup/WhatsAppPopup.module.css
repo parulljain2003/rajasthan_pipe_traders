@@ -284,27 +284,56 @@
 ═══════════════════════ */
 @media (max-width: 480px) {
   .popup {
-    padding: 2rem 1.25rem 1.5rem;
-    border-radius: 16px;
-    margin: 0 0.75rem;
-    width: calc(100% - 1.5rem);
-    max-width: 100%;
+    padding: 1.5rem 1rem;
+    border-radius: 12px;
+    margin: 0 1rem;
+    width: calc(100% - 2rem);
+    max-width: 320px;
   }
 
   .title {
-    font-size: 1.1rem;
+    font-size: 1rem;
+    line-height: 1.3;
   }
 
   .desc {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
+    margin-bottom: 0.75rem;
   }
 
   .iconWrap {
-    width: 60px;
-    height: 60px;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 0.75rem;
   }
   .iconWrap svg {
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
+  }
+
+  .productTag {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .inputGroup {
+    border-width: 1.5px;
+    margin-bottom: 0.75rem;
+  }
+  .prefix {
+    height: 40px;
+    font-size: 0.8rem;
+    padding: 0 0.5rem;
+  }
+  .input {
+    height: 40px;
+    font-size: 0.85rem;
+    padding: 0 0.6rem;
+  }
+  .submitBtn {
+    height: 40px;
+    font-size: 0.85rem;
+    border-radius: 8px;
   }
 }

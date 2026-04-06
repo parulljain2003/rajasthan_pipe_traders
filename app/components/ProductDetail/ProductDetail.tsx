@@ -54,31 +54,7 @@ export default function ProductDetail({
         {/* Specs Table (Tabs) */}
         <SpecsTable product={product} />
 
-        {/* Company Info Banner */}
-        <div className={styles.companyBanner}>
-          <div className={styles.companyBannerLeft}>
-            <p className={styles.companyName}>Rajasthan Pipe Traders</p>
-            <p className={styles.companyTagline}>
-              Premium Electrical & Plumbing Hardware · Ahmedabad
-            </p>
-          </div>
-          <div className={styles.companyStats}>
-            <div className={styles.statItem}>
-              <span className={styles.statValue}>25+</span>
-              <span className={styles.statLabel}>Years of Trust</span>
-            </div>
-            <div className={styles.statDivider} />
-            <div className={styles.statItem}>
-              <span className={styles.statValue}>500+</span>
-              <span className={styles.statLabel}>Products</span>
-            </div>
-            <div className={styles.statDivider} />
-            <div className={styles.statItem}>
-              <span className={styles.statValue}>Pan India</span>
-              <span className={styles.statLabel}>Delivery</span>
-            </div>
-          </div>
-        </div>
+
 
         {/* Related Products */}
         <RelatedProducts products={relatedProducts} />

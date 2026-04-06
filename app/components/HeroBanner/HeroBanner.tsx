@@ -235,16 +235,20 @@ function ProductCarousel() {
                     value={qty}
                     min={0}
                     step={step}
+                    onFocus={(e) => e.target.select()}
                     onClick={e => e.stopPropagation()}
                     onChange={e => { 
-                      e.stopPropagation(); 
-                      const v = parseInt(e.target.value); 
-                      if (!isNaN(v) && v >= 0) {
+                      e.stopPropagation();
+                      const v = parseInt(e.target.value) || 0;
+                      if (v >= 0) {
                         setQty(p.id, v);
                         setErrorProductId(null);
                       }
                     }}
-                    onBlur={e => { const v = parseInt(e.target.value); if (isNaN(v) || v < 0) setQty(p.id, 0); }}
+                    onBlur={e => { 
+                      const v = parseInt(e.target.value) || 0;
+                      if (v < 0) setQty(p.id, 0);
+                    }}
                     aria-label="Quantity in pc"
                   />
                   <span className={styles.slideQtyPc} aria-hidden>pc</span>

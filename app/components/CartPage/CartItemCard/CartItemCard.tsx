@@ -32,15 +32,15 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
   const safeQty   = Number(item.quantity)          || 1;
   const step      = Number(item.pcsPerPacket)      || 1;
 
-  const lineTotal  = safePrice * safeQty;
-  const gstAmount  = lineTotal - safeBasic * safeQty;
+  const packetCount = step > 0 ? safeQty / step : 0;
+  const lineTotal   = safePrice * packetCount;
+  const lineBasic   = safeBasic * packetCount;
+  const gstAmount   = lineTotal - lineBasic;
 
   const mrpUnit  = safePrice * 1.15;
-  const mrpTotal = mrpUnit * safeQty;
+  const mrpTotal = mrpUnit * packetCount;
   const saving   = mrpTotal - lineTotal;
   const savePct  = mrpUnit > 0 ? Math.round(((mrpUnit - safePrice) / mrpUnit) * 100) : 0;
-
-  const packetCount = step > 0 ? safeQty / step : 0;
   const packetLabel = Number.isInteger(packetCount)
     ? String(packetCount)
     : packetCount.toLocaleString('en-IN', { maximumFractionDigits: 2 });

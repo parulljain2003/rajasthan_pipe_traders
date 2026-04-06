@@ -169,17 +169,18 @@ export default function ProductGrid({ products }: ProductGridProps) {
                         value={getQty(product)}
                         min={0}
                         step={product.sizes[0].pcsPerPacket}
+                        onFocus={(e) => e.target.select()}
                         onChange={e => {
                           e.stopPropagation();
-                          const v = parseInt(e.target.value);
-                          if (!isNaN(v) && v >= 0) {
+                          const v = parseInt(e.target.value) || 0;
+                          if (v >= 0) {
                             setQty(product.id, v);
                             setErrorProductId(null);
                           }
                         }}
                         onBlur={e => {
-                          const v = parseInt(e.target.value);
-                          if (isNaN(v) || v < 0) setQty(product.id, 0);
+                          const v = parseInt(e.target.value) || 0;
+                          if (v < 0) setQty(product.id, 0);
                         }}
                         onClick={e => { e.preventDefault(); e.stopPropagation(); }}
                         aria-label="Quantity in pc"

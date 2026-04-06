@@ -118,7 +118,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
             <circle cx="12" cy="12" r="10" />
             <path d="M12 16v-4M12 8h.01" />
           </svg>
-          GST included in final price · Price valid from 01-04-2026
+          GST included in final price
         </div>
       </div>
 
@@ -169,13 +169,18 @@ export default function ProductInfo({ product }: ProductInfoProps) {
                 value={quantity}
                 min={0}
                 step={step}
+                onFocus={e => e.currentTarget.select()}
                 onChange={e => {
-                  const v = parseInt(e.target.value);
-                  if (!isNaN(v) && v >= 0) { setQuantity(v); setShowQtyError(false); }
+                  const v = parseInt(e.target.value) || 0;
+                  if (v >= 0) { 
+                    setQuantity(v); 
+                    setShowQtyError(false); 
+                  }
                 }}
+                onWheel={e => e.currentTarget.blur()}
                 onBlur={e => {
-                  const v = parseInt(e.target.value);
-                  if (isNaN(v) || v < 0) setQuantity(0);
+                  const v = parseInt(e.target.value) || 0;
+                  if (v < 0) setQuantity(0);
                 }}
               />
               <span className={styles.modernQtyUnit}>pc</span>
