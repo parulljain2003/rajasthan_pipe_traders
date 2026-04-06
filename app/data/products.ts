@@ -62,11 +62,8 @@ export const products: Product[] = [
       "Hitech Square and Tejas Craft Premium Cable Nail Clips are manufactured from high-grade virgin PP material, ensuring durability and long service life. Ideal for fixing electrical cables and wires to walls, ceilings, and other surfaces. Available in a wide range of sizes to accommodate different cable diameters. ISI certified, UV-stabilised material resists brittleness over time.",
     features: [
       "High-grade virgin PP material",
-      "Wide size range: 4MM – 25MM",
-      "ISI certified quality",
       "UV-stabilised for outdoor use",
       "Easy nail-drive installation",
-      "COMBO & NO COMBO options available",
     ],
     image: "/Cable_Clip.png",
     images: ["/Cable_Clip.png", "/Nail_Cable_Clip.png"],

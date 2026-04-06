@@ -70,37 +70,6 @@ export default function SpecsTable({ product }: SpecsTableProps) {
       {/* ── Tab: Packing Details ── */}
       {activeTab === "packing" && (
         <div className={styles.tabContent}>
-          <div className={styles.packingInfoGrid}>
-            <div className={styles.packingInfoCard}>
-              <div className={styles.packingIcon}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                </svg>
-              </div>
-              <h3>Packaging Unit</h3>
-              <p>Products are packed in sealed inner boxes / pouches, then bundled into a master bag/carton for safe transit.</p>
-            </div>
-            <div className={styles.packingInfoCard}>
-              <div className={styles.packingIcon}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2">
-                  <rect x="1" y="3" width="15" height="13" rx="2" />
-                  <path d="m16 8 4 4-4 4M20 12H7" />
-                </svg>
-              </div>
-              <h3>Dispatch Mode</h3>
-              <p>All orders are dispatched on a TO PAY basis — freight is payable by the buyer at destination.</p>
-            </div>
-            <div className={styles.packingInfoCard}>
-              <div className={styles.packingIcon}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2">
-                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                </svg>
-              </div>
-              <h3>Discount Threshold</h3>
-              <p>Bulk discount starts from 15 cartons/bags on mix items across the complete price list.</p>
-            </div>
-          </div>
-
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
               <thead>
