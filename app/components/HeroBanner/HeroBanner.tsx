@@ -6,7 +6,6 @@ import Link from "next/link";
 import styles from "./HeroBanner.module.css";
 import { useCartWishlist } from "../../context/CartWishlistContext";
 import WhatsAppPopup from "../WhatsAppPopup/WhatsAppPopup";
-import QtyRequiredPopup from "../QtyRequiredPopup/QtyRequiredPopup";
 import { productHeading, listingBrandPill } from "../../lib/productHeading";
 /* ════════════════════════════════════
    COUPON DATA
@@ -144,7 +143,7 @@ function ProductCarousel() {
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [popupOpen, setPopupOpen]   = useState(false);
   const [popupProduct, setPopupProduct] = useState("");
-  const [qtyHintOpen, setQtyHintOpen] = useState(false);
+  const [errorProductId, setErrorProductId] = useState<number | null>(null);
   const { addToCart } = useCartWishlist();
 
   const goTo = useCallback((i: number, d: "l"|"r" = "l") => { setDir(d); setActive(i); }, []);
@@ -165,9 +164,10 @@ function ProductCarousel() {
   const handleAddToCart = (p: typeof slides[0]["product"]) => {
     const qty = getQty(p);
     if (qty <= 0) {
-      setQtyHintOpen(true);
+      setErrorProductId(p.id);
       return;
     }
+    setErrorProductId(null);
     addToCart({
       productId: p.id,
       productName: p.name,
@@ -193,7 +193,6 @@ function ProductCarousel() {
 
   return (
     <>
-    <QtyRequiredPopup isOpen={qtyHintOpen} onClose={() => setQtyHintOpen(false)} />
     <div className={styles.carousel} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <div key={active} className={`${styles.slideCard} ${styles[`tag_${s.tagKey}`]} ${styles[dir === "l" ? "animL" : "animR"]}`}>
         <span className={`${styles.slideTag} ${styles[`tagBg_${s.tagKey}`]}`}>{s.tag}</span>
@@ -223,7 +222,11 @@ function ProductCarousel() {
                   type="button"
                   className={styles.slideQtyBtn}
                   disabled={qty <= 0}
-                  onClick={e => { e.stopPropagation(); setQty(p.id, Math.max(0, qty - step)); }}
+                  onClick={e => { 
+                    e.stopPropagation(); 
+                    setQty(p.id, Math.max(0, qty - step));
+                    setErrorProductId(null);
+                  }}
                 >−</button>
                 <div className={styles.slideQtyValueCell}>
                   <input
@@ -233,7 +236,14 @@ function ProductCarousel() {
                     min={0}
                     step={step}
                     onClick={e => e.stopPropagation()}
-                    onChange={e => { e.stopPropagation(); const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) setQty(p.id, v); }}
+                    onChange={e => { 
+                      e.stopPropagation(); 
+                      const v = parseInt(e.target.value); 
+                      if (!isNaN(v) && v >= 0) {
+                        setQty(p.id, v);
+                        setErrorProductId(null);
+                      }
+                    }}
                     onBlur={e => { const v = parseInt(e.target.value); if (isNaN(v) || v < 0) setQty(p.id, 0); }}
                     aria-label="Quantity in pc"
                   />
@@ -242,10 +252,19 @@ function ProductCarousel() {
                 <button
                   type="button"
                   className={styles.slideQtyBtn}
-                  onClick={e => { e.stopPropagation(); setQty(p.id, qty + step); }}
+                  onClick={e => { 
+                    e.stopPropagation(); 
+                    setQty(p.id, qty + step);
+                    setErrorProductId(null);
+                  }}
                 >+</button>
               </div>
             </div>
+            {errorProductId === p.id && (
+              <div className={styles.slideQtyError}>
+                Please add quantity first
+              </div>
+            )}
 
             <button
               type="button"

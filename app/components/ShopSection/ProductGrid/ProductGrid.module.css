@@ -1,9 +1,9 @@
-/* ── Grid ── */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  grid-auto-rows: 1fr;
   gap: 1.75rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 .empty {
@@ -16,7 +16,6 @@
   font-size: 0.9rem;
 }
 
-/* ── Card ── */
 .card {
   background: #ffffff;
   border-radius: 20px;
@@ -24,12 +23,13 @@
   border: 1px solid #f1f5f9;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.03);
   transition: all 0.32s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
+  display: flex !important;
   flex-direction: column;
   cursor: pointer;
   text-decoration: none;
   color: inherit;
   position: relative;
+  height: 100%;
 }
 
 .card:hover {
@@ -123,12 +123,12 @@
   transform: scale(1.07);
 }
 
-/* ── Info ── */
 .info {
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+  flex: 1;
 }
 
 .meta {
@@ -216,6 +216,8 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  margin-top: auto;
+  padding-top: 0.5rem;
 }
 
 .pricingLeft {
@@ -250,7 +252,7 @@
 .ctaRow {
   display: flex;
   gap: 0.6rem;
-  margin-top: 0;
+  margin-top: auto;
   padding-top: 0.5rem;
 }
 
@@ -454,6 +456,18 @@
     max-width: 5rem;
     font-size: 0.85rem;
   }
+}
+
+/* ── Error Message ── */
+.qtyErrorMessage {
+  color: #dc2626;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  background: #fee2e2;
+  border-left: 2px solid #dc2626;
+  border-radius: 3px;
 }
 
 @media (max-width: 360px) {

@@ -7,7 +7,6 @@ import './Products.css';
 import { products, type Product } from '../../data/products';
 import { productHeading, listingBrandPill } from '../../lib/productHeading';
 import WhatsAppPopup from '../WhatsAppPopup/WhatsAppPopup';
-import QtyRequiredPopup from '../QtyRequiredPopup/QtyRequiredPopup';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 
 const CATEGORIES = ['All', 'Cable Clips', 'Fasteners & Hardware', 'Electrical Accessories', 'Boxes & Plates', 'Sanitaryware'];
@@ -17,7 +16,7 @@ export default function Products() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupProduct, setPopupProduct] = useState('');
-  const [qtyHintOpen, setQtyHintOpen] = useState(false);
+  const [errorProductId, setErrorProductId] = useState<number | null>(null);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
 
   const getQty = (product: Product) =>
@@ -36,9 +35,10 @@ export default function Products() {
     e.preventDefault();
     e.stopPropagation();
     if (getQty(product) <= 0) {
-      setQtyHintOpen(true);
+      setErrorProductId(product.id);
       return;
     }
+    setErrorProductId(null);
     const qty = getQty(product);
     addToCart({
       productId: product.id,
@@ -180,6 +180,7 @@ export default function Products() {
                             e.preventDefault(); e.stopPropagation();
                             const step = product.sizes[0].pcsPerPacket;
                             setQty(product.id, Math.max(0, getQty(product) - step));
+                            setErrorProductId(null);
                           }}
                         >−</button>
                         <div className="qty-value-cell">
@@ -192,7 +193,10 @@ export default function Products() {
                             onChange={e => {
                               e.stopPropagation();
                               const v = parseInt(e.target.value);
-                              if (!isNaN(v) && v >= 0) setQty(product.id, v);
+                              if (!isNaN(v) && v >= 0) {
+                                setQty(product.id, v);
+                                setErrorProductId(null);
+                              }
                             }}
                             onBlur={e => {
                               const v = parseInt(e.target.value);
@@ -211,6 +215,7 @@ export default function Products() {
                             e.preventDefault(); e.stopPropagation();
                             const step = product.sizes[0].pcsPerPacket;
                             setQty(product.id, getQty(product) + step);
+                            setErrorProductId(null);
                           }}
                         >+</button>
                       </div>
@@ -222,6 +227,11 @@ export default function Products() {
                       </svg>
                     </button>
                   </div>
+                  {errorProductId === product.id && (
+                    <div className="qty-error-message">
+                      Please add product quantity first
+                    </div>
+                  )}
                 </div>
               </Link>
             );
@@ -246,7 +256,6 @@ export default function Products() {
 
       </div>
 
-      <QtyRequiredPopup isOpen={qtyHintOpen} onClose={() => setQtyHintOpen(false)} />
       <WhatsAppPopup
         isOpen={popupOpen}
         onClose={() => setPopupOpen(false)}

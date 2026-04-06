@@ -740,3 +740,15 @@
     padding: 1rem;
   }
 }
+
+/* ── Error Message ── */
+.qtyErrorMessage {
+  color: #dc2626;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  background: #fee2e2;
+  border-left: 2px solid #dc2626;
+  border-radius: 3px;
+}

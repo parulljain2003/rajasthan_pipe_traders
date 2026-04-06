@@ -8,7 +8,6 @@ import { Product } from '../../../data/products';
 import { productHeading, listingBrandPill } from '../../../lib/productHeading';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
 import WhatsAppPopup from '../../WhatsAppPopup/WhatsAppPopup';
-import QtyRequiredPopup from '../../QtyRequiredPopup/QtyRequiredPopup';
 
 interface ProductGridProps {
   products: Product[];
@@ -18,7 +17,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
   const { toggleWishlist: ctxToggleWishlist, isWishlisted, addToCart } = useCartWishlist();
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupProductName, setPopupProductName] = useState('');
-  const [qtyHintOpen, setQtyHintOpen] = useState(false);
+  const [errorProductId, setErrorProductId] = useState<number | null>(null);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
 
   const getQty = (product: Product) =>
@@ -37,9 +36,10 @@ export default function ProductGrid({ products }: ProductGridProps) {
     e.preventDefault();
     e.stopPropagation();
     if (getQty(product) <= 0) {
-      setQtyHintOpen(true);
+      setErrorProductId(product.id);
       return;
     }
+    setErrorProductId(null);
     const qty = getQty(product);
     addToCart({
       productId: product.id,
@@ -73,7 +73,6 @@ export default function ProductGrid({ products }: ProductGridProps) {
 
   return (
     <>
-    <QtyRequiredPopup isOpen={qtyHintOpen} onClose={() => setQtyHintOpen(false)} />
     <WhatsAppPopup
       isOpen={popupOpen}
       onClose={() => setPopupOpen(false)}
@@ -160,6 +159,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
                         e.preventDefault(); e.stopPropagation();
                         const step = product.sizes[0].pcsPerPacket;
                         setQty(product.id, Math.max(0, getQty(product) - step));
+                        setErrorProductId(null);
                       }}
                     >−</button>
                     <div className={styles.qtyValueCell}>
@@ -172,7 +172,10 @@ export default function ProductGrid({ products }: ProductGridProps) {
                         onChange={e => {
                           e.stopPropagation();
                           const v = parseInt(e.target.value);
-                          if (!isNaN(v) && v >= 0) setQty(product.id, v);
+                          if (!isNaN(v) && v >= 0) {
+                            setQty(product.id, v);
+                            setErrorProductId(null);
+                          }
                         }}
                         onBlur={e => {
                           const v = parseInt(e.target.value);
@@ -191,6 +194,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
                         e.preventDefault(); e.stopPropagation();
                         const step = product.sizes[0].pcsPerPacket;
                         setQty(product.id, getQty(product) + step);
+                        setErrorProductId(null);
                       }}
                     >+</button>
                   </div>
@@ -207,6 +211,11 @@ export default function ProductGrid({ products }: ProductGridProps) {
                   </svg>
                 </button>
               </div>
+              {errorProductId === product.id && (
+                <div className={styles.qtyErrorMessage}>
+                  Please add product quantity first
+                </div>
+              )}
             </div>
           </Link>
         );

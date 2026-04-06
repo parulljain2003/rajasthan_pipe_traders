@@ -6,7 +6,6 @@ import { productHeading } from "../../../lib/productHeading";
 import styles from "./ProductInfo.module.css";
 import type { Product } from "../../../data/products";
 import WhatsAppPopup from "../../WhatsAppPopup/WhatsAppPopup";
-import QtyRequiredPopup from "../../QtyRequiredPopup/QtyRequiredPopup";
 import { useCartWishlist } from "../../../context/CartWishlistContext";
 
 interface ProductInfoProps {
@@ -19,7 +18,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const [selectedSizeIndex] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
-  const [qtyHintOpen, setQtyHintOpen] = useState(false);
+  const [showQtyError, setShowQtyError] = useState(false);
   const [quantity, setQuantity] = useState(0);
 
   /* Master-bag counter — only used for cable-nail-clips */
@@ -46,15 +45,21 @@ export default function ProductInfo({ product }: ProductInfoProps) {
 
   const handleAddToCart = () => {
     if (quantity <= 0) {
-      setQtyHintOpen(true);
+      setShowQtyError(true);
       return;
     }
+    setShowQtyError(false);
     addToCart(cartPayload(), quantity);
     setAddedToCart(true);
     setPopupOpen(true);
   };
 
   const handleMasterBagAddToCart = () => {
+    if (masterBags <= 0) {
+      setShowQtyError(true);
+      return;
+    }
+    setShowQtyError(false);
     const totalPkts = masterBags * selectedSize.qtyPerBag;
     addToCart(cartPayload(), totalPkts);
     router.push("/cart");
@@ -148,7 +153,10 @@ export default function ProductInfo({ product }: ProductInfoProps) {
               type="button"
               className={styles.qtyCounterBtn}
               disabled={quantity <= 0}
-              onClick={() => setQuantity(q => Math.max(0, q - step))}
+              onClick={() => {
+                setQuantity(q => Math.max(0, q - step));
+                setShowQtyError(false);
+              }}
             >−</button>
             <div className={styles.qtyValueCell}>
               <input
@@ -159,7 +167,10 @@ export default function ProductInfo({ product }: ProductInfoProps) {
                 step={step}
                 onChange={e => {
                   const v = parseInt(e.target.value);
-                  if (!isNaN(v) && v >= 0) setQuantity(v);
+                  if (!isNaN(v) && v >= 0) {
+                    setQuantity(v);
+                    setShowQtyError(false);
+                  }
                 }}
                 onBlur={e => {
                   const v = parseInt(e.target.value);
@@ -172,10 +183,18 @@ export default function ProductInfo({ product }: ProductInfoProps) {
             <button
               type="button"
               className={styles.qtyCounterBtn}
-              onClick={() => setQuantity(q => q + step)}
+              onClick={() => {
+                setQuantity(q => q + step);
+                setShowQtyError(false);
+              }}
             >+</button>
           </div>
         </div>
+        {showQtyError && (
+          <div className={styles.qtyErrorMessage}>
+            Please add product quantity first
+          </div>
+        )}
       </div>
 
       {/* Action Buttons */}
@@ -315,7 +334,6 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         </div>
       )}
 
-      <QtyRequiredPopup isOpen={qtyHintOpen} onClose={() => setQtyHintOpen(false)} />
       <WhatsAppPopup
         isOpen={popupOpen}
         onClose={() => setPopupOpen(false)}
