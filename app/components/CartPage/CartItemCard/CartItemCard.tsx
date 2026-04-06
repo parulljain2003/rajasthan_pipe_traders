@@ -9,15 +9,14 @@ import { productHeading, shouldShowBrandBadge } from '../../../lib/productHeadin
 
 interface CartItemCardProps {
   item: CartItem;
-  onRemove: (productId: number, size: string) => void;
-  onUpdateQty: (productId: number, size: string, qty: number) => void;
+  onRemove: (productId: number, size: string, sellerId: string) => void;
+  onUpdateQty: (productId: number, size: string, qty: number, sellerId: string) => void;
 }
 
 const BRAND_COLORS: Record<string, string> = {
-  'Hitech Square / Tejas Craft': '#2563eb',
-  'RPT': '#0891b2',
-  'N-Star': '#059669',
   'Hitech Square': '#7c3aed',
+  'Tejas Craft': '#2563eb',
+  'N-Star': '#059669',
 };
 
 function formatPieces(n: number) {
@@ -63,7 +62,7 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
   const commitQty = (raw: string) => {
     const n = parseInt(raw, 10);
     if (!isNaN(n) && n >= 1) {
-      onUpdateQty(item.productId, item.size, n);
+      onUpdateQty(item.productId, item.size, n, item.sellerId);
     } else {
       setInputVal(String(safeQty));
     }
@@ -97,10 +96,13 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
               {productHeading(item.productName, item.size)}
             </Link>
             <span className={styles.category}>{item.category}</span>
+            {item.sellerId !== "default" && (
+              <span className={styles.sellerLine}>Seller: {item.sellerName}</span>
+            )}
           </div>
           <button
             className={styles.removeBtn}
-            onClick={() => onRemove(item.productId, item.size)}
+            onClick={() => onRemove(item.productId, item.size, item.sellerId)}
             aria-label="Remove item"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -119,7 +121,7 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
               <button
                 type="button"
                 className={styles.qtyBtn}
-                onClick={() => onUpdateQty(item.productId, item.size, Math.max(1, safeQty - step))}
+                onClick={() => onUpdateQty(item.productId, item.size, Math.max(1, safeQty - step), item.sellerId)}
                 disabled={safeQty <= step}
                 aria-label="Decrease"
               >
@@ -142,7 +144,7 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
               <button
                 type="button"
                 className={styles.qtyBtn}
-                onClick={() => onUpdateQty(item.productId, item.size, safeQty + step)}
+                onClick={() => onUpdateQty(item.productId, item.size, safeQty + step, item.sellerId)}
                 aria-label="Increase"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>

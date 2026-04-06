@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import styles from "./SpecsTable.module.css";
-import type { Product } from "../../../data/products";
+import { getSellerOffers, type Product } from "../../../data/products";
 
 interface SpecsTableProps {
   product: Product;
@@ -17,6 +17,7 @@ const tabs: { key: TabKey; label: string }[] = [
 
 export default function SpecsTable({ product }: SpecsTableProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("specs");
+  const offers = getSellerOffers(product);
 
   return (
     <div className={styles.container}>
@@ -36,30 +37,37 @@ export default function SpecsTable({ product }: SpecsTableProps) {
       {/* ── Tab: Size & Price List ── */}
       {activeTab === "specs" && (
         <div className={styles.tabContent}>
-          <div className={styles.tableWrapper}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Size / Variant</th>
-                  <th>Basic Price</th>
-                  <th>Price with GST</th>
-                  <th>Pkts / Master Bag</th>
-                  <th>Pcs / Packet</th>
-                </tr>
-              </thead>
-              <tbody>
-                {product.sizes.map((s, i) => (
-                  <tr key={i} className={i % 2 === 0 ? styles.rowEven : styles.rowOdd}>
-                    <td className={styles.sizeCell}>{s.size}</td>
-                    <td className={styles.basicPriceCell}>₹{s.basicPrice.toFixed(2)}</td>
-                    <td className={styles.gstPriceCell}>₹{s.withGST.toFixed(2)}</td>
-                    <td className={styles.centerCell}>{s.qtyPerBag}</td>
-                    <td className={styles.centerCell}>{s.pcsPerPacket}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {offers.map((offer) => (
+            <div key={offer.sellerId} className={styles.sellerTableBlock}>
+              {offers.length > 1 && (
+                <h3 className={styles.sellerTableTitle}>{offer.sellerName}</h3>
+              )}
+              <div className={styles.tableWrapper}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Size / Variant</th>
+                      <th>Basic Price</th>
+                      <th>Price with GST</th>
+                      <th>Pkts / Master Bag</th>
+                      <th>Pcs / Packet</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {offer.sizes.map((s, i) => (
+                      <tr key={i} className={i % 2 === 0 ? styles.rowEven : styles.rowOdd}>
+                        <td className={styles.sizeCell}>{s.size}</td>
+                        <td className={styles.basicPriceCell}>₹{s.basicPrice.toFixed(2)}</td>
+                        <td className={styles.gstPriceCell}>₹{s.withGST.toFixed(2)}</td>
+                        <td className={styles.centerCell}>{s.qtyPerBag}</td>
+                        <td className={styles.centerCell}>{s.pcsPerPacket}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
           <p className={styles.tableNote}>
             * All prices are per packet (excluding transport). Prices effective 01-04-2026.
           </p>

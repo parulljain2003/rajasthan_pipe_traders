@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import styles from "./RelatedProducts.module.css";
-import type { Product } from "../../../data/products";
+import { getSellerOffers, type Product } from "../../../data/products";
 import { productHeading, listingBrandPill } from "../../../lib/productHeading";
 import { useCartWishlist } from "../../../context/CartWishlistContext";
 import WhatsAppPopup from "../../WhatsAppPopup/WhatsAppPopup";
@@ -40,14 +40,17 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
     }
     setErrorProductId(null);
 
-    const size = product.sizes[0];
+    const offer = getSellerOffers(product)[0];
+    const size = offer.sizes[0];
     const payload = {
       productId: product.id,
       productName: product.name,
       productSlug: product.slug,
       productImage: product.image,
-      brand: product.brand,
+      brand: offer.brand,
       category: product.category,
+      sellerId: offer.sellerId,
+      sellerName: offer.sellerName,
       size: size.size,
       pricePerUnit: size.withGST,
       basicPricePerUnit: size.basicPrice,
@@ -80,8 +83,15 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
 
       <div className={styles.grid}>
         {products.map((product) => {
-          const brandPill = listingBrandPill(product.brand);
-          const size = product.sizes[0];
+          const offer = getSellerOffers(product)[0];
+          const brandPill = listingBrandPill(offer.brand);
+          const pillClass =
+            brandPill === "HiTech"
+              ? styles.listingBrandHitech
+              : brandPill === "Tejas"
+                ? styles.listingBrandTejas
+                : styles.listingBrandNstar;
+          const size = offer.sizes[0];
           const qty = quantities[product.id] || 0;
           const step = size.pcsPerPacket;
 
@@ -105,11 +115,9 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
 
               <div className={styles.cardInfo}>
                 <Link href={`/products/${product.slug}`} className={styles.titleLink}>
-                  {brandPill && (
-                    <span className={`${styles.listingBrand} ${brandPill === "HiTech" ? styles.listingBrandHitech : styles.listingBrandTejas}`}>
-                      {brandPill}
-                    </span>
-                  )}
+                  <span className={`${styles.listingBrand} ${pillClass}`}>
+                    {brandPill}
+                  </span>
                   <h3 className={styles.cardName}>{productHeading(product.name, size.size)}</h3>
                 </Link>
                 

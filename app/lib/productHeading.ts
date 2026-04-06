@@ -3,24 +3,23 @@ export function formatSizeForHeading(size: string): string {
   return size.replace(/(\d)(MM)\b/gi, (_, digit: string) => `${digit} MM`);
 }
 
-/** e.g. "RPT Premium Double Nail Clamps" + "20MM" → "RPT Premium Double Nail Clamps 20 MM" */
+/** e.g. "Double Nail Clamps" + "20MM" → "Double Nail Clamps 20 MM" */
 export function productHeading(name: string, size: string): string {
   return `${name} ${formatSizeForHeading(size)}`.trim();
 }
 
-const BRANDS_HIDDEN_FROM_BADGE = new Set([
-  "RPT",
-  "Hitech Square / Tejas Craft",
-  "Hitech Square",
-]);
+const BRANDS_HIDDEN_FROM_BADGE = new Set<string>([]);
 
 export function shouldShowBrandBadge(brand: string): boolean {
   return !BRANDS_HIDDEN_FROM_BADGE.has(brand);
 }
 
-/** Card pill under image: only HiTech / Tejas — matches sidebar filters */
-export function listingBrandPill(brand: string): "HiTech" | "Tejas" | null {
-  if (brand === "Hitech Square / Tejas Craft") return "Tejas";
+export type ListingBrandPill = "HiTech" | "Tejas" | "N-Star";
+
+/** Card / hero pill — matches sidebar filters (HiTech, Tejas Craft). N-Star for sanitary range. */
+export function listingBrandPill(brand: string): ListingBrandPill {
+  if (brand === "Tejas Craft") return "Tejas";
+  if (brand === "N-Star") return "N-Star";
   if (brand === "Hitech Square") return "HiTech";
-  return null;
+  return "HiTech";
 }

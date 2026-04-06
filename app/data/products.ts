@@ -12,6 +12,17 @@ export interface DiscountTier {
   discount: string;
 }
 
+/** One seller’s price list for a catalog product (same SKU, different supplier). */
+export interface ProductSellerOffer {
+  sellerId: string;
+  sellerName: string;
+  brand: string;
+  sizes: ProductSize[];
+  discountTiers: DiscountTier[];
+  minOrder: string;
+  note?: string;
+}
+
 export interface Product {
   id: number;
   slug: string;
@@ -30,6 +41,8 @@ export interface Product {
   tags: string[];
   sizes: ProductSize[];
   discountTiers: DiscountTier[];
+  /** When set, each entry is listed separately (grid, filters, cart) under that seller. */
+  sellers?: ProductSellerOffer[];
   note?: string;
   minOrder: string;
   certifications?: string[];
@@ -47,20 +60,70 @@ export const discountTiers: DiscountTier[] = [
 export const tapeDiscountNote =
   "Only 2% discount on Hitech/Tejas Electric Tapes, Ronela Electric Accessories, Wires, and N-Star Bibcock/Ball Valve Range.";
 
+const CABLE_NAIL_CLIP_SIZES: ProductSize[] = [
+  { size: "4MM", basicPrice: 7.88, withGST: 9.30, qtyPerBag: 750, pcsPerPacket: 100 },
+  { size: "5MM", basicPrice: 9.07, withGST: 10.70, qtyPerBag: 550, pcsPerPacket: 100 },
+  { size: "6MM", basicPrice: 10.88, withGST: 12.84, qtyPerBag: 450, pcsPerPacket: 100 },
+  { size: "7MM", basicPrice: 13.53, withGST: 15.97, qtyPerBag: 400, pcsPerPacket: 100 },
+  { size: "8MM", basicPrice: 17.49, withGST: 20.64, qtyPerBag: 300, pcsPerPacket: 100 },
+  { size: "9MM", basicPrice: 23.43, withGST: 27.65, qtyPerBag: 220, pcsPerPacket: 100 },
+  { size: "10MM", basicPrice: 23.49, withGST: 27.72, qtyPerBag: 200, pcsPerPacket: 100 },
+  { size: "12MM", basicPrice: 39.15, withGST: 46.20, qtyPerBag: 140, pcsPerPacket: 100 },
+  { size: "14MM", basicPrice: 46.78, withGST: 55.20, qtyPerBag: 100, pcsPerPacket: 100 },
+  { size: "16MM", basicPrice: 60.13, withGST: 70.95, qtyPerBag: 80, pcsPerPacket: 100 },
+  { size: "18MM", basicPrice: 62.79, withGST: 74.09, qtyPerBag: 60, pcsPerPacket: 100 },
+  { size: "20MM COMBO", basicPrice: 50.30, withGST: 59.35, qtyPerBag: 50, pcsPerPacket: 100, note: "Net Price" },
+  { size: "25MM COMBO", basicPrice: 70.25, withGST: 82.90, qtyPerBag: 35, pcsPerPacket: 100, note: "Net Price" },
+  { size: "20MM NO COMBO", basicPrice: 67.42, withGST: 79.56, qtyPerBag: 50, pcsPerPacket: 100 },
+  { size: "25MM NO COMBO", basicPrice: 93.89, withGST: 110.79, qtyPerBag: 35, pcsPerPacket: 100 },
+  { size: "Oval Batten", basicPrice: 9.35, withGST: 11.03, qtyPerBag: 700, pcsPerPacket: 50 },
+  { size: "Flat Batten", basicPrice: 9.35, withGST: 11.03, qtyPerBag: 700, pcsPerPacket: 100 },
+];
+
+export const DEFAULT_SELLER_ID = "default";
+
+export function getSellerOffers(product: Product): ProductSellerOffer[] {
+  if (product.sellers && product.sellers.length > 0) {
+    return product.sellers;
+  }
+  return [
+    {
+      sellerId: DEFAULT_SELLER_ID,
+      sellerName: product.brand,
+      brand: product.brand,
+      sizes: product.sizes,
+      discountTiers: product.discountTiers,
+      minOrder: product.minOrder,
+      note: product.note,
+    },
+  ];
+}
+
+export interface ProductListingEntry {
+  product: Product;
+  offer: ProductSellerOffer;
+}
+
+export function expandProductsForListing(products: Product[]): ProductListingEntry[] {
+  return products.flatMap((product) =>
+    getSellerOffers(product).map((offer) => ({ product, offer }))
+  );
+}
+
 export const products: Product[] = [
   /* ─────────────── CABLE NAIL CLIPS ─────────────── */
   {
     id: 1,
     slug: "cable-nail-clips",
-    name: "Premium Cable Nail Clips",
-    brand: "Hitech Square / Tejas Craft",
+    name: "Cable Nail Clips",
+    brand: "Hitech Square",
     brandCode: "HITECH / TEJAS",
     category: "Cable Clips",
     subCategory: "Nail Cable Clips",
     description:
-      "Premium quality cable nail clips for secure and neat wire management on walls and ceilings.",
+      "Cable nail clips for secure, neat wire management on walls and ceilings (HiTech Square & Tejas Craft lines).",
     longDescription:
-      "Hitech Square and Tejas Craft Premium Cable Nail Clips are manufactured from high-grade virgin PP material, ensuring durability and long service life. Ideal for fixing electrical cables and wires to walls, ceilings, and other surfaces. Available in a wide range of sizes to accommodate different cable diameters. ISI certified, UV-stabilised material resists brittleness over time.",
+      "Cable nail clips from HiTech Square and Tejas Craft are made from high-grade virgin PP for durability and long service life. Ideal for fixing electrical cables to walls, ceilings, and other surfaces. Wide size range. ISI certified, UV-stabilised material resists brittleness over time.",
     features: [
       "High-grade virgin PP material",
     ],
@@ -71,24 +134,24 @@ export const products: Product[] = [
     tags: ["cable-clip", "nail-clip", "wire-management", "electrical"],
     certifications: ["ISI Certified"],
     material: "Virgin PP (Polypropylene)",
-    sizes: [
-      { size: "4MM", basicPrice: 7.88, withGST: 9.30, qtyPerBag: 750, pcsPerPacket: 100 },
-      { size: "5MM", basicPrice: 9.07, withGST: 10.70, qtyPerBag: 550, pcsPerPacket: 100 },
-      { size: "6MM", basicPrice: 10.88, withGST: 12.84, qtyPerBag: 450, pcsPerPacket: 100 },
-      { size: "7MM", basicPrice: 13.53, withGST: 15.97, qtyPerBag: 400, pcsPerPacket: 100 },
-      { size: "8MM", basicPrice: 17.49, withGST: 20.64, qtyPerBag: 300, pcsPerPacket: 100 },
-      { size: "9MM", basicPrice: 23.43, withGST: 27.65, qtyPerBag: 220, pcsPerPacket: 100 },
-      { size: "10MM", basicPrice: 23.49, withGST: 27.72, qtyPerBag: 200, pcsPerPacket: 100 },
-      { size: "12MM", basicPrice: 39.15, withGST: 46.20, qtyPerBag: 140, pcsPerPacket: 100 },
-      { size: "14MM", basicPrice: 46.78, withGST: 55.20, qtyPerBag: 100, pcsPerPacket: 100 },
-      { size: "16MM", basicPrice: 60.13, withGST: 70.95, qtyPerBag: 80, pcsPerPacket: 100 },
-      { size: "18MM", basicPrice: 62.79, withGST: 74.09, qtyPerBag: 60, pcsPerPacket: 100 },
-      { size: "20MM COMBO", basicPrice: 50.30, withGST: 59.35, qtyPerBag: 50, pcsPerPacket: 100, note: "Net Price" },
-      { size: "25MM COMBO", basicPrice: 70.25, withGST: 82.90, qtyPerBag: 35, pcsPerPacket: 100, note: "Net Price" },
-      { size: "20MM NO COMBO", basicPrice: 67.42, withGST: 79.56, qtyPerBag: 50, pcsPerPacket: 100 },
-      { size: "25MM NO COMBO", basicPrice: 93.89, withGST: 110.79, qtyPerBag: 35, pcsPerPacket: 100 },
-      { size: "Oval Batten", basicPrice: 9.35, withGST: 11.03, qtyPerBag: 700, pcsPerPacket: 50 },
-      { size: "Flat Batten", basicPrice: 9.35, withGST: 11.03, qtyPerBag: 700, pcsPerPacket: 100 },
+    sizes: CABLE_NAIL_CLIP_SIZES,
+    sellers: [
+      {
+        sellerId: "hitech-square",
+        sellerName: "Hitech Square",
+        brand: "Hitech Square",
+        sizes: CABLE_NAIL_CLIP_SIZES,
+        discountTiers,
+        minOrder: "₹25,000 (Including GST)",
+      },
+      {
+        sellerId: "tejas-craft",
+        sellerName: "Tejas Craft",
+        brand: "Tejas Craft",
+        sizes: CABLE_NAIL_CLIP_SIZES,
+        discountTiers,
+        minOrder: "₹25,000 (Including GST)",
+      },
     ],
     discountTiers,
     minOrder: "₹25,000 (Including GST)",
@@ -98,15 +161,15 @@ export const products: Product[] = [
   {
     id: 2,
     slug: "double-nail-clamp",
-    name: "Premium Double Nail Clamps",
-    brand: "RPT",
-    brandCode: "RPT-DNC",
+    name: "Double Nail Clamps",
+    brand: "Hitech Square",
+    brandCode: "DNC",
     category: "Cable Clips",
     subCategory: "Double Nail Clamps",
     description:
-      "Heavy-duty double nail clamps providing extra-strong, vibration-resistant cable fastening.",
+      "Heavy-duty double nail clamps for extra-strong, vibration-resistant cable fastening.",
     longDescription:
-      "RPT Premium Double Nail Clamps are engineered for heavy-duty applications where extra holding strength is required. The twin-nail design ensures clamps stay firmly fixed even on rough or plastered surfaces. Ideal for larger-diameter pipes and conduits.",
+      "Double nail clamps are engineered for heavy-duty use where extra holding strength is required. The twin-nail design keeps clamps fixed on rough or plastered surfaces. Ideal for larger-diameter pipes and conduits.",
     features: [
       "Twin-nail design for extra holding",
       "High-impact PP construction",
@@ -132,15 +195,15 @@ export const products: Product[] = [
   {
     id: 3,
     slug: "wall-plug-gitti",
-    name: "Premium Wall Plug (Gitti Heavy)",
-    brand: "RPT",
-    brandCode: "RPT-WPG",
+    name: "Wall Plug (Gitti Heavy)",
+    brand: "Hitech Square",
+    brandCode: "WPG",
     category: "Fasteners & Hardware",
     subCategory: "Wall Plugs",
     description:
       "Heavy-duty square head wall plugs (Gitti) for concrete and masonry fastening.",
     longDescription:
-      "RPT Premium Wall Plugs are made from high-density polyethylene and are designed for heavy anchoring in concrete, brick, and masonry walls. The square head design allows precise insertion and prevents rotation. Available in light and heavy variants for different load requirements.",
+      "Wall plugs are made from high-density polyethylene for heavy anchoring in concrete, brick, and masonry. Square head design for precise insertion and reduced rotation. Light and heavy variants for different loads.",
     features: [
       "Heavy-duty Gitti design",
       "Both light and heavy options",
@@ -165,14 +228,14 @@ export const products: Product[] = [
     id: 4,
     slug: "upvc-pipe-clamp",
     name: "UPVC Pipe Fitting Clamps",
-    brand: "RPT",
-    brandCode: "RPT-UPVC",
+    brand: "Hitech Square",
+    brandCode: "UPVC",
     category: "Cable Clips",
     subCategory: "UPVC Clamps",
     description:
       "Specially designed clamps for secure fixing of UPVC pipe fittings to walls and surfaces.",
     longDescription:
-      "RPT UPVC Pipe Fitting Clamps are manufactured to perfectly grip UPVC pipes and conduit fittings. Designed for plumbing and electrical conduit installations, these clamps provide a clean, professional finish while ensuring a secure hold.",
+      "UPVC pipe fitting clamps grip UPVC pipes and conduit fittings securely. For plumbing and electrical conduit — clean finish and reliable hold.",
     features: [
       "Designed for UPVC pipes",
       "UV-resistant material",
@@ -199,14 +262,14 @@ export const products: Product[] = [
     id: 5,
     slug: "cpvc-pipe-clamp",
     name: "CPVC Pipe Fitting Clamps",
-    brand: "RPT",
-    brandCode: "RPT-CPVC",
+    brand: "Hitech Square",
+    brandCode: "CPVC",
     category: "Cable Clips",
     subCategory: "CPVC Clamps",
     description:
-      "Premium CPVC pipe fitting clamps for hot and cold water pipe installations.",
+      "CPVC pipe fitting clamps for hot and cold water pipe installations.",
     longDescription:
-      "RPT CPVC Pipe Fitting Clamps are heat-resistant and designed specifically for CPVC hot and cold water pipelines. Made from high-quality impact-resistant polymer, they maintain their shape even at elevated temperatures.",
+      "CPVC pipe fitting clamps are heat-resistant for hot and cold water lines. High-quality impact-resistant polymer holds shape at elevated temperatures.",
     features: [
       "Heat-resistant design for CPVC",
       "High-impact polymer construction",
@@ -231,7 +294,7 @@ export const products: Product[] = [
   {
     id: 6,
     slug: "nylon-cable-ties",
-    name: "Premium Nylon Cable Ties",
+    name: "Nylon Cable Ties",
     brand: "Hitech Square",
     brandCode: "HITECH",
     category: "Cable Clips",
@@ -239,7 +302,7 @@ export const products: Product[] = [
     description:
       "High-tensile nylon cable ties for bundling, organising, and securing cables and wires.",
     longDescription:
-      "Hitech Square Premium Nylon Cable Ties are made from self-locking 66 Nylon for high tensile strength and temperature resistance. Available in a comprehensive range of sizes from 100×1.8mm to 450×4.8mm, these ties are suitable for both indoor and outdoor electrical and industrial applications.",
+      "Self-locking 66 Nylon cable ties for high tensile strength and temperature resistance. Sizes from 100×1.8mm to 450×4.8mm for indoor and outdoor electrical and industrial use.",
     features: [
       "Self-locking 66 Nylon",
       "UV-stabilised options available",
@@ -282,14 +345,14 @@ export const products: Product[] = [
     id: 7,
     slug: "electric-insulation-tape",
     name: "FR Self Adhesive Electrical Insulation Tape",
-    brand: "Hitech Square / Tejas Craft",
-    brandCode: "HITECH / TEJAS",
+    brand: "Hitech Square",
+    brandCode: "FR-TAPE",
     category: "Electrical Accessories",
     subCategory: "Insulation Tape",
     description:
-      "Premium quality FR (Flame Retardant) self-adhesive PVC electrical insulation tape, 5.5 meters, 16MM wide.",
+      "FR (Flame Retardant) self-adhesive PVC electrical insulation tape — 5.5 m, 16 mm wide (HiTech Square & Tejas Craft lines).",
     longDescription:
-      "Hitech Square and Tejas Craft FR Self Adhesive Electrical Insulation Tape is manufactured from flame-retardant hot-fusible pressure-sensitive adhesive PVC. Available in MIX, WHITE, and BLACK colours. Ideal for insulating electrical wires, repairing cable insulation, and colour-coding circuits. 5.5 metres length, 16MM width, 30 pcs per box.",
+      "FR self-adhesive electrical insulation tape uses flame-retardant hot-fusible pressure-sensitive PVC. MIX, WHITE, and BLACK. For insulating wires, repairs, and colour-coding. 5.5 m × 16 mm, 30 pcs per box.",
     features: [
       "Flame Retardant (FR) grade",
       "16MM width",
@@ -302,8 +365,49 @@ export const products: Product[] = [
     material: "PVC with FR Adhesive",
     note: "Only 2% discount applicable on electric tapes.",
     sizes: [
-      { size: "Hitech MIX/WHITE/BLACK (5.5M × 16MM)", basicPrice: 154.91, withGST: 182.79, qtyPerBag: 20, pcsPerPacket: 30 },
-      { size: "Tejas Craft (5.5M × 16MM)", basicPrice: 139.42, withGST: 164.52, qtyPerBag: 20, pcsPerPacket: 30 },
+      {
+        size: "MIX / WHITE / BLACK (5.5M × 16MM)",
+        basicPrice: 154.91,
+        withGST: 182.79,
+        qtyPerBag: 20,
+        pcsPerPacket: 30,
+      },
+    ],
+    sellers: [
+      {
+        sellerId: "hitech-square",
+        sellerName: "Hitech Square",
+        brand: "Hitech Square",
+        sizes: [
+          {
+            size: "MIX / WHITE / BLACK (5.5M × 16MM)",
+            basicPrice: 154.91,
+            withGST: 182.79,
+            qtyPerBag: 20,
+            pcsPerPacket: 30,
+          },
+        ],
+        discountTiers: [{ qty: "Any Quantity", discount: "2%" }],
+        minOrder: "₹25,000 (Including GST)",
+        note: "Only 2% discount applicable on electric tapes.",
+      },
+      {
+        sellerId: "tejas-craft",
+        sellerName: "Tejas Craft",
+        brand: "Tejas Craft",
+        sizes: [
+          {
+            size: "MIX / WHITE / BLACK (5.5M × 16MM)",
+            basicPrice: 139.42,
+            withGST: 164.52,
+            qtyPerBag: 20,
+            pcsPerPacket: 30,
+          },
+        ],
+        discountTiers: [{ qty: "Any Quantity", discount: "2%" }],
+        minOrder: "₹25,000 (Including GST)",
+        note: "Only 2% discount applicable on electric tapes.",
+      },
     ],
     discountTiers: [{ qty: "Any Quantity", discount: "2%" }],
     minOrder: "₹25,000 (Including GST)",
@@ -314,16 +418,16 @@ export const products: Product[] = [
     id: 8,
     slug: "plain-modular-gang-box",
     name: "Plain Modular Gang Box (ABS)",
-    brand: "RPT",
+    brand: "Hitech Square",
     brandCode: "PMB",
     category: "Boxes & Plates",
     subCategory: "Modular Gang Boxes",
     description:
       "High-quality ABS plain modular gang boxes for concealed wiring, available in 1M to 18M sizes.",
     longDescription:
-      "RPT Plain Modular Gang Boxes are manufactured from premium ABS plastic for high impact resistance and flame retardancy. Compatible with standard modular switch plates and designed for neat concealed wiring installations. Available from 1 Modular to 18 Modular sizes.",
+      "Plain modular gang boxes in ABS for impact resistance and flame retardancy. Fits standard modular plates; concealed wiring. Sizes 1 Modular to 18 Modular.",
     features: [
-      "Premium ABS material",
+      "ABS material",
       "Sizes from 1M to 18M",
       "Precise dimensions for perfect fit",
     ],
@@ -359,7 +463,7 @@ export const products: Product[] = [
     category: "Sanitaryware",
     subCategory: "Ball Valves",
     description:
-      "N-Star premium quality PP solid white ball valve — available in short/long handle and plain/threaded variants.",
+      "N-Star PP solid white ball valve — short/long handle and plain/threaded variants.",
     longDescription:
       "N-Star PP Solid White Ball Valves are manufactured from 100% virgin polypropylene for chemical resistance and long service life. Available in sizes 15MM (1/2\") to 100MM (4\") in both short and long handle styles, and in plain or threaded end configurations. Suitable for water supply, irrigation, and industrial fluid control.",
     features: [

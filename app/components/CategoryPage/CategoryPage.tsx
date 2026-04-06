@@ -6,7 +6,7 @@ import Link from 'next/link';
 import styles from './CategoryPage.module.css';
 import FilterSidebar from './FilterSidebar/FilterSidebar';
 import ProductGrid from '../ShopSection/ProductGrid/ProductGrid';
-import { Product } from '../../data/products';
+import { expandProductsForListing, type Product } from '../../data/products';
 import { CategoryConfig } from '../../data/categories';
 
 interface CategoryPageProps {
@@ -15,7 +15,12 @@ interface CategoryPageProps {
 }
 
 export default function CategoryPage({ category, products }: CategoryPageProps) {
-  const allPrices = products.map(p => p.sizes[0].withGST);
+  const listingEntries = useMemo(
+    () => expandProductsForListing(products),
+    [products]
+  );
+
+  const allPrices = listingEntries.map((e) => e.offer.sizes[0].withGST);
   const globalMin = Math.floor(Math.min(...allPrices));
   const globalMax = Math.ceil(Math.max(...allPrices));
 
@@ -38,27 +43,31 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
     setPriceRange([globalMin, globalMax]);
   }, [globalMin, globalMax]);
 
-  const filteredProducts = useMemo(() => {
-    let list = products.filter(p => {
-      const price = p.sizes[0].withGST;
-      const brandOk = selectedBrands.size === 0 || selectedBrands.has(p.brand);
+  const filteredListingEntries = useMemo(() => {
+    let list = listingEntries.filter((e) => {
+      const price = e.offer.sizes[0].withGST;
+      const brandOk = selectedBrands.size === 0 || selectedBrands.has(e.offer.brand);
       const priceOk = price >= priceRange[0] && price <= priceRange[1];
       return brandOk && priceOk;
     });
 
     switch (sortBy) {
       case 'price-asc':
-        list = [...list].sort((a, b) => a.sizes[0].withGST - b.sizes[0].withGST);
+        list = [...list].sort(
+          (a, b) => a.offer.sizes[0].withGST - b.offer.sizes[0].withGST
+        );
         break;
       case 'price-desc':
-        list = [...list].sort((a, b) => b.sizes[0].withGST - a.sizes[0].withGST);
+        list = [...list].sort(
+          (a, b) => b.offer.sizes[0].withGST - a.offer.sizes[0].withGST
+        );
         break;
       case 'name':
-        list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+        list = [...list].sort((a, b) => a.product.name.localeCompare(b.product.name));
         break;
     }
     return list;
-  }, [products, selectedBrands, priceRange, sortBy]);
+  }, [listingEntries, selectedBrands, priceRange, sortBy]);
 
   const activeFilterCount =
     selectedBrands.size + (priceRange[0] !== globalMin || priceRange[1] !== globalMax ? 1 : 0);
@@ -102,7 +111,7 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
 
           {/* Left: Filter sidebar */}
           <FilterSidebar
-            products={products}
+            listingEntries={listingEntries}
             selectedBrands={selectedBrands}
             priceRange={priceRange}
             onBrandToggle={handleBrandToggle}
@@ -131,7 +140,7 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
                   )}
                 </button>
                 <p className={styles.resultCount}>
-                  {filteredProducts.length} of {products.length} products
+                  Showing {filteredListingEntries.length} of {listingEntries.length}
                 </p>
               </div>
               <div className={styles.toolbarRight}>
@@ -159,7 +168,7 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
                     className={styles.filterChip}
                     onClick={() => handleBrandToggle(brand)}
                   >
-                    {brand === 'Hitech Square / Tejas Craft' ? 'Tejas Craft' : brand}
+                    {brand === 'Tejas Craft' ? 'Tejas' : brand === 'Hitech Square' ? 'HiTech' : brand}
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                       <path d="M18 6 6 18M6 6l12 12" />
                     </svg>
@@ -183,8 +192,8 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
             )}
 
             {/* Product grid */}
-            {filteredProducts.length > 0 ? (
-              <ProductGrid products={filteredProducts} />
+            {filteredListingEntries.length > 0 ? (
+              <ProductGrid listingEntries={filteredListingEntries} />
             ) : (
               <div className={styles.empty}>
                 <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5">

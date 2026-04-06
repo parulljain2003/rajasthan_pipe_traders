@@ -4,27 +4,35 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './ProductGrid.module.css';
-import { Product } from '../../../data/products';
+import type { ProductListingEntry } from '../../../data/products';
 import { productHeading, listingBrandPill } from '../../../lib/productHeading';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
 import WhatsAppPopup from '../../WhatsAppPopup/WhatsAppPopup';
 
 interface ProductGridProps {
-  products: Product[];
+  /** One row per product × seller (already filtered/sorted when applicable). */
+  listingEntries: ProductListingEntry[];
 }
 
-export default function ProductGrid({ products }: ProductGridProps) {
+function listingKey(productId: number, sellerId: string) {
+  return `${productId}:${sellerId}`;
+}
+
+export default function ProductGrid({ listingEntries: entries }: ProductGridProps) {
   const { toggleWishlist: ctxToggleWishlist, isWishlisted, addToCart } = useCartWishlist();
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupProductName, setPopupProductName] = useState('');
-  const [errorProductId, setErrorProductId] = useState<number | null>(null);
-  const [quantities, setQuantities] = useState<Record<number, number>>({});
+  const [errorListingKey, setErrorListingKey] = useState<string | null>(null);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
-  const getQty = (product: Product) =>
-    quantities[product.id] ?? 0;
+  const getQty = (entry: ProductListingEntry) =>
+    quantities[listingKey(entry.product.id, entry.offer.sellerId)] ?? 0;
 
-  const setQty = (productId: number, val: number) =>
-    setQuantities(prev => ({ ...prev, [productId]: val }));
+  const setQty = (entry: ProductListingEntry, val: number) =>
+    setQuantities((prev) => ({
+      ...prev,
+      [listingKey(entry.product.id, entry.offer.sellerId)]: val,
+    }));
 
   const toggleWishlist = (e: React.MouseEvent, id: number) => {
     e.preventDefault();
@@ -32,33 +40,37 @@ export default function ProductGrid({ products }: ProductGridProps) {
     ctxToggleWishlist(id);
   };
 
-  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
+  const handleAddToCart = (e: React.MouseEvent, entry: ProductListingEntry) => {
     e.preventDefault();
     e.stopPropagation();
-    if (getQty(product) <= 0) {
-      setErrorProductId(product.id);
+    const { product, offer } = entry;
+    const sizeRow = offer.sizes[0];
+    if (getQty(entry) <= 0) {
+      setErrorListingKey(listingKey(product.id, offer.sellerId));
       return;
     }
-    setErrorProductId(null);
-    const qty = getQty(product);
+    setErrorListingKey(null);
+    const qty = getQty(entry);
     addToCart({
       productId: product.id,
       productName: product.name,
       productSlug: product.slug,
       productImage: product.image,
-      brand: product.brand,
+      brand: offer.brand,
       category: product.category,
-      size: product.sizes[0].size,
-      pricePerUnit: product.sizes[0].withGST,
-      basicPricePerUnit: product.sizes[0].basicPrice,
-      qtyPerBag: product.sizes[0].qtyPerBag,
-      pcsPerPacket: product.sizes[0].pcsPerPacket,
+      sellerId: offer.sellerId,
+      sellerName: offer.sellerName,
+      size: sizeRow.size,
+      pricePerUnit: sizeRow.withGST,
+      basicPricePerUnit: sizeRow.basicPrice,
+      qtyPerBag: sizeRow.qtyPerBag,
+      pcsPerPacket: sizeRow.pcsPerPacket,
     }, qty);
     setPopupProductName(product.name);
     setPopupOpen(true);
   };
 
-  if (products.length === 0) {
+  if (entries.length === 0) {
     return (
       <div className={styles.empty}>
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5">
@@ -79,14 +91,22 @@ export default function ProductGrid({ products }: ProductGridProps) {
       productName={popupProductName}
     />
     <div className={styles.grid}>
-      {products.map((product) => {
+      {entries.map((entry) => {
+        const { product, offer } = entry;
         const wishlisted = isWishlisted(product.id);
-        const brandPill = listingBrandPill(product.brand);
-        const lowestPrice = product.sizes[0].withGST;
-        const lowestBasic = product.sizes[0].basicPrice;
+        const brandPill = listingBrandPill(offer.brand);
+        const pillClass =
+          brandPill === "HiTech"
+            ? styles.listingBrandHitech
+            : brandPill === "Tejas"
+              ? styles.listingBrandTejas
+              : styles.listingBrandNstar;
+        const lowestPrice = offer.sizes[0].withGST;
+        const lowestBasic = offer.sizes[0].basicPrice;
+        const lk = listingKey(product.id, offer.sellerId);
 
         return (
-          <Link key={product.id} href={`/products/${product.slug}`} className={styles.card}>
+          <Link key={lk} href={`/products/${product.slug}`} className={styles.card}>
             {/* Image area */}
             <div className={styles.imageWrapper}>
               <div className={styles.badgeGroup}>
@@ -122,17 +142,13 @@ export default function ProductGrid({ products }: ProductGridProps) {
 
             {/* Card info */}
             <div className={styles.info}>
-              {brandPill && (
-                <div className={styles.meta}>
-                  <span
-                    className={`${styles.listingBrand} ${brandPill === 'HiTech' ? styles.listingBrandHitech : styles.listingBrandTejas}`}
-                  >
-                    {brandPill}
-                  </span>
-                </div>
-              )}
+              <div className={styles.meta}>
+                <span className={`${styles.listingBrand} ${pillClass}`}>
+                  {brandPill}
+                </span>
+              </div>
 
-              <h3 className={styles.title}>{productHeading(product.name, product.sizes[0].size)}</h3>
+              <h3 className={styles.title}>{productHeading(product.name, offer.sizes[0].size)}</h3>
               <p className={styles.description}>{product.description}</p>
 
               <div className={styles.pricing}>
@@ -153,34 +169,34 @@ export default function ProductGrid({ products }: ProductGridProps) {
                     <button
                       type="button"
                       className={styles.qtyCounterBtn}
-                      disabled={getQty(product) <= 0}
+                      disabled={getQty(entry) <= 0}
                       onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
                       onClick={e => {
                         e.preventDefault(); e.stopPropagation();
-                        const step = product.sizes[0].pcsPerPacket;
-                        setQty(product.id, Math.max(0, getQty(product) - step));
-                        setErrorProductId(null);
+                        const step = offer.sizes[0].pcsPerPacket;
+                        setQty(entry, Math.max(0, getQty(entry) - step));
+                        setErrorListingKey(null);
                       }}
                     >−</button>
                     <div className={styles.qtyValueCell}>
                       <input
                         type="number"
                         className={styles.qtyCounterInput}
-                        value={getQty(product)}
+                        value={getQty(entry)}
                         min={0}
-                        step={product.sizes[0].pcsPerPacket}
+                        step={offer.sizes[0].pcsPerPacket}
                         onFocus={(e) => e.target.select()}
                         onChange={e => {
                           e.stopPropagation();
                           const v = parseInt(e.target.value) || 0;
                           if (v >= 0) {
-                            setQty(product.id, v);
-                            setErrorProductId(null);
+                            setQty(entry, v);
+                            setErrorListingKey(null);
                           }
                         }}
                         onBlur={e => {
                           const v = parseInt(e.target.value) || 0;
-                          if (v < 0) setQty(product.id, 0);
+                          if (v < 0) setQty(entry, 0);
                         }}
                         onClick={e => { e.preventDefault(); e.stopPropagation(); }}
                         aria-label="Quantity in pc"
@@ -193,9 +209,9 @@ export default function ProductGrid({ products }: ProductGridProps) {
                       onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
                       onClick={e => {
                         e.preventDefault(); e.stopPropagation();
-                        const step = product.sizes[0].pcsPerPacket;
-                        setQty(product.id, getQty(product) + step);
-                        setErrorProductId(null);
+                        const step = offer.sizes[0].pcsPerPacket;
+                        setQty(entry, getQty(entry) + step);
+                        setErrorListingKey(null);
                       }}
                     >+</button>
                   </div>
@@ -204,7 +220,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
                   type="button"
                   className={styles.cartBtn}
                   onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                  onClick={(e) => handleAddToCart(e, product)}
+                  onClick={(e) => handleAddToCart(e, entry)}
                 >
                   <span>Add to Cart</span>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -212,13 +228,13 @@ export default function ProductGrid({ products }: ProductGridProps) {
                   </svg>
                 </button>
               </div>
-              {errorProductId === product.id && (
+              {errorListingKey === lk && (
                 <div className={styles.qtyErrorMessage}>
                   Please add product quantity first
                 </div>
               )}
               <div className={styles.moqLabel}>
-                Minimum Order Quantity: {product.moq ?? product.sizes[0].pcsPerPacket} pc
+                Minimum Order Quantity: {product.moq ?? offer.sizes[0].pcsPerPacket} pc
               </div>
             </div>
           </Link>

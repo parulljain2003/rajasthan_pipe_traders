@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: `${category.name} | Rajasthan Pipe Traders`,
     description: category.description,
-    keywords: [category.name, 'RPT', 'Hitech Square', 'N-Star', 'Rajasthan Pipe Traders', 'Ahmedabad'].join(', '),
+    keywords: [category.name, 'Hitech Square', 'Tejas Craft', 'N-Star', 'Rajasthan Pipe Traders', 'Ahmedabad'].join(', '),
     openGraph: {
       title: `${category.name} | Rajasthan Pipe Traders`,
       description: category.description,

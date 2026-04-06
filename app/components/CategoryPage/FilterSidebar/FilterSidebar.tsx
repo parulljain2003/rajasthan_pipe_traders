@@ -1,9 +1,9 @@
 import React from 'react';
 import styles from './FilterSidebar.module.css';
-import { Product } from '../../../data/products';
+import type { ProductListingEntry } from '../../../data/products';
 
 interface FilterSidebarProps {
-  products: Product[];
+  listingEntries: ProductListingEntry[];
   selectedBrands: Set<string>;
   priceRange: [number, number];
   onBrandToggle: (brand: string) => void;
@@ -14,7 +14,7 @@ interface FilterSidebarProps {
 }
 
 export default function FilterSidebar({
-  products,
+  listingEntries,
   selectedBrands,
   priceRange,
   onBrandToggle,
@@ -25,9 +25,9 @@ export default function FilterSidebar({
 }: FilterSidebarProps) {
   const BRAND_FILTERS = [
     { label: 'HiTech', value: 'Hitech Square' },
-    { label: 'Tejas', value: 'Hitech Square / Tejas Craft' },
+    { label: 'Tejas', value: 'Tejas Craft' },
   ];
-  const allPrices = products.map(p => p.sizes[0].withGST);
+  const allPrices = listingEntries.map((e) => e.offer.sizes[0].withGST);
   const globalMin = Math.floor(Math.min(...allPrices));
   const globalMax = Math.ceil(Math.max(...allPrices));
 
@@ -71,7 +71,7 @@ export default function FilterSidebar({
             <h4 className={styles.groupTitle}>Brand / Company</h4>
             <div className={styles.checkList}>
               {BRAND_FILTERS.map(({ label, value }) => {
-                const count = products.filter(p => p.brand === value).length;
+                const count = listingEntries.filter((e) => e.offer.brand === value).length;
                 return (
                   <label key={value} className={styles.checkItem}>
                     <input

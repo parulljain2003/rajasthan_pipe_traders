@@ -2,13 +2,19 @@
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
 
+/** Must match `DEFAULT_SELLER_ID` in `app/data/products.ts` (not imported here to keep this client bundle lean). */
+const DEFAULT_SELLER_ID = "default";
+
 export interface CartItem {
   productId: number;
-  productName: string;
   productSlug: string;
   productImage: string;
+  productName: string;
   brand: string;
   category: string;
+  /** Distinguishes the same SKU from different sellers */
+  sellerId: string;
+  sellerName: string;
   size: string;
   quantity: number;
   pricePerUnit: number;       // incl. GST
@@ -17,7 +23,24 @@ export interface CartItem {
   pcsPerPacket: number;
 }
 
-type AddCartItemInput = Omit<CartItem, 'quantity'>;
+type AddCartItemInput = Omit<CartItem, "quantity">;
+
+function normalizeSellerId(sellerId: string | undefined): string {
+  return sellerId && sellerId.length > 0 ? sellerId : DEFAULT_SELLER_ID;
+}
+
+function sameLine(
+  ci: CartItem,
+  productId: number,
+  size: string,
+  sellerId: string
+): boolean {
+  return (
+    ci.productId === productId &&
+    ci.size === size &&
+    ci.sellerId === normalizeSellerId(sellerId)
+  );
+}
 
 interface CartWishlistState {
   wishlist: number[];
@@ -28,9 +51,18 @@ interface CartWishlistState {
   toggleWishlist: (id: number) => void;
   isWishlisted: (id: number) => boolean;
   addToCart: (item: AddCartItemInput, qty?: number) => void;
-  removeFromCart: (productId: number, size: string) => void;
-  updateQuantity: (productId: number, size: string, qty: number) => void;
-  updateSize: (productId: number, oldSize: string, newSize: string, newPrice: number, newBasicPrice: number, newQtyPerBag: number, newPcsPerPacket: number) => void;
+  removeFromCart: (productId: number, size: string, sellerId?: string) => void;
+  updateQuantity: (productId: number, size: string, qty: number, sellerId?: string) => void;
+  updateSize: (
+    productId: number,
+    oldSize: string,
+    newSize: string,
+    newPrice: number,
+    newBasicPrice: number,
+    newQtyPerBag: number,
+    newPcsPerPacket: number,
+    sellerId?: string
+  ) => void;
   clearCart: () => void;
 }
 
@@ -49,30 +81,30 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
   const isWishlisted = useCallback((id: number) => wishlist.includes(id), [wishlist]);
 
   const addToCart = useCallback((item: AddCartItemInput, qty: number = 1) => {
+    const sid = normalizeSellerId(item.sellerId);
+    const row: AddCartItemInput = { ...item, sellerId: sid };
     setCartItems(prev => {
-      const existing = prev.find(
-        ci => ci.productId === item.productId && ci.size === item.size
-      );
+      const existing = prev.find((ci) => sameLine(ci, row.productId, row.size, row.sellerId));
       if (existing) {
-        return prev.map(ci =>
-          ci.productId === item.productId && ci.size === item.size
-            ? { ...ci, quantity: qty }
-            : ci
+        return prev.map((ci) =>
+          sameLine(ci, row.productId, row.size, row.sellerId) ? { ...ci, quantity: qty } : ci
         );
       }
-      return [...prev, { ...item, quantity: qty }];
+      return [...prev, { ...row, quantity: qty }];
     });
   }, []);
 
-  const removeFromCart = useCallback((productId: number, size: string) => {
-    setCartItems(prev => prev.filter(ci => !(ci.productId === productId && ci.size === size)));
+  const removeFromCart = useCallback((productId: number, size: string, sellerId?: string) => {
+    const sid = normalizeSellerId(sellerId);
+    setCartItems((prev) => prev.filter((ci) => !sameLine(ci, productId, size, sid)));
   }, []);
 
-  const updateQuantity = useCallback((productId: number, size: string, qty: number) => {
+  const updateQuantity = useCallback((productId: number, size: string, qty: number, sellerId?: string) => {
     if (qty < 1) return;
-    setCartItems(prev =>
-      prev.map(ci =>
-        ci.productId === productId && ci.size === size ? { ...ci, quantity: qty } : ci
+    const sid = normalizeSellerId(sellerId);
+    setCartItems((prev) =>
+      prev.map((ci) =>
+        sameLine(ci, productId, size, sid) ? { ...ci, quantity: qty } : ci
       )
     );
   }, []);
@@ -85,10 +117,12 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
     newBasicPrice: number,
     newQtyPerBag: number,
     newPcsPerPacket: number,
+    sellerId?: string,
   ) => {
-    setCartItems(prev =>
-      prev.map(ci =>
-        ci.productId === productId && ci.size === oldSize
+    const sid = normalizeSellerId(sellerId);
+    setCartItems((prev) =>
+      prev.map((ci) =>
+        sameLine(ci, productId, oldSize, sid)
           ? {
               ...ci,
               size: newSize,

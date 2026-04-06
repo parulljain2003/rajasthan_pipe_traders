@@ -82,6 +82,14 @@
   color: #94a3b8;
 }
 
+.sellerLine {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
 .removeBtn {
   background: none;
   border: 1px solid #f1f5f9;

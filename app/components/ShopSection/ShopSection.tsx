@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import CategoryRow from './CategoryRow/CategoryRow';
 import ProductGrid from './ProductGrid/ProductGrid';
-import { products } from '../../data/products';
+import { expandProductsForListing, products } from '../../data/products';
 import styles from './ShopSection.module.css';
 
 const SHOP_CATEGORIES = [
@@ -21,6 +21,11 @@ export default function ShopSection() {
   const filteredProducts = useMemo(
     () => activeCategory === 'All' ? products : products.filter(p => p.category === activeCategory),
     [activeCategory]
+  );
+
+  const filteredListing = useMemo(
+    () => expandProductsForListing(filteredProducts),
+    [filteredProducts]
   );
 
   const activeCat = SHOP_CATEGORIES.find(c => c.id === activeCategory);
@@ -46,7 +51,7 @@ export default function ShopSection() {
               className={styles.countPill}
               style={activeCat ? { background: activeCat.color, color: activeCat.textColor } : {}}
             >
-              {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+              {filteredListing.length} {filteredListing.length === 1 ? 'listing' : 'listings'}
             </span>
           </div>
           <p className={styles.subtext}>
@@ -56,7 +61,7 @@ export default function ShopSection() {
           </p>
         </div>
 
-        <ProductGrid products={filteredProducts} />
+        <ProductGrid listingEntries={filteredListing} />
 
         <div className={styles.footer}>
           <p className={styles.footerNote}>

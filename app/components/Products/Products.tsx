@@ -1,29 +1,40 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import './Products.css';
-import { products, type Product } from '../../data/products';
+import {
+  expandProductsForListing,
+  products,
+  type ProductListingEntry,
+} from '../../data/products';
 import { productHeading, listingBrandPill } from '../../lib/productHeading';
 import WhatsAppPopup from '../WhatsAppPopup/WhatsAppPopup';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 
 const CATEGORIES = ['All', 'Cable Clips', 'Fasteners & Hardware', 'Electrical Accessories', 'Boxes & Plates', 'Sanitaryware'];
 
+function listingKey(productId: number, sellerId: string) {
+  return `${productId}:${sellerId}`;
+}
+
 export default function Products() {
   const { toggleWishlist: ctxToggleWishlist, isWishlisted, addToCart } = useCartWishlist();
   const [activeCategory, setActiveCategory] = useState('All');
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupProduct, setPopupProduct] = useState('');
-  const [errorProductId, setErrorProductId] = useState<number | null>(null);
-  const [quantities, setQuantities] = useState<Record<number, number>>({});
+  const [errorListingKey, setErrorListingKey] = useState<string | null>(null);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
-  const getQty = (product: Product) =>
-    quantities[product.id] ?? 0;
+  const getQty = (entry: ProductListingEntry) =>
+    quantities[listingKey(entry.product.id, entry.offer.sellerId)] ?? 0;
 
-  const setQty = (productId: number, val: number) =>
-    setQuantities(prev => ({ ...prev, [productId]: val }));
+  const setQty = (entry: ProductListingEntry, val: number) =>
+    setQuantities((prev) => ({
+      ...prev,
+      [listingKey(entry.product.id, entry.offer.sellerId)]: val,
+    }));
 
   const toggleWishlist = (e: React.MouseEvent, id: number) => {
     e.preventDefault();
@@ -31,35 +42,43 @@ export default function Products() {
     ctxToggleWishlist(id);
   };
 
-  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
+  const handleAddToCart = (e: React.MouseEvent, entry: ProductListingEntry) => {
     e.preventDefault();
     e.stopPropagation();
-    if (getQty(product) <= 0) {
-      setErrorProductId(product.id);
+    const { product, offer } = entry;
+    const sizeRow = offer.sizes[0];
+    if (getQty(entry) <= 0) {
+      setErrorListingKey(listingKey(product.id, offer.sellerId));
       return;
     }
-    setErrorProductId(null);
-    const qty = getQty(product);
+    setErrorListingKey(null);
+    const qty = getQty(entry);
     addToCart({
       productId: product.id,
       productName: product.name,
       productSlug: product.slug,
       productImage: product.image,
-      brand: product.brand,
+      brand: offer.brand,
       category: product.category,
-      size: product.sizes[0].size,
-      pricePerUnit: product.sizes[0].withGST,
-      basicPricePerUnit: product.sizes[0].basicPrice,
-      qtyPerBag: product.sizes[0].qtyPerBag,
-      pcsPerPacket: product.sizes[0].pcsPerPacket,
+      sellerId: offer.sellerId,
+      sellerName: offer.sellerName,
+      size: sizeRow.size,
+      pricePerUnit: sizeRow.withGST,
+      basicPricePerUnit: sizeRow.basicPrice,
+      qtyPerBag: sizeRow.qtyPerBag,
+      pcsPerPacket: sizeRow.pcsPerPacket,
     }, qty);
     setPopupProduct(product.name);
     setPopupOpen(true);
   };
 
-  const filtered = activeCategory === 'All'
-    ? products
-    : products.filter(p => p.category === activeCategory);
+  const filteredEntries = useMemo(() => {
+    const base =
+      activeCategory === 'All'
+        ? products
+        : products.filter((p) => p.category === activeCategory);
+    return expandProductsForListing(base);
+  }, [activeCategory]);
 
   return (
     <section className="products-section">
@@ -89,15 +108,23 @@ export default function Products() {
 
         {/* Products Grid */}
         <div className="products-grid">
-          {filtered.map((product) => {
+          {filteredEntries.map((entry) => {
+            const { product, offer } = entry;
             const wishlisted = isWishlisted(product.id);
-            const brandPill = listingBrandPill(product.brand);
-            const lowestPrice = product.sizes[0].withGST;
-            const lowestBasic = product.sizes[0].basicPrice;
+            const brandPill = listingBrandPill(offer.brand);
+            const pillClass =
+              brandPill === "HiTech"
+                ? "listing-brand-pill-hitech"
+                : brandPill === "Tejas"
+                  ? "listing-brand-pill-tejas"
+                  : "listing-brand-pill-nstar";
+            const lowestPrice = offer.sizes[0].withGST;
+            const lowestBasic = offer.sizes[0].basicPrice;
+            const lk = listingKey(product.id, offer.sellerId);
 
             return (
               <Link
-                key={product.id}
+                key={lk}
                 href={`/products/${product.slug}`}
                 className="product-card"
               >
@@ -138,18 +165,14 @@ export default function Products() {
 
                 {/* Card Content */}
                 <div className="product-info">
-                  {brandPill && (
-                    <div className="info-meta">
-                      <span
-                        className={`listing-brand-pill ${brandPill === 'HiTech' ? 'listing-brand-pill-hitech' : 'listing-brand-pill-tejas'}`}
-                      >
-                        {brandPill}
-                      </span>
-                    </div>
-                  )}
+                  <div className="info-meta">
+                    <span className={`listing-brand-pill ${pillClass}`}>
+                      {brandPill}
+                    </span>
+                  </div>
 
                   {/* Name */}
-                  <h3 className="product-title">{productHeading(product.name, product.sizes[0].size)}</h3>
+                  <h3 className="product-title">{productHeading(product.name, offer.sizes[0].size)}</h3>
 
                   {/* Description */}
                   <p className="product-description">{product.description}</p>
@@ -174,34 +197,34 @@ export default function Products() {
                         <button
                           type="button"
                           className="qty-counter-btn"
-                          disabled={getQty(product) <= 0}
+                          disabled={getQty(entry) <= 0}
                           onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
                           onClick={e => {
                             e.preventDefault(); e.stopPropagation();
-                            const step = product.sizes[0].pcsPerPacket;
-                            setQty(product.id, Math.max(0, getQty(product) - step));
-                            setErrorProductId(null);
+                            const step = offer.sizes[0].pcsPerPacket;
+                            setQty(entry, Math.max(0, getQty(entry) - step));
+                            setErrorListingKey(null);
                           }}
                         >−</button>
                         <div className="qty-value-cell">
                           <input
                             type="number"
                             className="qty-counter-input"
-                            value={getQty(product)}
+                            value={getQty(entry)}
                             min={0}
-                            step={product.sizes[0].pcsPerPacket}
+                            step={offer.sizes[0].pcsPerPacket}
                             onFocus={(e) => e.target.select()}
                             onChange={e => {
                               e.stopPropagation();
                               const v = parseInt(e.target.value) || 0;
                               if (v >= 0) {
-                                setQty(product.id, v);
-                                setErrorProductId(null);
+                                setQty(entry, v);
+                                setErrorListingKey(null);
                               }
                             }}
                             onBlur={e => {
                               const v = parseInt(e.target.value) || 0;
-                              if (v < 0) setQty(product.id, 0);
+                              if (v < 0) setQty(entry, 0);
                             }}
                             onClick={e => { e.preventDefault(); e.stopPropagation(); }}
                             aria-label="Quantity in pc"
@@ -214,21 +237,21 @@ export default function Products() {
                           onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
                           onClick={e => {
                             e.preventDefault(); e.stopPropagation();
-                            const step = product.sizes[0].pcsPerPacket;
-                            setQty(product.id, getQty(product) + step);
-                            setErrorProductId(null);
+                            const step = offer.sizes[0].pcsPerPacket;
+                            setQty(entry, getQty(entry) + step);
+                            setErrorListingKey(null);
                           }}
                         >+</button>
                       </div>
                     </div>
-                    <button type="button" className="buy-now-btn" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => handleAddToCart(e, product)}>
+                    <button type="button" className="buy-now-btn" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => handleAddToCart(e, entry)}>
                       <span>Add to cart</span>
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                         <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5zM3.14 5l1.25 5h8.22l1.25-5H3.14zM5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0z" />
                       </svg>
                     </button>
                   </div>
-                  {errorProductId === product.id && (
+                  {errorListingKey === lk && (
                     <div className="qty-error-message">
                       Please add product quantity first
                     </div>

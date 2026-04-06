@@ -14,7 +14,7 @@ export const categories: CategoryConfig[] = [
     name: 'Cable Clips',
     image: '/Cable_Clip.png',
     bgColor: '#ffccd5',
-    description: 'Premium nail clips, double nail clamps, UPVC & CPVC pipe clamps, nylon cable ties and more for secure wire management.',
+    description: 'Nail clips, double nail clamps, UPVC & CPVC pipe clamps, nylon cable ties and more for secure wire management.',
   },
   {
     id: 'Fasteners & Hardware',

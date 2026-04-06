@@ -51,23 +51,23 @@ const coupons = [
 const slides = [
   {
     tag: "🔥 Hot Selling", tagKey: "hot",
-    product: { id: 1,  slug: "cable-nail-clips",  name: "Premium Cable Nail Clips",       brand: "Hitech Square / Tejas Craft", category: "Cable Clips",    description: "Premium quality cable nail clips for secure and neat wire management on walls and ceilings.", image: "/Cable_Clip.png",      firstWithGST: 9.30,   firstBasic: 7.88,  firstSize: "4MM",                       qtyPerBag: 750, pcsPerPacket: 100 },
+    product: { id: 1,  slug: "cable-nail-clips",  name: "Cable Nail Clips",               brand: "Hitech Square",               category: "Cable Clips",    description: "Cable nail clips for secure wire management on walls and ceilings.", image: "/Cable_Clip.png",      sellerId: "hitech-square", sellerName: "Hitech Square", firstWithGST: 9.30,   firstBasic: 7.88,  firstSize: "4MM",                       qtyPerBag: 750, pcsPerPacket: 100 },
   },
   {
     tag: "⭐ Most Popular", tagKey: "popular",
-    product: { id: 6,  slug: "nylon-cable-ties",  name: "Premium Nylon Cable Ties",       brand: "Hitech Square",               category: "Cable Clips",    description: "High-tensile nylon cable ties for bundling, organising, and securing cables and wires.",    image: "/Cable_Clip.png",      firstWithGST: 10.95,  firstBasic: 9.28,  firstSize: "100 × 1.8mm (4\")",         qtyPerBag: 600, pcsPerPacket: 100 },
+    product: { id: 6,  slug: "nylon-cable-ties",  name: "Nylon Cable Ties",               brand: "Hitech Square",               category: "Cable Clips",    description: "High-tensile nylon cable ties for bundling, organising, and securing cables and wires.",    image: "/Cable_Clip.png",      sellerId: "default", sellerName: "Hitech Square", firstWithGST: 10.95,  firstBasic: 9.28,  firstSize: "100 × 1.8mm (4\")",         qtyPerBag: 600, pcsPerPacket: 100 },
   },
   {
     tag: "🎁 Combo Products", tagKey: "combo",
-    product: { id: 2,  slug: "double-nail-clamp", name: "RPT Premium Double Nail Clamps", brand: "RPT",                         category: "Cable Clips",    description: "Heavy-duty double nail clamps providing extra-strong, vibration-resistant cable fastening.",  image: "/Nail_Cable_Clip.png", firstWithGST: 93.17,  firstBasic: 78.96, firstSize: "20MM",                      qtyPerBag: 65,  pcsPerPacket: 50  },
+    product: { id: 2,  slug: "double-nail-clamp", name: "Double Nail Clamps",             brand: "Hitech Square",               category: "Cable Clips",    description: "Heavy-duty double nail clamps for extra-strong, vibration-resistant cable fastening.",  image: "/Nail_Cable_Clip.png", sellerId: "default", sellerName: "Hitech Square", firstWithGST: 93.17,  firstBasic: 78.96, firstSize: "20MM",                      qtyPerBag: 65,  pcsPerPacket: 50  },
   },
   {
-    tag: "💎 Premium Range", tagKey: "premium",
-    product: { id: 9,  slug: "ball-valve-white",  name: "PP Solid White Ball Valve",      brand: "N-Star",                      category: "Sanitaryware",   description: "N-Star premium quality PP solid white ball valve — short/long handle and plain/threaded.",   image: "/Cable_Clip.png",      firstWithGST: 32.97,  firstBasic: 27.94, firstSize: "15MM (1/2\") Short Handle Plain", qtyPerBag: 216, pcsPerPacket: 36  },
+    tag: "💎 Sanitary Range", tagKey: "premium",
+    product: { id: 9,  slug: "ball-valve-white",  name: "PP Solid White Ball Valve",      brand: "N-Star",                      category: "Sanitaryware",   description: "N-Star PP solid white ball valve — short/long handle and plain/threaded.",   image: "/Cable_Clip.png",      sellerId: "default", sellerName: "N-Star", firstWithGST: 32.97,  firstBasic: 27.94, firstSize: "15MM (1/2\") Short Handle Plain", qtyPerBag: 216, pcsPerPacket: 36  },
   },
   {
     tag: "🏆 Bestseller", tagKey: "best",
-    product: { id: 4,  slug: "upvc-pipe-clamp",   name: "RPT UPVC Pipe Fitting Clamps",   brand: "RPT",                         category: "Cable Clips",    description: "Specially designed clamps for secure fixing of UPVC pipe fittings to walls and surfaces.",   image: "/Cable_Clip.png",      firstWithGST: 167.44, firstBasic: 141.90,firstSize: "U-1/2",                     qtyPerBag: 35,  pcsPerPacket: 100 },
+    product: { id: 4,  slug: "upvc-pipe-clamp",   name: "UPVC Pipe Fitting Clamps",       brand: "Hitech Square",               category: "Cable Clips",    description: "Clamps for secure fixing of UPVC pipe fittings to walls and surfaces.",   image: "/Cable_Clip.png",      sellerId: "default", sellerName: "Hitech Square", firstWithGST: 167.44, firstBasic: 141.90,firstSize: "U-1/2",                     qtyPerBag: 35,  pcsPerPacket: 100 },
   },
 ];
 
@@ -175,6 +175,8 @@ function ProductCarousel() {
       productImage: p.image,
       brand: p.brand,
       category: p.category,
+      sellerId: p.sellerId,
+      sellerName: p.sellerName,
       size: p.firstSize,
       pricePerUnit: p.firstWithGST,
       basicPricePerUnit: p.firstBasic,
@@ -190,6 +192,12 @@ function ProductCarousel() {
   const step = p.pcsPerPacket;
   const qty  = getQty(p);
   const brandPill = listingBrandPill(p.brand);
+  const slidePillClass =
+    brandPill === "HiTech"
+      ? styles.slideListingBrandHitech
+      : brandPill === "Tejas"
+        ? styles.slideListingBrandTejas
+        : styles.slideListingBrandNstar;
 
   return (
     <>
@@ -203,11 +211,9 @@ function ProductCarousel() {
         </Link>
 
         <div className={styles.slideContent}>
-          {brandPill && (
-            <span className={`${styles.slideListingBrand} ${brandPill === "HiTech" ? styles.slideListingBrandHitech : styles.slideListingBrandTejas}`}>
-              {brandPill}
-            </span>
-          )}
+          <span className={`${styles.slideListingBrand} ${slidePillClass}`}>
+            {brandPill}
+          </span>
           <h3 className={styles.slideName}>{productHeading(p.name, p.firstSize)}</h3>
           <p className={styles.slideDesc}>{p.description}</p>
           <div className={styles.slidePriceRow}>

@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 import { productHeading } from "../../../lib/productHeading";
 import styles from "./ProductInfo.module.css";
-import type { Product } from "../../../data/products";
+import { getSellerOffers, type Product } from "../../../data/products";
 import WhatsAppPopup from "../../WhatsAppPopup/WhatsAppPopup";
 import { useCartWishlist } from "../../../context/CartWishlistContext";
 
@@ -13,8 +12,9 @@ interface ProductInfoProps {
 }
 
 export default function ProductInfo({ product }: ProductInfoProps) {
-  const router = useRouter();
   const { toggleWishlist: ctxToggleWishlist, isWishlisted, addToCart } = useCartWishlist();
+  const offers = getSellerOffers(product);
+  const [sellerIdx, setSellerIdx] = useState(0);
   const [selectedSizeIndex] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
   const [bulkAddedToCart, setBulkAddedToCart] = useState(false);
@@ -25,18 +25,29 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   /* Master-bag counter — only used for cable-nail-clips */
   const [masterBags, setMasterBags] = useState(0);
 
-  const selectedSize = product.sizes[selectedSizeIndex];
+  const activeOffer = offers[sellerIdx];
+  const selectedSize = activeOffer.sizes[selectedSizeIndex];
   const step = selectedSize.pcsPerPacket;
   const wishlist = isWishlisted(product.id);
   const showMasterBagCounter = product.slug === "cable-nail-clips";
+
+  useEffect(() => {
+    setQuantity(0);
+    setMasterBags(0);
+    setAddedToCart(false);
+    setBulkAddedToCart(false);
+    setShowQtyError(false);
+  }, [sellerIdx]);
 
   const cartPayload = () => ({
     productId: product.id,
     productName: product.name,
     productSlug: product.slug,
     productImage: product.image,
-    brand: product.brand,
+    brand: activeOffer.brand,
     category: product.category,
+    sellerId: activeOffer.sellerId,
+    sellerName: activeOffer.sellerName,
     size: selectedSize.size,
     pricePerUnit: selectedSize.withGST,
     basicPricePerUnit: selectedSize.basicPrice,
@@ -77,6 +88,26 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         <p className={styles.productCode}>
           Product Code: <strong>{product.brandCode}</strong>
         </p>
+      )}
+
+      {offers.length > 1 && (
+        <div className={styles.sellerTabs}>
+          <span className={styles.sellerTabsLabel}>Seller</span>
+          <div className={styles.sellerTabRow} role="tablist" aria-label="Choose seller">
+            {offers.map((o, i) => (
+              <button
+                key={o.sellerId}
+                type="button"
+                role="tab"
+                aria-selected={i === sellerIdx}
+                className={i === sellerIdx ? styles.sellerTabActive : styles.sellerTab}
+                onClick={() => setSellerIdx(i)}
+              >
+                {o.sellerName}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Star Rating */}

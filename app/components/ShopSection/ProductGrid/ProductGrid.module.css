@@ -171,6 +171,12 @@
   border: 1px solid color-mix(in srgb, #2563eb 25%, white);
 }
 
+.listingBrandNstar {
+  color: #0f766e;
+  background: color-mix(in srgb, #14b8a6 14%, white);
+  border: 1px solid color-mix(in srgb, #0d9488 28%, white);
+}
+
 .title {
   font-size: 1rem;
   font-weight: 700;
