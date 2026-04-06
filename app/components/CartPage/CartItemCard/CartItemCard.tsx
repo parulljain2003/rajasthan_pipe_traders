@@ -33,8 +33,8 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
   const step      = Number(item.pcsPerPacket)      || 1;
 
   const packetCount = step > 0 ? safeQty / step : 0;
-  const lineTotal   = safePrice * packetCount;
-  const lineBasic   = safeBasic * packetCount;
+  const lineTotal   = safePrice * safeQty;
+  const lineBasic   = safeBasic * safeQty;
   const gstAmount   = lineTotal - lineBasic;
 
   const mrpUnit  = safePrice * 1.15;
