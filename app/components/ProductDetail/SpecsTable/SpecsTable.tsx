@@ -8,11 +8,10 @@ interface SpecsTableProps {
   product: Product;
 }
 
-type TabKey = "specs" | "packing" | "terms";
+type TabKey = "specs" | "terms";
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: "specs", label: "Size & Price List" },
-  { key: "packing", label: "Packing Details" },
   { key: "terms", label: "Terms & Conditions" },
 ];
 
@@ -67,35 +66,6 @@ export default function SpecsTable({ product }: SpecsTableProps) {
         </div>
       )}
 
-      {/* ── Tab: Packing Details ── */}
-      {activeTab === "packing" && (
-        <div className={styles.tabContent}>
-          <div className={styles.tableWrapper}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Size / Variant</th>
-                  <th>Pcs / Packet</th>
-                  <th>Pkts / Master Bag</th>
-                  <th>Total Pcs / Master Bag</th>
-                </tr>
-              </thead>
-              <tbody>
-                {product.sizes.map((s, i) => (
-                  <tr key={i} className={i % 2 === 0 ? styles.rowEven : styles.rowOdd}>
-                    <td className={styles.sizeCell}>{s.size}</td>
-                    <td className={styles.centerCell}>{s.pcsPerPacket}</td>
-                    <td className={styles.centerCell}>{s.qtyPerBag}</td>
-                    <td className={styles.centerCell}>
-                      <strong>{s.pcsPerPacket * s.qtyPerBag}</strong>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* ── Tab: Terms & Conditions ── */}
       {activeTab === "terms" && (

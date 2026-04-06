@@ -31,6 +31,7 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
   const safeBasic = Number(item.basicPricePerUnit) || 0;
   const safeQty   = Number(item.quantity)          || 1;
   const step      = Number(item.pcsPerPacket)      || 1;
+  const qtyPerBag = Number(item.qtyPerBag)         || 0;
 
   const packetCount = step > 0 ? safeQty / step : 0;
   const lineTotal   = safePrice * safeQty;
@@ -44,6 +45,14 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
   const packetLabel = Number.isInteger(packetCount)
     ? String(packetCount)
     : packetCount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
+  let qtySummaryText;
+  if (qtyPerBag > 0 && packetCount % qtyPerBag === 0) {
+    const bagsCount = packetCount / qtyPerBag;
+    qtySummaryText = `${bagsCount} bag${bagsCount !== 1 ? 's' : ''} = ${packetCount} pkts · Total: ${formatPieces(safeQty)} pc`;
+  } else {
+    qtySummaryText = `${packetLabel} pckts (${formatPieces(safeQty)} pc)`;
+  }
 
   const [inputVal, setInputVal] = useState(String(safeQty));
 
@@ -156,7 +165,7 @@ export default function CartItemCard({ item, onRemove, onUpdateQty }: CartItemCa
         <div className={styles.pricingRow}>
           <span className={styles.pricingLabel}>Quantity</span>
           <p className={styles.qtySummary}>
-            {packetLabel} pckts ({formatPieces(safeQty)} pc)
+            {qtySummaryText}
           </p>
         </div>
 
