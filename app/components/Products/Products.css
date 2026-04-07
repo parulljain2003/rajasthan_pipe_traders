@@ -218,40 +218,6 @@
   text-transform: uppercase;
 }
 
-/* ── Wishlist Button ── */
-.wishlist-btn {
-  position: absolute;
-  top: 0.9rem;
-  right: 0.9rem;
-  z-index: 20;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #f1f5f9;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-  transition: all 0.2s ease;
-  color: #94a3b8;
-  padding: 0;
-  flex-shrink: 0;
-}
-
-.wishlist-btn:hover {
-  transform: scale(1.12);
-  color: #ff4757;
-  border-color: #fca5a5;
-}
-
-.wishlist-btn.active {
-  color: #ff4757;
-  background: #fff1f2;
-  border-color: #fca5a5;
-}
-
 /* ── Image Inner ── */
 .image-inner {
   position: absolute;

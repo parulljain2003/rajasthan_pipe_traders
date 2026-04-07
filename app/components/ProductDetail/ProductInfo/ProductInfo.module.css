@@ -380,6 +380,12 @@
   border-color: #2563eb;
 }
 
+.premiumBagSection .modernQtyCounter {
+  background: white;
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+}
+
 .modernQtyBtn {
   width: 44px;
   border: none;
@@ -463,32 +469,6 @@
 .btnSuccess {
   background: #10b981 !important;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25) !important;
-}
-
-.modernWishlistBtn {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #ffffff;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 12px;
-  cursor: pointer;
-  color: #94a3b8;
-  transition: all 0.2s;
-}
-
-.modernWishlistBtn:hover {
-  border-color: #fb7185;
-  color: #fb7185;
-  background: #fff1f2;
-}
-
-.wishlistActive {
-  background: #fff1f2;
-  border-color: #fb7185;
-  color: #fb7185;
 }
 
 .qtyErrorInline {
@@ -575,7 +555,20 @@
 .bagActionControls {
   display: flex;
   gap: 1rem;
-  align-items: center;
+  align-items: flex-start;
+}
+
+.dualQtyWrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  flex: 1;
+}
+
+.qtySection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
 }
 
 .bagQtyCounter {
@@ -589,6 +582,16 @@
   gap: 0.25rem;
   flex: 0 0 auto;
   min-width: 140px;
+}
+
+.qtyCounterLabel {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0369a1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.4rem;
 }
 
 .bagQtyCounter button {
@@ -716,6 +719,15 @@
   .packingItem {
     flex: 0 0 calc(50% - 0.25rem);
   }
+  .dualQtyWrapper {
+    grid-template-columns: 1fr;
+  }
+  .dualQtyWrapper {
+    grid-template-columns: 1fr;
+  }
+  .bagActionControls {
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 480px) {
@@ -769,7 +781,7 @@
     font-size: 1.15rem;
   }
 
-  /* Action row: qty + wishlist row 1, Add to Cart full width row 2 */
+  /* Action row: Add to Cart full width */
   .actionRow {
     flex-wrap: wrap;
     gap: 0.5rem;
@@ -796,12 +808,6 @@
   .qtyCounterInput {
     min-width: 44px;
     font-size: 1rem;
-  }
-
-  .wishlistBtn {
-    width: 48px;
-    height: 48px;
-    flex-shrink: 0;
   }
 
   /* Master bag controls: wrap */

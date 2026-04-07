@@ -20,7 +20,7 @@ function listingKey(productId: number, sellerId: string) {
 }
 
 export default function Products() {
-  const { toggleWishlist: ctxToggleWishlist, isWishlisted, addToCart } = useCartWishlist();
+  const { addToCart } = useCartWishlist();
   const [activeCategory, setActiveCategory] = useState('All');
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupProduct, setPopupProduct] = useState('');
@@ -35,12 +35,6 @@ export default function Products() {
       ...prev,
       [listingKey(entry.product.id, entry.offer.sellerId)]: val,
     }));
-
-  const toggleWishlist = (e: React.MouseEvent, id: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    ctxToggleWishlist(id);
-  };
 
   const handleAddToCart = (e: React.MouseEvent, entry: ProductListingEntry) => {
     e.preventDefault();
@@ -110,7 +104,6 @@ export default function Products() {
         <div className="products-grid">
           {filteredEntries.map((entry) => {
             const { product, offer } = entry;
-            const wishlisted = isWishlisted(product.id);
             const brandPill = listingBrandPill(offer.brand);
             const pillClass =
               brandPill === "HiTech"
@@ -135,20 +128,6 @@ export default function Products() {
                     {product.isNew && <span className="badge-new">New</span>}
                     {product.isBestseller && <span className="badge-hot">Hot</span>}
                   </div>
-
-                  {/* Wishlist */}
-                  <button
-                    className={`wishlist-btn ${wishlisted ? 'active' : ''}`}
-                    onClick={(e) => toggleWishlist(e, product.id)}
-                    aria-label="Add to Wishlist"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24"
-                      fill={wishlisted ? "#ff4757" : "none"}
-                      stroke={wishlisted ? "#ff4757" : "currentColor"}
-                      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-                    </svg>
-                  </button>
 
                   {/* Product Image */}
                   <div className="image-inner">

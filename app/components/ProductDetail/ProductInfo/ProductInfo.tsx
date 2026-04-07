@@ -12,7 +12,7 @@ interface ProductInfoProps {
 }
 
 export default function ProductInfo({ product }: ProductInfoProps) {
-  const { toggleWishlist: ctxToggleWishlist, isWishlisted, addToCart } = useCartWishlist();
+  const { addToCart } = useCartWishlist();
   const offers = getSellerOffers(product);
   const [sellerIdx, setSellerIdx] = useState(0);
   const [selectedSizeIndex] = useState(0);
@@ -28,7 +28,6 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const activeOffer = offers[sellerIdx];
   const selectedSize = activeOffer.sizes[selectedSizeIndex];
   const step = selectedSize.pcsPerPacket;
-  const wishlist = isWishlisted(product.id);
   const showMasterBagCounter = product.slug === "cable-nail-clips";
 
   useEffect(() => {
@@ -177,79 +176,75 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         </div>
       </div>
 
-      {/* Actionable Qty Section */}
-      <div className={styles.modernQtyWrap}>
-        <div className={styles.qtyHeader}>
-          <label className={styles.modernQtyLabel}>QUANTITY</label>
-          <span className={styles.moqDetailBadge}>MOQ: {product.moq ?? step} pc</span>
-        </div>
-        
-        <div className={styles.interactiveActionRow}>
-          <div className={styles.modernQtyCounter}>
-            <button
-              type="button"
-              className={styles.modernQtyBtn}
-              disabled={quantity <= 0}
-              onClick={() => { setQuantity(q => Math.max(0, q - step)); setShowQtyError(false); }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            </button>
-            
-            <div className={styles.modernQtyInputBlock}>
-              <input
-                type="number"
-                className={styles.modernQtyInput}
-                value={quantity}
-                min={0}
-                step={step}
-                onFocus={e => e.currentTarget.select()}
-                onChange={e => {
-                  const v = parseInt(e.target.value) || 0;
-                  if (v >= 0) { 
-                    setQuantity(v); 
-                    setShowQtyError(false); 
-                  }
-                }}
-                onWheel={e => e.currentTarget.blur()}
-                onBlur={e => {
-                  const v = parseInt(e.target.value) || 0;
-                  if (v < 0) setQuantity(0);
-                }}
-              />
-              <span className={styles.modernQtyUnit}>pc</span>
+      {/* Actionable Qty Section - Only show when NOT ordering by Master Bag */}
+      {!showMasterBagCounter && (
+        <div className={styles.modernQtyWrap}>
+          <div className={styles.qtyHeader}>
+            <label className={styles.modernQtyLabel}>QUANTITY</label>
+            <span className={styles.moqDetailBadge}>MOQ: {product.moq ?? step} packet</span>
+          </div>
+          
+          <div className={styles.interactiveActionRow}>
+            <div className={styles.modernQtyCounter}>
+              <button
+                type="button"
+                className={styles.modernQtyBtn}
+                disabled={quantity <= 0}
+                onClick={() => { setQuantity(q => Math.max(0, q - step)); setShowQtyError(false); }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+              
+              <div className={styles.modernQtyInputBlock}>
+                <input
+                  type="number"
+                  className={styles.modernQtyInput}
+                  value={quantity}
+                  min={0}
+                  step={step}
+                  onFocus={e => e.currentTarget.select()}
+                  onChange={e => {
+                    const v = parseInt(e.target.value) || 0;
+                    if (v >= 0) { 
+                      setQuantity(v); 
+                      setShowQtyError(false); 
+                    }
+                  }}
+                  onWheel={e => e.currentTarget.blur()}
+                  onBlur={e => {
+                    const v = parseInt(e.target.value) || 0;
+                    if (v < 0) setQuantity(0);
+                  }}
+                />
+                <span className={styles.modernQtyUnit}>packet</span>
+              </div>
+
+              <button
+                type="button"
+                className={styles.modernQtyBtn}
+                onClick={() => { setQuantity(q => q + step); setShowQtyError(false); }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
             </div>
 
             <button
-              type="button"
-              className={styles.modernQtyBtn}
-              onClick={() => { setQuantity(q => q + step); setShowQtyError(false); }}
+              className={`${styles.primaryCartBtn} ${addedToCart ? styles.btnSuccess : ""}`}
+              onClick={handleAddToCart}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              {addedToCart ? (
+                <><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 7 9 18l-5-5"/></svg> <span>Added to Cart</span></>
+              ) : (
+                <><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg> <span>Add to Cart</span></>
+              )}
             </button>
+
+           
           </div>
-
-          <button
-            className={`${styles.primaryCartBtn} ${addedToCart ? styles.btnSuccess : ""}`}
-            onClick={handleAddToCart}
-          >
-            {addedToCart ? (
-              <><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 7 9 18l-5-5"/></svg> <span>Added to Cart</span></>
-            ) : (
-              <><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg> <span>Add to Cart</span></>
-            )}
-          </button>
-
-          <button
-            className={`${styles.modernWishlistBtn} ${wishlist ? styles.wishlistActive : ""}`}
-            onClick={() => ctxToggleWishlist(product.id)}
-            aria-label="Wishlist"
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill={wishlist ? "#fb7185" : "none"} stroke={wishlist ? "#fb7185" : "currentColor"} strokeWidth="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-          </button>
+          
+          {showQtyError && <div className={styles.qtyErrorInline}>Please add products first</div>}
         </div>
-        
-        {showQtyError && <div className={styles.qtyErrorInline}>Please add products first</div>}
-      </div>
+      )}
 
       {/* Modern Master Bag Promo Section */}
       {showMasterBagCounter && (
@@ -264,23 +259,83 @@ export default function ProductInfo({ product }: ProductInfoProps) {
               </svg>
               <span>Order by <strong>Master Bag</strong></span>
             </div>
-            <p className={styles.bagCalc}>1 bag = {selectedSize.qtyPerBag} pkts · Total: {masterBags * selectedSize.qtyPerBag * selectedSize.pcsPerPacket} pc</p>
+            <p className={styles.bagCalc}>1 bag = {selectedSize.qtyPerBag} pkts · Total: {masterBags * selectedSize.qtyPerBag * selectedSize.pcsPerPacket} pcs</p>
           </div>
 
           <div className={styles.bagActionControls}>
-            <div className={styles.bagQtyCounter}>
-              <button disabled={masterBags <= 0} onClick={() => setMasterBags(n => Math.max(0, n - 1))}>−</button>
-              <input type="number" readOnly value={masterBags} />
-              <button onClick={() => setMasterBags(n => n + 1)}>+</button>
-              <span className={styles.bagQtyUnit}>bags</span>
+            <div className={styles.dualQtyWrapper}>
+              {/* Master Bag Quantity Counter */}
+              <div className={styles.qtySection}>
+                <label className={styles.qtyCounterLabel}>Order by Master Bag</label>
+                <div className={styles.bagQtyCounter}>
+                  <button disabled={masterBags <= 0} onClick={() => setMasterBags(n => Math.max(0, n - 1))}>−</button>
+                  <input type="number" readOnly value={masterBags} />
+                  <button onClick={() => setMasterBags(n => n + 1)}>+</button>
+                  <span className={styles.bagQtyUnit}>bags</span>
+                </div>
+                <button className={`${styles.bagAddToCartBtn} ${bulkAddedToCart ? styles.btnSuccess : ""}`} onClick={handleMasterBagAddToCart}>
+                  {bulkAddedToCart ? (
+                    <><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 7 9 18l-5-5"/></svg> <span>Bulk Added</span></>
+                  ) : (
+                    <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg> <span>Bulk Add</span></>
+                  )}
+                </button>
+              </div>
+
+              {/* Individual Packet Counter */}
+              <div className={styles.qtySection}>
+                <label className={styles.qtyCounterLabel}>Order by Packet</label>
+                <div className={styles.modernQtyCounter}>
+                  <button
+                    type="button"
+                    className={styles.modernQtyBtn}
+                    disabled={quantity <= 0}
+                    onClick={() => { setQuantity(q => Math.max(0, q - step)); setShowQtyError(false); }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </button>
+                  
+                  <div className={styles.modernQtyInputBlock}>
+                    <input
+                      type="number"
+                      className={styles.modernQtyInput}
+                      value={quantity}
+                      min={0}
+                      step={step}
+                      onFocus={e => e.currentTarget.select()}
+                      onChange={e => {
+                        const v = parseInt(e.target.value) || 0;
+                        if (v >= 0) { 
+                          setQuantity(v); 
+                          setShowQtyError(false); 
+                        }
+                      }}
+                      onWheel={e => e.currentTarget.blur()}
+                      onBlur={e => {
+                        const v = parseInt(e.target.value) || 0;
+                        if (v < 0) setQuantity(0);
+                      }}
+                    />
+                    <span className={styles.modernQtyUnit}>packet</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className={styles.modernQtyBtn}
+                    onClick={() => { setQuantity(q => q + step); setShowQtyError(false); }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </button>
+                </div>
+                <button className={`${styles.bagAddToCartBtn} ${addedToCart ? styles.btnSuccess : ""}`} onClick={handleAddToCart}>
+                  {addedToCart ? (
+                    <><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 7 9 18l-5-5"/></svg> <span>Added</span></>
+                  ) : (
+                    <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg> <span>Add to Cart</span></>
+                  )}
+                </button>
+              </div>
             </div>
-            <button className={`${styles.bagAddToCartBtn} ${bulkAddedToCart ? styles.btnSuccess : ""}`} onClick={handleMasterBagAddToCart}>
-              {bulkAddedToCart ? (
-                <><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 7 9 18l-5-5"/></svg> <span>Bulk Added</span></>
-              ) : (
-                <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg> <span>Bulk Add</span></>
-              )}
-            </button>
           </div>
         </div>
       )}
