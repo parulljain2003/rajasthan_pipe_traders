@@ -1,4 +1,3 @@
-import { getApiBaseUrl } from "./baseUrl";
 import type {
   ApiCategoriesResponse,
   ApiErrorBody,
@@ -18,9 +17,7 @@ async function readJson<T>(res: Response): Promise<T> {
 }
 
 export async function fetchCategoriesList(init?: RequestInit): Promise<ApiCategoriesResponse> {
-  const base = getApiBaseUrl();
-  const url = `${base}/api/categories`;
-  const res = await fetch(url, {
+  const res = await fetch("/api/categories", {
     ...init,
     headers: { Accept: "application/json", ...init?.headers },
   });
@@ -35,14 +32,12 @@ export async function fetchProductsList(
   searchParams: Record<string, string | number | undefined>,
   init?: RequestInit
 ): Promise<ApiProductsListResponse> {
-  const base = getApiBaseUrl();
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries(searchParams)) {
     if (v === undefined || v === "") continue;
     q.set(k, String(v));
   }
-  const url = `${base}/api/products?${q.toString()}`;
-  const res = await fetch(url, {
+  const res = await fetch(`/api/products?${q.toString()}`, {
     ...init,
     headers: { Accept: "application/json", ...init?.headers },
   });

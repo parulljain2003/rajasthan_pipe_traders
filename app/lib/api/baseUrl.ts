@@ -1,18 +1,15 @@
 /**
- * Backend origin for catalog/product HTTP API (see FRONTEND_API_INTEGRATION.md).
- * Set `NEXT_PUBLIC_API_BASE_URL` when the UI and API run on different hosts/ports.
+ * Optional origin for resolving relative media URLs from another host (e.g. CDN).
+ * Catalog HTTP lives on this app (`/api/categories`, `/api/products`); leave unset for same-origin assets.
  */
 export function getApiBaseUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_API_BASE_URL?.trim().replace(/\/$/, "") ?? "";
-  if (fromEnv) return fromEnv;
-  if (process.env.NODE_ENV === "development") return "http://localhost:3000";
-  return "";
+  return process.env.NEXT_PUBLIC_API_BASE_URL?.trim().replace(/\/$/, "") ?? "";
 }
 
 /**
  * Image paths from the API are often site-relative (e.g. `/Cable_Clip.png`).
- * Those map to this app's `public/` folder — do not prefix `NEXT_PUBLIC_API_BASE_URL`,
- * or `next/image` would request the file from the API host instead of the storefront.
+ * Those map to this app's `public/` folder — do not prefix an external base,
+ * or `next/image` would request the file from the wrong host.
  */
 export function resolveAssetUrl(path: string | undefined, baseUrl?: string): string {
   if (!path) return "/Cable_Clip.png";

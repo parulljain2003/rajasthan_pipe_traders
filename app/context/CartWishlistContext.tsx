@@ -43,13 +43,10 @@ function sameLine(
 }
 
 interface CartWishlistState {
-  wishlist: number[];
   cartItems: CartItem[];
   cartCount: number;
   cartTotal: number;
   cartBasicTotal: number;
-  toggleWishlist: (id: number) => void;
-  isWishlisted: (id: number) => boolean;
   addToCart: (item: AddCartItemInput, qty?: number) => void;
   removeFromCart: (productId: number, size: string, sellerId?: string) => void;
   updateQuantity: (productId: number, size: string, qty: number, sellerId?: string) => void;
@@ -69,16 +66,7 @@ interface CartWishlistState {
 const CartWishlistContext = createContext<CartWishlistState | null>(null);
 
 export function CartWishlistProvider({ children }: { children: React.ReactNode }) {
-  const [wishlist, setWishlist] = useState<number[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-
-  const toggleWishlist = useCallback((id: number) => {
-    setWishlist(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  }, []);
-
-  const isWishlisted = useCallback((id: number) => wishlist.includes(id), [wishlist]);
 
   const addToCart = useCallback((item: AddCartItemInput, qty: number = 1) => {
     const sid = normalizeSellerId(item.sellerId);
@@ -156,13 +144,10 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
   return (
     <CartWishlistContext.Provider
       value={{
-        wishlist,
         cartItems,
         cartCount,
         cartTotal,
         cartBasicTotal,
-        toggleWishlist,
-        isWishlisted,
         addToCart,
         removeFromCart,
         updateQuantity,

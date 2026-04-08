@@ -1,18 +1,22 @@
 import React from "react";
+import { getStorefrontProductsFromSearchParams } from "@/lib/catalog/storefront";
 import styles from "./HomeProductsSection.module.css";
 import ProductGrid from "../ShopSection/ProductGrid/ProductGrid";
 import type { ProductListingEntry } from "../../data/products";
-import { fetchProductsList } from "../../lib/api/client";
 import { apiProductsToListingEntries } from "../../lib/api/mapApiProduct";
+import type { ApiProduct } from "../../lib/api/types";
 
 export default async function HomeProductsSection() {
   let featuredListing: ProductListingEntry[] = [];
   try {
-    const { data } = await fetchProductsList(
-      { productKind: "catalog", limit: 10, skip: 0 },
-      { next: { revalidate: 60 } }
-    );
-    featuredListing = apiProductsToListingEntries(data);
+    const sp = new URLSearchParams();
+    sp.set("productKind", "catalog");
+    sp.set("limit", "10");
+    sp.set("skip", "0");
+    const result = await getStorefrontProductsFromSearchParams(sp);
+    if (result.ok) {
+      featuredListing = apiProductsToListingEntries(result.data as unknown as ApiProduct[]);
+    }
   } catch {
     featuredListing = [];
   }

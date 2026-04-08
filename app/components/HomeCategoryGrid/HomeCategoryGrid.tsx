@@ -95,8 +95,7 @@ export default function HomeCategoryGrid() {
             )}
             {loadState === "error" && (
               <p className={styles.subtitle} style={{ marginTop: "0.35rem", color: "#b91c1c" }}>
-                Could not load categories. Check the API and{" "}
-                <code style={{ fontSize: "0.9em" }}>NEXT_PUBLIC_API_BASE_URL</code>.
+                Could not load categories. Please try again later.
               </p>
             )}
           </div>

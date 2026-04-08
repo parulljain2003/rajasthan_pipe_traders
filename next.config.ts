@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
     minimumCacheTTL: 3600,
-    // Product/category images may be served from `NEXT_PUBLIC_API_BASE_URL` (see app/lib/api/baseUrl.ts).
+    // Optional remote media when `NEXT_PUBLIC_API_BASE_URL` points off-site (see app/lib/api/baseUrl.ts).
     remotePatterns: [
       { protocol: "http", hostname: "localhost", pathname: "/**" },
       { protocol: "http", hostname: "127.0.0.1", pathname: "/**" },
