@@ -1,16 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
-import styles from './OrderSummary.module.css';
-import { CartItem } from '../../../context/CartWishlistContext';
-import { productHeading } from '../../../lib/productHeading';
-
-const COUPONS = [
-  { code: "BULK7",  discount: "7%",   condition: "On 15+ Cartons / Bags",  desc: "Mix items · complete price list",  color: "#2563eb", pct: 0.07 },
-  { code: "BULK9",  discount: "9%",   condition: "On 50+ Cartons / Bags",  desc: "Mix items · complete price list",  color: "#4f46e5", pct: 0.09 },
-  { code: "BULK12", discount: "12%",  condition: "On 85+ Cartons / Bags",  desc: "Maximum bulk discount",            color: "#059669", pct: 0.12 },
-  { code: "MIN25K", discount: "FREE", condition: "Min. Order ₹25,000",      desc: "100% advance · TO PAY freight",    color: "#d97706", pct: 0    },
-];
+import React, { useState } from "react";
+import styles from "./OrderSummary.module.css";
+import { CartItem } from "../../../context/CartWishlistContext";
+import { productHeading } from "../../../lib/productHeading";
+import type { CartCouponOption, CouponApplyResult } from "../cartCoupons";
 
 interface OrderSummaryProps {
   basicTotal: number;
@@ -18,8 +12,14 @@ interface OrderSummaryProps {
   grandTotal: number;
   itemCount: number;
   items: CartItem[];
+  cartCoupons: CartCouponOption[];
   appliedCoupon: string | null;
-  onCouponChange: (code: string | null) => void;
+  couponDiscount: number;
+  finalTotal: number;
+  freeDispatch: boolean;
+  /** Shown when cart changed and the previously applied coupon was cleared */
+  couponBannerError: string | null;
+  onCouponChange: (code: string | null) => Promise<CouponApplyResult>;
   onPlaceOrder: () => void;
 }
 
@@ -29,15 +29,19 @@ export default function OrderSummary({
   grandTotal,
   itemCount,
   items,
+  cartCoupons,
   appliedCoupon,
+  couponDiscount,
+  finalTotal,
+  freeDispatch,
+  couponBannerError,
   onCouponChange,
   onPlaceOrder,
 }: OrderSummaryProps) {
   const [couponOpen, setCouponOpen] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
 
-  const couponMeta = appliedCoupon ? COUPONS.find(c => c.code === appliedCoupon) ?? null : null;
-  const couponDiscount = couponMeta ? Math.round(grandTotal * couponMeta.pct) : 0;
-  const finalTotal = grandTotal - couponDiscount;
+  const couponMeta = appliedCoupon ? cartCoupons.find((c) => c.code === appliedCoupon) ?? null : null;
 
   const minOrderMet = finalTotal >= 25000;
   const [showMinError, setShowMinError] = useState(false);
@@ -56,19 +60,18 @@ export default function OrderSummary({
     <div className={styles.summary}>
       <h3 className={styles.title}>Order Summary</h3>
 
-      {/* Product list */}
       {items.length > 0 && (
         <div className={styles.productList}>
-          {items.map(item => {
-            const safeQty   = Number(item.quantity)        || 1;
-            const safePrice = Number(item.pricePerUnit)    || 0;
+          {items.map((item) => {
+            const safeQty = Number(item.quantity) || 1;
+            const safePrice = Number(item.pricePerUnit) || 0;
             const lineTotal = safePrice * safeQty;
             return (
               <div key={`${item.productId}-${item.size}`} className={styles.productRow}>
                 <div className={styles.productInfo}>
                   <span className={styles.productName}>{productHeading(item.productName, item.size)}</span>
                   <span className={styles.productMeta}>
-                    {safeQty} pc{safeQty !== 1 ? 's' : ''}
+                    {safeQty} pc{safeQty !== 1 ? "s" : ""}
                   </span>
                 </div>
                 <span className={styles.productTotal}>₹{lineTotal.toFixed(0)}</span>
@@ -80,10 +83,11 @@ export default function OrderSummary({
 
       <div className={styles.divider} />
 
-      {/* Price breakdown */}
       <div className={styles.row}>
         <span className={styles.rowLabel}>Items</span>
-        <span className={styles.rowVal}>{itemCount} product{itemCount !== 1 ? 's' : ''}</span>
+        <span className={styles.rowVal}>
+          {itemCount} product{itemCount !== 1 ? "s" : ""}
+        </span>
       </div>
       <div className={styles.row}>
         <span className={styles.rowLabel}>Basic price (ex-GST)</span>
@@ -96,11 +100,11 @@ export default function OrderSummary({
 
       {couponDiscount > 0 && (
         <div className={styles.row}>
-          <span className={styles.rowLabel}>Coupon Discount ({couponMeta?.code})</span>
+          <span className={styles.rowLabel}>Coupon Discount ({couponMeta?.code ?? appliedCoupon})</span>
           <span className={styles.discountVal}>−₹{couponDiscount.toFixed(0)}</span>
         </div>
       )}
-      {couponMeta?.code === 'MIN25K' && (
+      {freeDispatch && (
         <div className={styles.row}>
           <span className={styles.rowLabel}>Dispatch</span>
           <span className={styles.freeTag}>FREE</span>
@@ -109,72 +113,124 @@ export default function OrderSummary({
 
       <div className={styles.divider} />
 
-      {/* Grand total */}
       <div className={`${styles.row} ${styles.totalRow}`}>
         <span className={styles.totalLabel}>Grand Total (incl. GST)</span>
         <span className={styles.totalVal}>₹{finalTotal.toFixed(2)}</span>
       </div>
 
-      {/* Apply Coupon */}
       <div className={styles.couponSection}>
+        {couponBannerError && (
+          <div className={styles.couponBannerErr} role="status">
+            {couponBannerError}
+          </div>
+        )}
         {appliedCoupon ? (
           <div className={styles.appliedCoupon}>
             <div className={styles.appliedLeft}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
               <div>
                 <span className={styles.appliedCode}>{appliedCoupon}</span>
-                <span className={styles.appliedDesc}>{COUPONS.find(c => c.code === appliedCoupon)?.discount} · {COUPONS.find(c => c.code === appliedCoupon)?.condition}</span>
+                <span className={styles.appliedDesc}>
+                  {couponMeta?.discount ?? "—"} · {couponMeta?.condition ?? ""}
+                </span>
               </div>
             </div>
-            <button className={styles.removeBtn} onClick={() => onCouponChange(null)} aria-label="Remove coupon">
+            <button
+              className={styles.removeBtn}
+              onClick={() => {
+                void onCouponChange(null);
+                setApplyError(null);
+              }}
+              aria-label="Remove coupon"
+            >
               Remove
             </button>
           </div>
         ) : (
-          <button className={styles.couponToggle} onClick={() => setCouponOpen(o => !o)}>
+          <button className={styles.couponToggle} onClick={() => setCouponOpen((o) => !o)}>
             <div className={styles.couponToggleLeft}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                <line x1="7" y1="7" x2="7.01" y2="7"/>
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                <line x1="7" y1="7" x2="7.01" y2="7" />
               </svg>
               <span>Apply Coupon</span>
             </div>
             <svg
-              width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-              style={{ transform: couponOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              style={{ transform: couponOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}
             >
               <path d="m6 9 6 6 6-6" />
             </svg>
           </button>
         )}
 
+        {applyError && (
+          <div className={styles.couponApplyErr} role="alert">
+            {applyError}
+          </div>
+        )}
+
         {couponOpen && !appliedCoupon && (
           <div className={styles.couponList}>
-            {COUPONS.map(c => (
-              <button
-                key={c.code}
-                className={styles.couponCard}
-                style={{ '--coupon-color': c.color } as React.CSSProperties}
-                onClick={() => { onCouponChange(c.code); setCouponOpen(false); }}
-              >
-                <div className={styles.couponCardStrip} />
-                <div className={styles.couponCardBody}>
-                  <div className={styles.couponCardTop}>
-                    <span className={styles.couponCardCode}>{c.code}</span>
-                    <span className={styles.couponCardDiscount}>{c.discount}</span>
+            {cartCoupons.length === 0 ? (
+              <p className={styles.couponListEmpty}>No coupons available right now.</p>
+            ) : (
+              cartCoupons.map((c) => (
+                <button
+                  key={c.code}
+                  type="button"
+                  className={styles.couponCard}
+                  style={{ "--coupon-color": c.color } as React.CSSProperties}
+                  onClick={() => {
+                    void (async () => {
+                      setApplyError(null);
+                      const res = await onCouponChange(c.code);
+                      if (res.ok) setCouponOpen(false);
+                      else setApplyError(res.message);
+                    })();
+                  }}
+                >
+                  <div className={styles.couponCardStrip} />
+                  <div className={styles.couponCardBody}>
+                    <div className={styles.couponCardTop}>
+                      <span className={styles.couponCardCode}>{c.code}</span>
+                      <span className={styles.couponCardDiscount}>{c.discount}</span>
+                    </div>
+                    <span className={styles.couponCardCondition}>{c.condition}</span>
+                    <span className={styles.couponCardDesc}>{c.desc}</span>
                   </div>
-                  <span className={styles.couponCardCondition}>{c.condition}</span>
-                  <span className={styles.couponCardDesc}>{c.desc}</span>
-                </div>
-              </button>
-            ))}
+                </button>
+              ))
+            )}
           </div>
         )}
       </div>
 
-      {/* Min order error */}
       {showMinError && (
         <div className={styles.minOrderError}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -186,13 +242,17 @@ export default function OrderSummary({
         </div>
       )}
 
-      {/* Place order button */}
-      <button
-        className={styles.placeOrderBtn}
-        onClick={handlePlaceOrder}
-        disabled={itemCount === 0}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <button className={styles.placeOrderBtn} onClick={handlePlaceOrder} disabled={itemCount === 0}>
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <circle cx="9" cy="21" r="1" />
           <circle cx="20" cy="21" r="1" />
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />

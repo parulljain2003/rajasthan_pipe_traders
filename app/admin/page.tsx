@@ -17,6 +17,9 @@ export default function AdminHomePage() {
           <Link href="/admin/products">Products — list, create, edit, delete</Link>
         </li>
         <li>
+          <Link href="/admin/coupons">Coupons — list, create, edit, delete</Link>
+        </li>
+        <li>
           <Link href="/admin/media">Media — list & delete Cloudinary uploads</Link>
         </li>
       </ul>

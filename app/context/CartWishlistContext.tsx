@@ -7,6 +7,9 @@ const DEFAULT_SELLER_ID = "default";
 
 export interface CartItem {
   productId: number;
+  /** MongoDB ObjectId string when the line came from the API catalog — used for coupon targeting */
+  mongoProductId?: string;
+  categoryMongoId?: string;
   productSlug: string;
   productImage: string;
   productName: string;

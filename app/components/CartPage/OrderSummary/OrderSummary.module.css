@@ -126,6 +126,28 @@
   gap: 0;
 }
 
+.couponBannerErr {
+  font-size: 0.72rem;
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  margin-bottom: 0.45rem;
+}
+
+.couponApplyErr {
+  font-size: 0.72rem;
+  color: #b91c1c;
+  margin-top: 0.45rem;
+}
+
+.couponListEmpty {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 0.35rem 0 0;
+}
+
 .couponToggle {
   display: flex;
   align-items: center;

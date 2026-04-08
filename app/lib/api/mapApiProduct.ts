@@ -89,6 +89,8 @@ export function apiProductToProduct(p: ApiProduct): Product {
 
   return {
     id: p.legacyId ?? stableNumericId(p._id),
+    mongoProductId: p._id,
+    categoryMongoId: p.category?._id,
     slug,
     name: p.name,
     brand: p.brand ?? "Hitech Square",

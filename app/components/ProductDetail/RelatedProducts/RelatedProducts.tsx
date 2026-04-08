@@ -44,6 +44,8 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
     const size = offer.sizes[0];
     const payload = {
       productId: product.id,
+      mongoProductId: product.mongoProductId,
+      categoryMongoId: product.categoryMongoId,
       productName: product.name,
       productSlug: product.slug,
       productImage: product.image,

@@ -158,6 +158,13 @@
 .couponCopy_amber { background:rgba(245,158,11,0.25); color:#fcd34d; }
 .couponCopy_amber:hover { background:#f59e0b; color:#fff; }
 
+.coupon_brown   { border-color:rgba(180,83,9,0.5);  background:linear-gradient(115deg,rgba(67,32,6,0.72) 0%,rgba(180,83,9,0.22) 100%); }
+.coupon_brown .couponStub { background:rgba(180,83,9,0.2); }
+.coupon_brown .couponPct  { color:#fcd34d; }
+.coupon_brown .couponDash  { border-color:#d97706; }
+.couponCopy_brown { background:rgba(180,83,9,0.28); color:#fcd34d; }
+.couponCopy_brown:hover { background:#b45309; color:#fff; }
+
 /* ═══════════════════════════════════════
    MAIN 2-COL INNER
 ═══════════════════════════════════════ */
