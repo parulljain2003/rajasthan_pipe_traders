@@ -8,6 +8,8 @@ const discountTierSchema = new Schema(
   { _id: false }
 );
 
+
+
 const catalogSizeSchema = new Schema(
   {
     size: { type: String, required: true },
