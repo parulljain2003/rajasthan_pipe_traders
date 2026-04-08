@@ -235,7 +235,7 @@ export default function AdminCategoriesPage() {
                 categoryId={editingId ?? undefined}
                 value={form.image}
                 onUrlChange={(url) => setForm((f) => ({ ...f, image: url }))}
-                helpText="Requires MEDIA_API_URL and a running media API. See docs/Cloudenary_MEDIA_API.md."
+                helpText="Uploads to Cloudinary (folder rpt/category/…). Set CLOUDINARY_URL in .env.local."
               />
               <div className="admin-field-row">
                 <div className="admin-field">

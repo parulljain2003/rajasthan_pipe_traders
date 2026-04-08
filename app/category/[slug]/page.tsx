@@ -1,44 +1,112 @@
-import { notFound } from 'next/navigation';
-import type { Metadata } from 'next';
-import CategoryPage from '../../components/CategoryPage/CategoryPage';
-import { categories, getCategoryBySlug } from '../../data/categories';
-import { products } from '../../data/products';
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import CategoryPage from "../../components/CategoryPage/CategoryPage";
+import { categories, getCategoryBySlug, type CategoryConfig } from "../../data/categories";
+import { products as staticProducts, type Product } from "../../data/products";
+import { apiProductToProduct } from "../../lib/api/mapApiProduct";
+import type { ApiProduct } from "../../lib/api/types";
+import { getApiBaseUrl, resolveAssetUrl } from "../../lib/api/baseUrl";
+import {
+  getStorefrontCategoryBySlug,
+  getStorefrontProductsFromSearchParams,
+} from "@/lib/catalog/storefront";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
+const CATEGORY_BG_PALETTE = ["#ffccd5", "#b3e5fc", "#c8e6c9", "#e1bee7", "#ffe0b2", "#d7ccc8"];
+
+function hashSlug(slug: string): number {
+  let h = 0;
+  for (let i = 0; i < slug.length; i++) {
+    h = (Math.imul(31, h) + slug.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+function dbCategoryRowToConfig(row: Record<string, unknown>, slug: string): CategoryConfig {
+  const name = typeof row.name === "string" && row.name.trim() ? row.name : slug;
+  const imageRaw = typeof row.image === "string" ? row.image : undefined;
+  const image = resolveAssetUrl(imageRaw, getApiBaseUrl());
+  const description = typeof row.description === "string" ? row.description : "";
+  const bgColor = CATEGORY_BG_PALETTE[hashSlug(slug) % CATEGORY_BG_PALETTE.length];
+  return {
+    id: name,
+    slug,
+    name,
+    image,
+    bgColor,
+    description,
+  };
+}
+
 export async function generateStaticParams() {
-  return categories.map(cat => ({ slug: cat.slug }));
+  return categories.map((cat) => ({ slug: cat.slug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const category = getCategoryBySlug(slug);
-
-  if (!category) {
-    return { title: 'Category Not Found | Rajasthan Pipe Traders' };
+  const staticCategory = getCategoryBySlug(slug);
+  if (staticCategory) {
+    return {
+      title: `${staticCategory.name} | Rajasthan Pipe Traders`,
+      description: staticCategory.description,
+      keywords: [staticCategory.name, "Hitech Square", "Tejas Craft", "N-Star", "Rajasthan Pipe Traders", "Ahmedabad"].join(", "),
+      openGraph: {
+        title: `${staticCategory.name} | Rajasthan Pipe Traders`,
+        description: staticCategory.description,
+        images: [staticCategory.image],
+      },
+    };
   }
 
+  const row = await getStorefrontCategoryBySlug(slug);
+  if (!row) {
+    return { title: "Category Not Found | Rajasthan Pipe Traders" };
+  }
+  const name = typeof row.name === "string" ? row.name : slug;
+  const description = typeof row.description === "string" ? row.description : "";
+  const image = resolveAssetUrl(typeof row.image === "string" ? row.image : undefined, getApiBaseUrl());
   return {
-    title: `${category.name} | Rajasthan Pipe Traders`,
-    description: category.description,
-    keywords: [category.name, 'Hitech Square', 'Tejas Craft', 'N-Star', 'Rajasthan Pipe Traders', 'Ahmedabad'].join(', '),
+    title: `${name} | Rajasthan Pipe Traders`,
+    description,
+    keywords: [name, "Rajasthan Pipe Traders", "Ahmedabad"].join(", "),
     openGraph: {
-      title: `${category.name} | Rajasthan Pipe Traders`,
-      description: category.description,
-      images: [category.image],
+      title: `${name} | Rajasthan Pipe Traders`,
+      description,
+      images: [image],
     },
   };
 }
 
 export default async function CategorySlugPage({ params }: PageProps) {
   const { slug } = await params;
-  const category = getCategoryBySlug(slug);
 
-  if (!category) notFound();
+  let category: CategoryConfig;
+  let products: Product[];
 
-  const categoryProducts = products.filter(p => p.category === category.id);
+  const staticCategory = getCategoryBySlug(slug);
+  if (staticCategory) {
+    category = staticCategory;
+    products = staticProducts.filter((p) => p.category === category.id);
+  } else {
+    const row = await getStorefrontCategoryBySlug(slug);
+    if (!row) notFound();
 
-  return <CategoryPage category={category} products={categoryProducts} />;
+    category = dbCategoryRowToConfig(row, slug);
+
+    const sp = new URLSearchParams({
+      categorySlug: slug,
+      productKind: "catalog",
+      limit: "500",
+      skip: "0",
+    });
+    const result = await getStorefrontProductsFromSearchParams(sp);
+    if (!result.ok) notFound();
+
+    products = result.data.map((doc) => apiProductToProduct(doc as unknown as ApiProduct));
+  }
+
+  return <CategoryPage category={category} products={products} />;
 }

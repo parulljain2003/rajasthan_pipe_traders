@@ -21,8 +21,8 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
   );
 
   const allPrices = listingEntries.map((e) => e.offer.sizes[0].withGST);
-  const globalMin = Math.floor(Math.min(...allPrices));
-  const globalMax = Math.ceil(Math.max(...allPrices));
+  const globalMin = listingEntries.length ? Math.floor(Math.min(...allPrices)) : 0;
+  const globalMax = listingEntries.length ? Math.ceil(Math.max(...allPrices)) : 100_000;
 
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
   const [priceRange, setPriceRange] = useState<[number, number]>([globalMin, globalMax]);
@@ -194,6 +194,18 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
             {/* Product grid */}
             {filteredListingEntries.length > 0 ? (
               <ProductGrid listingEntries={filteredListingEntries} />
+            ) : listingEntries.length === 0 ? (
+              <div className={styles.empty}>
+                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
+                </svg>
+                <h3>No products in this category yet</h3>
+                <p>Browse other categories from the home page or check back later.</p>
+                <Link href="/" className={styles.resetFiltersBtn} style={{ display: "inline-block", textDecoration: "none" }}>
+                  Back to home
+                </Link>
+              </div>
             ) : (
               <div className={styles.empty}>
                 <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5">

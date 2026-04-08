@@ -17,6 +17,7 @@ export function extractUploadResult(json: unknown): { url: string; mediaId?: str
   let mediaId: string | undefined =
     (typeof o._id === "string" && o._id) || (typeof o.id === "string" && o.id) || undefined;
   if (!mediaId && typeof o.mediaId === "string") mediaId = o.mediaId;
+  if (!mediaId && typeof o.public_id === "string") mediaId = o.public_id;
   if (!url) throw new Error("Upload succeeded but no image URL was found in the response");
   return { url, mediaId };
 }

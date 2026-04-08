@@ -164,13 +164,45 @@
 }
 
 .admin-modal.wide {
-  max-width: 640px;
+  max-width: 760px;
 }
 
 .admin-modal h2 {
   font-size: 1.125rem;
   margin-bottom: 1rem;
   color: #111827;
+}
+
+.admin-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.admin-form-section {
+  margin-bottom: 0.35rem;
+  padding: 1rem 1.05rem;
+  background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%);
+  border: 1px solid #e8eaef;
+  border-radius: 10px;
+}
+
+.admin-form-section-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  background: #fff;
+  border-style: dashed;
+}
+
+.admin-form-section-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin: 0 0 0.85rem;
 }
 
 .admin-field {
@@ -182,30 +214,109 @@
   font-size: 0.8rem;
   font-weight: 600;
   color: #374151;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
 }
 
+/* Unified inputs (admin forms + catalog tables) */
+.admin-input,
 .admin-field input[type="text"],
 .admin-field input[type="number"],
+.admin-field input[type="search"],
+.admin-field input[type="email"],
+.admin-field input[type="url"],
 .admin-field textarea,
 .admin-field select {
   width: 100%;
-  padding: 0.45rem 0.55rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  box-sizing: border-box;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   font-size: 0.875rem;
   font-family: inherit;
+  line-height: 1.35;
+  color: #111827;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.admin-field textarea {
-  min-height: 72px;
+.admin-input::placeholder,
+.admin-field input::placeholder,
+.admin-field textarea::placeholder {
+  color: #94a3b8;
+}
+
+.admin-input:hover,
+.admin-field input[type="text"]:hover,
+.admin-field input[type="number"]:hover,
+.admin-field textarea:hover,
+.admin-field select:hover {
+  border-color: #cbd5e1;
+}
+
+.admin-input:focus,
+.admin-field input[type="text"]:focus,
+.admin-field input[type="number"]:focus,
+.admin-field textarea:focus,
+.admin-field select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.admin-field textarea,
+textarea.admin-input {
+  min-height: 5.5rem;
   resize: vertical;
 }
 
+.admin-textarea-code,
 .admin-field textarea.code {
-  font-family: ui-monospace, monospace;
-  font-size: 0.8rem;
-  min-height: 100px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  min-height: 7rem;
+  line-height: 1.45;
+}
+
+.admin-select,
+.admin-field select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  padding-right: 2.25rem;
+}
+
+.admin-check-pill {
+  padding: 0.35rem 0.6rem;
+  margin: 0;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.admin-check-pill input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.admin-catalog-offers-wrap {
+  margin-top: 0.35rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #e8eaef;
+}
+
+.admin-catalog-offers-heading {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+  color: #111827;
+}
+
+.admin-catalog-offers-muted {
+  opacity: 0.88;
 }
 
 .admin-field-row {
@@ -299,4 +410,122 @@
   border-radius: 4px;
   background: #f3f4f6;
   vertical-align: middle;
+}
+
+.admin-catalog-section {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.admin-catalog-section > h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.35rem;
+}
+
+.admin-catalog-hint {
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin: 0 0 0.75rem;
+  line-height: 1.4;
+}
+
+.admin-catalog-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.65rem;
+}
+
+.admin-catalog-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-catalog-card:last-child {
+  margin-bottom: 0;
+}
+
+.admin-catalog-card-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 0.65rem;
+}
+
+.admin-mini-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 0.5rem;
+}
+
+.admin-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.admin-mini-table th,
+.admin-mini-table td {
+  text-align: left;
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+
+.admin-mini-table th {
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.admin-mini-table input.admin-input,
+.admin-mini-table input {
+  width: 100%;
+  min-width: 3.5rem;
+  box-sizing: border-box;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  color: #111827;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-mini-table input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.admin-btn-icon {
+  padding: 0.3rem 0.5rem;
+  min-width: 2rem;
+  line-height: 1;
+}
+
+.admin-field-shrink {
+  flex: 0 0 auto;
+  min-width: unset;
+  margin-bottom: 0;
+  align-self: flex-end;
+}
+
+.admin-catalog-nested {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.admin-catalog-nested > .admin-catalog-toolbar h3 {
+  font-size: 0.85rem;
 }

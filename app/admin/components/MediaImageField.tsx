@@ -214,6 +214,7 @@ export function MediaImageField({
           </label>
           <input
             id={`${fid}-url`}
+            className="admin-input"
             type="text"
             value={value}
             onChange={(e) => onUrlChange(e.target.value)}

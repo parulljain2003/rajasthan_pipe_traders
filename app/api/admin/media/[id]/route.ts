@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMediaApiBase } from "@/lib/media-proxy";
+import {
+  destroyImage,
+  getImageResource,
+  isCloudinaryConfigured,
+} from "@/lib/cloudinary-server";
+
+export const runtime = "nodejs";
 
 function unavailable() {
   return NextResponse.json(
-    { message: "MEDIA_API_URL is not set. See docs/Cloudenary_MEDIA_API.md." },
+    {
+      message:
+        "Cloudinary is not configured. Set CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in .env.local.",
+    },
     { status: 503 }
   );
 }
@@ -11,36 +20,31 @@ function unavailable() {
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, ctx: Ctx) {
-  const base = getMediaApiBase();
-  if (!base) return unavailable();
-  const { id } = await ctx.params;
-  const res = await fetch(`${base}/api/media/${encodeURIComponent(id)}`, { cache: "no-store" });
-  const body = await res.text();
-  const ct = res.headers.get("Content-Type") || "application/json";
-  return new NextResponse(body, { status: res.status, headers: { "Content-Type": ct } });
+  if (!isCloudinaryConfigured()) return unavailable();
+  try {
+    const { id } = await ctx.params;
+    const publicId = decodeURIComponent(id);
+    const data = await getImageResource(publicId);
+    return NextResponse.json({ data });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Not found";
+    return NextResponse.json({ message }, { status: 404 });
+  }
 }
 
-export async function PATCH(req: NextRequest, ctx: Ctx) {
-  const base = getMediaApiBase();
-  if (!base) return unavailable();
-  const { id } = await ctx.params;
-  const payload = await req.text();
-  const res = await fetch(`${base}/api/media/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: payload,
-  });
-  const body = await res.text();
-  const ct = res.headers.get("Content-Type") || "application/json";
-  return new NextResponse(body, { status: res.status, headers: { "Content-Type": ct } });
+export async function PATCH() {
+  return NextResponse.json({ message: "Not supported for direct Cloudinary uploads" }, { status: 405 });
 }
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {
-  const base = getMediaApiBase();
-  if (!base) return unavailable();
-  const { id } = await ctx.params;
-  const res = await fetch(`${base}/api/media/${encodeURIComponent(id)}`, { method: "DELETE" });
-  const body = await res.text();
-  const ct = res.headers.get("Content-Type") || "application/json";
-  return new NextResponse(body, { status: res.status, headers: { "Content-Type": ct } });
+  if (!isCloudinaryConfigured()) return unavailable();
+  try {
+    const { id } = await ctx.params;
+    const publicId = decodeURIComponent(id);
+    await destroyImage(publicId);
+    return NextResponse.json({ data: { public_id: publicId, deleted: true } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Delete failed";
+    return NextResponse.json({ message }, { status: 500 });
+  }
 }

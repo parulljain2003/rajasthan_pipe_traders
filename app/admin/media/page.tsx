@@ -17,6 +17,14 @@ function normalizeMediaList(json: unknown): MediaRow[] {
   return [];
 }
 
+function metaNextCursor(json: unknown): string | undefined {
+  if (!json || typeof json !== "object") return undefined;
+  const m = (json as Record<string, unknown>).meta;
+  if (!m || typeof m !== "object") return undefined;
+  const c = (m as Record<string, unknown>).nextCursor;
+  return typeof c === "string" && c.length > 0 ? c : undefined;
+}
+
 function rowUrl(row: MediaRow): string {
   const v =
     row.secure_url ??
@@ -31,7 +39,7 @@ function rowUrl(row: MediaRow): string {
 }
 
 function rowId(row: MediaRow): string {
-  const v = row._id ?? row.id;
+  const v = row.public_id ?? row._id ?? row.id;
   return typeof v === "string" ? v : "";
 }
 
@@ -39,14 +47,19 @@ export default function AdminMediaPage() {
   const [items, setItems] = useState<MediaRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
+  /** Cursor sent to Cloudinary for the current page (undefined = first page). */
+  const [activeCursor, setActiveCursor] = useState<string | undefined>(undefined);
+  /** Stack of prior cursors for “Previous page”. */
+  const [cursorBackStack, setCursorBackStack] = useState<(string | undefined)[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const limit = 20;
 
-  const load = useCallback(async () => {
+  const loadWith = useCallback(async (cursor: string | undefined) => {
     setLoading(true);
     setError(null);
     try {
-      const q = new URLSearchParams({ page: String(page), limit: String(limit) });
+      const q = new URLSearchParams({ limit: String(limit) });
+      if (cursor) q.set("cursor", cursor);
       const res = await fetch(`/api/admin/media?${q}`);
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -57,20 +70,37 @@ export default function AdminMediaPage() {
         throw new Error(msg);
       }
       setItems(normalizeMediaList(json));
+      setNextCursor(metaNextCursor(json));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load media");
       setItems([]);
+      setNextCursor(undefined);
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadWith(activeCursor);
+  }, [activeCursor, loadWith]);
+
+  function goNextPage() {
+    if (!nextCursor) return;
+    setCursorBackStack((s) => [...s, activeCursor]);
+    setActiveCursor(nextCursor);
+  }
+
+  function goPrevPage() {
+    setCursorBackStack((s) => {
+      if (s.length === 0) return s;
+      const prev = s[s.length - 1];
+      setActiveCursor(prev);
+      return s.slice(0, -1);
+    });
+  }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this media record and Cloudinary asset?")) return;
+    if (!confirm("Delete this image from Cloudinary?")) return;
     setError(null);
     try {
       const res = await fetch(`/api/admin/media/${encodeURIComponent(id)}`, { method: "DELETE" });
@@ -82,18 +112,24 @@ export default function AdminMediaPage() {
             : res.statusText;
         throw new Error(msg);
       }
-      await load();
+      await loadWith(activeCursor);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Delete failed");
     }
   }
 
+  const canGoBack = cursorBackStack.length > 0;
+
   return (
     <div>
-      <p className="muted" style={{ marginBottom: "1rem", maxWidth: "40rem" }}>
-        Lists uploads from your media API (<code>GET /api/media</code>). Configure{" "}
-        <code>MEDIA_API_URL</code> in <code>.env.local</code>. See{" "}
-        <code>docs/Cloudenary_MEDIA_API.md</code>.
+      <p className="muted" style={{ marginBottom: "1rem", maxWidth: "42rem" }}>
+        Images are stored in your Cloudinary account (folder prefix{" "}
+        <code style={{ fontSize: "0.8rem" }}>rpt/</code> by default). Set{" "}
+        <code style={{ fontSize: "0.8rem" }}>CLOUDINARY_URL</code> or{" "}
+        <code style={{ fontSize: "0.8rem" }}>CLOUDINARY_CLOUD_NAME</code> +{" "}
+        <code style={{ fontSize: "0.8rem" }}>CLOUDINARY_API_KEY</code> +{" "}
+        <code style={{ fontSize: "0.8rem" }}>CLOUDINARY_API_SECRET</code> in{" "}
+        <code style={{ fontSize: "0.8rem" }}>.env.local</code>.
       </p>
       {error ? (
         <div className="admin-banner err" role="alert">
@@ -101,28 +137,40 @@ export default function AdminMediaPage() {
         </div>
       ) : null}
       <div className="admin-toolbar">
-        <button type="button" className="admin-btn admin-btn-ghost" onClick={() => void load()} disabled={loading}>
+        <button
+          type="button"
+          className="admin-btn admin-btn-ghost"
+          onClick={() => {
+            setCursorBackStack([]);
+            setActiveCursor(undefined);
+            void loadWith(undefined);
+          }}
+          disabled={loading}
+        >
+          First page
+        </button>
+        <button type="button" className="admin-btn admin-btn-ghost" onClick={() => void loadWith(activeCursor)} disabled={loading}>
           Refresh
         </button>
         <button
           type="button"
           className="admin-btn admin-btn-ghost"
-          disabled={loading || page <= 1}
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={loading || !canGoBack}
+          onClick={() => goPrevPage()}
         >
           Previous page
         </button>
-        <span className="muted" style={{ fontSize: "0.875rem" }}>
-          Page {page}
-        </span>
         <button
           type="button"
           className="admin-btn admin-btn-ghost"
-          disabled={loading || items.length < limit}
-          onClick={() => setPage((p) => p + 1)}
+          disabled={loading || !nextCursor}
+          onClick={() => goNextPage()}
         >
           Next page
         </button>
+        <span className="muted" style={{ fontSize: "0.875rem" }}>
+          {items.length} image(s) on this page
+        </span>
       </div>
       {loading ? (
         <p className="muted">Loading…</p>
@@ -132,8 +180,8 @@ export default function AdminMediaPage() {
             <thead>
               <tr>
                 <th>Preview</th>
-                <th>Id</th>
-                <th>Kind / meta</th>
+                <th>Public id</th>
+                <th>Meta</th>
                 <th />
               </tr>
             </thead>
@@ -143,16 +191,14 @@ export default function AdminMediaPage() {
                 const url = rowUrl(row);
                 return (
                   <tr key={id || JSON.stringify(row)}>
+                    <td>{url ? <img src={url} alt="" className="admin-thumb" /> : "—"}</td>
                     <td>
-                      {url ? <img src={url} alt="" className="admin-thumb" /> : "—"}
-                    </td>
-                    <td>
-                      <code style={{ fontSize: "0.75rem" }}>{id || "—"}</code>
+                      <code style={{ fontSize: "0.75rem", wordBreak: "break-all" }}>{id || "—"}</code>
                     </td>
                     <td>
                       <span className="muted" style={{ fontSize: "0.8rem" }}>
-                        {String(row.kind ?? "—")}
-                        {row.caption ? ` · ${String(row.caption)}` : ""}
+                        {row.format != null ? String(row.format) : "—"}
+                        {row.bytes != null ? ` · ${String(row.bytes)} B` : ""}
                       </span>
                     </td>
                     <td>
@@ -182,7 +228,7 @@ export default function AdminMediaPage() {
               })}
             </tbody>
           </table>
-          {items.length === 0 ? <p className="muted" style={{ padding: "1rem" }}>No media rows (or empty page).</p> : null}
+          {items.length === 0 ? <p className="muted" style={{ padding: "1rem" }}>No images under this prefix (or empty page).</p> : null}
         </div>
       )}
     </div>

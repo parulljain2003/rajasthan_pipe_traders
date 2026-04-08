@@ -1,10 +1,81 @@
+import { cache } from "react";
 import mongoose from "mongoose";
 import { connectDb } from "@/lib/db/connect";
 import { CategoryModel } from "@/lib/db/models/Category";
 import { ProductModel } from "@/lib/db/models/Product";
 import { serializeCategoryLean, serializeProductLean } from "@/lib/db/serialize";
+import { apiProductToProduct } from "@/app/lib/api/mapApiProduct";
+import type { ApiProduct } from "@/app/lib/api/types";
+import type { Product } from "@/app/data/products";
 
 type LeanDoc = Record<string, unknown> & { _id: mongoose.Types.ObjectId };
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Active product by URL slug: matches stored `slug` (case-insensitive), or derived slug
+ * (e.g. catalog SKU-based) consistent with `apiProductToProduct`.
+ */
+export const getStorefrontProductBySlug = cache(async (slug: string) => {
+  const s = slug.trim().toLowerCase();
+  if (!s) return null;
+  await connectDb();
+
+  let row = await ProductModel.findOne({
+    isActive: true,
+    slug: { $regex: new RegExp(`^${escapeRegex(s)}$`, "i") },
+  })
+    .populate("category", "name slug")
+    .lean();
+
+  if (!row) {
+    const rows = await ProductModel.find({ isActive: true })
+      .populate("category", "name slug")
+      .sort({ sku: 1 })
+      .limit(500)
+      .lean();
+    for (const r of rows) {
+      const ser = serializeProductLean(r as LeanDoc);
+      if (!ser) continue;
+      const p = apiProductToProduct(ser as unknown as ApiProduct);
+      if (p.slug.toLowerCase() === s) {
+        row = r;
+        break;
+      }
+    }
+  }
+
+  if (!row) return null;
+  return serializeProductLean(row as LeanDoc)!;
+});
+
+/** Other active products in the same category (storefront), excluding one id. */
+export async function getStorefrontRelatedProducts(
+  categoryMongoId: string | undefined,
+  excludeProductMongoId: string,
+  limit: number
+): Promise<Product[]> {
+  if (!categoryMongoId || !mongoose.Types.ObjectId.isValid(categoryMongoId)) return [];
+  if (!mongoose.Types.ObjectId.isValid(excludeProductMongoId)) return [];
+  await connectDb();
+  const catId = new mongoose.Types.ObjectId(categoryMongoId);
+  const exId = new mongoose.Types.ObjectId(excludeProductMongoId);
+  const rows = await ProductModel.find({
+    isActive: true,
+    category: catId,
+    _id: { $ne: exId },
+  })
+    .populate("category", "name slug")
+    .sort({ sku: 1 })
+    .limit(limit)
+    .lean();
+  return rows
+    .map((r) => serializeProductLean(r as LeanDoc))
+    .filter(Boolean)
+    .map((ser) => apiProductToProduct(ser as unknown as ApiProduct));
+}
 
 export async function getStorefrontCategories() {
   await connectDb();
@@ -14,6 +85,17 @@ export async function getStorefrontCategories() {
     .lean();
   return rows.map((r) => serializeCategoryLean(r as LeanDoc)!);
 }
+
+/** Active category by slug (storefront). Cached per request for metadata + page. */
+export const getStorefrontCategoryBySlug = cache(async (slug: string) => {
+  const s = slug.trim().toLowerCase();
+  if (!s) return null;
+  await connectDb();
+  const row = await CategoryModel.findOne({ slug: s, isActive: true })
+    .populate("parent", "name slug")
+    .lean();
+  return serializeCategoryLean(row as LeanDoc | null);
+});
 
 export type StorefrontProductsResult =
   | {
@@ -29,7 +111,7 @@ export async function getStorefrontProductsFromSearchParams(
 ): Promise<StorefrontProductsResult> {
   await connectDb();
   const filter: Record<string, unknown> = { isActive: true };
-  const categorySlug = sp.get("categorySlug");
+  const categorySlug = sp.get("categorySlug")?.trim().toLowerCase();
   if (categorySlug) {
     const cat = await CategoryModel.findOne({ slug: categorySlug }).select("_id").lean();
     if (!cat) {
