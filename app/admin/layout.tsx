@@ -9,6 +9,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <Link href="/admin">Overview</Link>
         <Link href="/admin/categories">Categories</Link>
         <Link href="/admin/products">Products</Link>
+        <Link href="/admin/coupons">Coupons</Link>
         <Link href="/admin/media">Media (Cloudinary)</Link>
         <Link href="/">← Storefront</Link>
       </nav>

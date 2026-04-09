@@ -3,8 +3,7 @@
   border: 1px solid #e2e8f0;
   border-radius: 20px;
   padding: 1.5rem;
-  position: sticky;
-  top: 1.5rem;
+  /* Sticky is on parent `.summaryCol` in CartPage — avoid nested sticky clipping tall panels */
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
@@ -119,11 +118,129 @@
   letter-spacing: 0.04em;
 }
 
-/* ── Apply Coupon ── */
+/* ── Apply Coupon (placed at top of summary so it stays visible) ── */
 .couponSection {
   display: flex;
   flex-direction: column;
   gap: 0;
+  margin-bottom: 0.35rem;
+}
+
+.couponBannerErr {
+  font-size: 0.72rem;
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  margin-bottom: 0.45rem;
+}
+
+.couponApplyErr {
+  font-size: 0.72rem;
+  color: #b91c1c;
+  margin-top: 0.45rem;
+}
+
+.couponListEmpty {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 0 0 0.65rem;
+}
+
+.couponsLoading {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 0 0 0.65rem;
+}
+
+.availableOffers {
+  margin-bottom: 0.85rem;
+}
+
+.availableOffersTitle {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.2rem;
+}
+
+.availableOffersHint {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  margin: 0 0 0.5rem;
+  line-height: 1.35;
+}
+
+.availableOffersList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.couponCardRowWrap {
+  margin: 0;
+}
+
+.couponCardRow {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.couponCardRow:hover {
+  border-color: var(--coupon-color);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.couponCardRow .couponCardBody {
+  flex: 1;
+  min-width: 0;
+  padding: 0.55rem 0.5rem 0.55rem 0.65rem;
+}
+
+.couponCardApplyBtn {
+  flex-shrink: 0;
+  align-self: stretch;
+  min-width: 4.5rem;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #fff;
+  background: var(--coupon-color);
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s, filter 0.15s;
+}
+
+.couponCardApplyBtn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.couponCardApplyBtn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.manualCodeBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.manualCodeLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
 }
 
 .couponToggle {
@@ -158,6 +275,56 @@
   flex-direction: column;
   gap: 0.5rem;
   margin-top: 0.55rem;
+}
+
+.couponManualRow {
+  display: flex;
+  align-items: stretch;
+  gap: 0.45rem;
+  margin-bottom: 0.15rem;
+}
+
+.couponManualInput {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.55rem 0.65rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  color: #0f172a;
+  font-family: monospace;
+  letter-spacing: 0.04em;
+}
+
+.couponManualInput::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+  letter-spacing: normal;
+  font-family: inherit;
+}
+
+.couponManualInput:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.couponManualApply {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: 8px;
+  padding: 0 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.couponManualApply:hover {
+  background: #1d4ed8;
 }
 
 .couponCard {
@@ -212,6 +379,14 @@
   font-size: 0.85rem;
   font-weight: 900;
   color: var(--coupon-color);
+}
+
+.couponCardLabel {
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin-left: 0.2rem;
+  letter-spacing: 0.02em;
+  opacity: 0.95;
 }
 
 .couponCardCondition {

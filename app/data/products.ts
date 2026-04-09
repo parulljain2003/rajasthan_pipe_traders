@@ -25,6 +25,9 @@ export interface ProductSellerOffer {
 
 export interface Product {
   id: number;
+  /** Present for Mongo-backed catalog products — forwarded to cart for coupons */
+  mongoProductId?: string;
+  categoryMongoId?: string;
   slug: string;
   name: string;
   brand: string;

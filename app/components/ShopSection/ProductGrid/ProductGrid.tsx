@@ -47,6 +47,8 @@ export default function ProductGrid({ listingEntries: entries }: ProductGridProp
     const qty = getQty(entry);
     addToCart({
       productId: product.id,
+      mongoProductId: product.mongoProductId,
+      categoryMongoId: product.categoryMongoId,
       productName: product.name,
       productSlug: product.slug,
       productImage: product.image,

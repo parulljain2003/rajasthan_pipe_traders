@@ -40,6 +40,8 @@ export default function ProductInfo({ product }: ProductInfoProps) {
 
   const cartPayload = () => ({
     productId: product.id,
+    mongoProductId: product.mongoProductId,
+    categoryMongoId: product.categoryMongoId,
     productName: product.name,
     productSlug: product.slug,
     productImage: product.image,

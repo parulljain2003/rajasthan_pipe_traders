@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import styles from './CartPage.module.css';
@@ -8,6 +8,14 @@ import CartItemCard from './CartItemCard/CartItemCard';
 import OrderSummary from './OrderSummary/OrderSummary';
 import OrderSuccessPopup from './OrderSuccessPopup/OrderSuccessPopup';
 import { useCartWishlist } from '../../context/CartWishlistContext';
+import {
+  cartLinesForCouponApi,
+  mapPublicCouponToOption,
+  type CartCouponOption,
+  type CouponApplyResult,
+  type CouponValidateResponseJson,
+  type PublicCouponBannerJson,
+} from './cartCoupons';
 
 export default function CartPage() {
   const router = useRouter();
@@ -25,12 +33,119 @@ export default function CartPage() {
   const [orderedItems, setOrderedItems] = useState(cartItems);
   const [orderedTotal, setOrderedTotal] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [freeDispatch, setFreeDispatch] = useState(false);
+  const [freeShipping, setFreeShipping] = useState(false);
+  const [cartCoupons, setCartCoupons] = useState<CartCouponOption[]>([]);
+  const [couponsLoaded, setCouponsLoaded] = useState(false);
+  const [couponRevalidateError, setCouponRevalidateError] = useState<string | null>(null);
 
   const gstTotal = cartTotal - cartBasicTotal;
+  const finalTotal = Math.max(0, cartTotal - couponDiscount);
 
-  const COUPON_PCT: Record<string, number> = { BULK7: 0.07, BULK9: 0.09, BULK12: 0.12, MIN25K: 0 };
-  const couponDiscount = appliedCoupon ? Math.round(cartTotal * (COUPON_PCT[appliedCoupon] ?? 0)) : 0;
-  const finalTotal = cartTotal - couponDiscount;
+  const runCouponValidate = useCallback(
+    async (code: string) => {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, lines: cartLinesForCouponApi(cartItems) }),
+      });
+      let j: CouponValidateResponseJson = {};
+      try {
+        j = (await res.json()) as CouponValidateResponseJson;
+      } catch {
+        j = {};
+      }
+      if (!res.ok) {
+        return {
+          ok: false as const,
+          message: j.message ?? j.reason ?? "Could not validate coupon",
+        };
+      }
+      if (!j.valid) {
+        return {
+          ok: false as const,
+          message: j.reason ?? j.message ?? "Coupon not applicable",
+        };
+      }
+      setCouponDiscount(Number(j.discountAmount) || 0);
+      setFreeDispatch(Boolean(j.freeDispatch));
+      setFreeShipping(Boolean(j.freeShipping));
+      return { ok: true as const };
+    },
+    [cartItems]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/coupons?cart=1", { cache: "no-store" });
+        const json = (await res.json()) as { data?: PublicCouponBannerJson[] };
+        if (cancelled) return;
+        if (res.ok && Array.isArray(json.data)) {
+          setCartCoupons(json.data.map(mapPublicCouponToOption));
+        }
+      } catch {
+        /* keep empty */
+      } finally {
+        if (!cancelled) setCouponsLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (cartItems.length > 0) return;
+    queueMicrotask(() => {
+      setAppliedCoupon(null);
+      setCouponDiscount(0);
+      setFreeDispatch(false);
+      setFreeShipping(false);
+      setCouponRevalidateError(null);
+    });
+  }, [cartItems.length]);
+
+  useEffect(() => {
+    if (!appliedCoupon || cartItems.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const r = await runCouponValidate(appliedCoupon);
+      if (cancelled) return;
+      if (!r.ok) {
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
+        setFreeDispatch(false);
+        setFreeShipping(false);
+        setCouponRevalidateError(r.message);
+      } else {
+        setCouponRevalidateError(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cartItems, appliedCoupon, runCouponValidate]);
+
+  const handleCouponChange = useCallback(
+    async (code: string | null): Promise<CouponApplyResult> => {
+      setCouponRevalidateError(null);
+      if (!code) {
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
+        setFreeDispatch(false);
+        setFreeShipping(false);
+        return { ok: true };
+      }
+      const r = await runCouponValidate(code);
+      if (!r.ok) return { ok: false, message: r.message };
+      setAppliedCoupon(code);
+      return { ok: true };
+    },
+    [runCouponValidate]
+  );
 
   const handlePlaceOrder = () => {
     setOrderedItems([...cartItems]);
@@ -157,8 +272,15 @@ export default function CartPage() {
                 grandTotal={cartTotal}
                 itemCount={cartItems.length}
                 items={cartItems}
+                cartCoupons={cartCoupons}
+                couponsLoaded={couponsLoaded}
                 appliedCoupon={appliedCoupon}
-                onCouponChange={setAppliedCoupon}
+                couponDiscount={couponDiscount}
+                finalTotal={finalTotal}
+                freeDispatch={freeDispatch}
+                freeShipping={freeShipping}
+                couponBannerError={couponRevalidateError}
+                onCouponChange={handleCouponChange}
                 onPlaceOrder={handlePlaceOrder}
               />
             </div>

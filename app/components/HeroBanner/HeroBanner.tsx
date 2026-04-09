@@ -8,9 +8,27 @@ import { useCartWishlist } from "../../context/CartWishlistContext";
 import WhatsAppPopup from "../WhatsAppPopup/WhatsAppPopup";
 import { productHeading, listingBrandPill } from "../../lib/productHeading";
 /* ════════════════════════════════════
-   COUPON DATA
+   COUPON DATA (fallback if API empty)
 ════════════════════════════════════ */
-const coupons = [
+const COUPON_THEMES = new Set(["blue", "indigo", "green", "amber", "brown"]);
+
+type BannerCoupon = {
+  code: string;
+  discount: string;
+  label: string;
+  condition: string;
+  desc: string;
+  theme: string;
+  customColors?: {
+    accent?: string;
+    stubBackground?: string;
+    border?: string;
+    buttonBackground?: string;
+    buttonText?: string;
+  };
+};
+
+const FALLBACK_COUPONS: BannerCoupon[] = [
   {
     code: "BULK7",
     discount: "7%",
@@ -44,6 +62,31 @@ const coupons = [
     theme: "amber",
   },
 ];
+
+function normalizeBannerCoupon(raw: Record<string, unknown>): BannerCoupon {
+  const theme = typeof raw.theme === "string" && COUPON_THEMES.has(raw.theme) ? raw.theme : "blue";
+  const cc = raw.customColors;
+  let customColors: BannerCoupon["customColors"];
+  if (cc && typeof cc === "object") {
+    const o = cc as Record<string, unknown>;
+    customColors = {
+      accent: typeof o.accent === "string" ? o.accent : undefined,
+      stubBackground: typeof o.stubBackground === "string" ? o.stubBackground : undefined,
+      border: typeof o.border === "string" ? o.border : undefined,
+      buttonBackground: typeof o.buttonBackground === "string" ? o.buttonBackground : undefined,
+      buttonText: typeof o.buttonText === "string" ? o.buttonText : undefined,
+    };
+  }
+  return {
+    code: String(raw.code ?? ""),
+    discount: String(raw.discount ?? ""),
+    label: String(raw.label ?? ""),
+    condition: String(raw.condition ?? ""),
+    desc: String(raw.desc ?? ""),
+    theme,
+    customColors,
+  };
+}
 
 /* ════════════════════════════════════
    CAROUSEL SLIDES — inline to avoid importing the full products bundle
@@ -96,22 +139,33 @@ const quickLinks = [
 /* ════════════════════════════════════
    COUPON CARD COMPONENT
 ════════════════════════════════════ */
-function CouponCard({ c }: { c: typeof coupons[0] }) {
+function CouponCard({ c }: { c: BannerCoupon }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     navigator.clipboard.writeText(c.code).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+  const cc = c.customColors;
+  const stubStyle = cc?.stubBackground ? { background: cc.stubBackground } : undefined;
+  const pctStyle = cc?.accent ? { color: cc.accent } : undefined;
+  const rootStyle = cc?.border ? { borderColor: cc.border } : undefined;
+  const btnStyle =
+    cc?.buttonBackground || cc?.buttonText
+      ? { background: cc.buttonBackground, color: cc.buttonText }
+      : undefined;
   return (
-    <div className={`${styles.coupon} ${styles[`coupon_${c.theme}`]}`}>
+    <div
+      className={`${styles.coupon} ${styles[`coupon_${c.theme}`]}`}
+      style={rootStyle}
+    >
       <div className={styles.couponNotchL} aria-hidden />
       <div className={styles.couponNotchR} aria-hidden />
 
       {/* stub */}
-      <div className={styles.couponStub}>
+      <div className={styles.couponStub} style={stubStyle}>
         <div className={styles.couponDiscBlock}>
-          <span className={styles.couponPct}>{c.discount}</span>
+          <span className={styles.couponPct} style={pctStyle}>{c.discount}</span>
           <span className={styles.couponLabel}>{c.label}</span>
         </div>
       </div>
@@ -122,7 +176,12 @@ function CouponCard({ c }: { c: typeof coupons[0] }) {
       <div className={styles.couponBody}>
         <p className={styles.couponCond}>{c.condition}</p>
         <p className={styles.couponDescTxt}>{c.desc}</p>
-        <button className={`${styles.couponCopy} ${styles[`couponCopy_${c.theme}`]}`} onClick={copy}>
+        <button
+          type="button"
+          className={`${styles.couponCopy} ${styles[`couponCopy_${c.theme}`]}`}
+          style={btnStyle}
+          onClick={copy}
+        >
           {copied
             ? <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 7 9 18l-5-5"/></svg>Copied!</>
             : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>{c.code}</>
@@ -317,6 +376,27 @@ function ProductCarousel() {
    MAIN HERO
 ════════════════════════════════════ */
 export default function HeroBanner() {
+  const [bannerCoupons, setBannerCoupons] = useState<BannerCoupon[]>(FALLBACK_COUPONS);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/coupons?banner=1", { cache: "no-store" });
+        const json = (await res.json()) as { data?: unknown[] };
+        if (!res.ok || !Array.isArray(json.data) || json.data.length === 0 || cancelled) return;
+        setBannerCoupons(json.data.map((row) => normalizeBannerCoupon(row as Record<string, unknown>)));
+      } catch {
+        /* keep fallback */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const couponRow = bannerCoupons.length > 0 ? bannerCoupons : FALLBACK_COUPONS;
+
   return (
     <section className={styles.hero}>
       {/* BG */}
@@ -340,7 +420,7 @@ export default function HeroBanner() {
               </svg>
               Exclusive Bulk Deals
             </div> */}
-            {coupons.map((c, i) => (
+            {couponRow.map((c, i) => (
               <CouponCard key={`${c.code}-a-${i}`} c={c} />
             ))}
             {/* <div className={styles.couponBarLabel}>
@@ -350,7 +430,7 @@ export default function HeroBanner() {
               </svg>
               Exclusive Bulk Deals
             </div> */}
-            {coupons.map((c, i) => (
+            {couponRow.map((c, i) => (
               <CouponCard key={`${c.code}-b-${i}`} c={c} />
             ))}
           </div>
