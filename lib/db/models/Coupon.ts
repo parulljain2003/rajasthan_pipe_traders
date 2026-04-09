@@ -51,6 +51,7 @@ const couponSchema = new Schema(
     /** Empty arrays = all products / categories allowed */
     applicableProductIds: [{ type: Schema.Types.ObjectId, ref: "Product" }],
     applicableCategoryIds: [{ type: Schema.Types.ObjectId, ref: "Category" }],
+    /** Minimum GST-inclusive subtotal on eligible lines (same basis as cart grand total) */
     minOrderValue: { type: Number, min: 0, default: 0 },
     /** Sum of quantities on eligible lines (e.g. total cartons) */
     minTotalQuantity: { type: Number, min: 0, default: 0 },

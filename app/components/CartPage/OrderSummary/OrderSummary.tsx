@@ -13,10 +13,13 @@ interface OrderSummaryProps {
   itemCount: number;
   items: CartItem[];
   cartCoupons: CartCouponOption[];
+  /** False until first fetch to `/api/coupons?cart=1` completes */
+  couponsLoaded: boolean;
   appliedCoupon: string | null;
   couponDiscount: number;
   finalTotal: number;
   freeDispatch: boolean;
+  freeShipping: boolean;
   /** Shown when cart changed and the previously applied coupon was cleared */
   couponBannerError: string | null;
   onCouponChange: (code: string | null) => Promise<CouponApplyResult>;
@@ -30,16 +33,19 @@ export default function OrderSummary({
   itemCount,
   items,
   cartCoupons,
+  couponsLoaded,
   appliedCoupon,
   couponDiscount,
   finalTotal,
   freeDispatch,
+  freeShipping,
   couponBannerError,
   onCouponChange,
   onPlaceOrder,
 }: OrderSummaryProps) {
-  const [couponOpen, setCouponOpen] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [manualCode, setManualCode] = useState("");
+  const [applyingCode, setApplyingCode] = useState<string | null>(null);
 
   const couponMeta = appliedCoupon ? cartCoupons.find((c) => c.code === appliedCoupon) ?? null : null;
 
@@ -59,6 +65,176 @@ export default function OrderSummary({
   return (
     <div className={styles.summary}>
       <h3 className={styles.title}>Order Summary</h3>
+
+      <div className={styles.couponSection}>
+        {couponBannerError && (
+          <div className={styles.couponBannerErr} role="status">
+            {couponBannerError}
+          </div>
+        )}
+        {appliedCoupon ? (
+          <div className={styles.appliedCoupon}>
+            <div className={styles.appliedLeft}>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <div>
+                <span className={styles.appliedCode}>{appliedCoupon}</span>
+                <span className={styles.appliedDesc}>
+                  {couponMeta
+                    ? `${couponMeta.discount}${couponMeta.label ? ` ${couponMeta.label}` : ""} · ${couponMeta.condition}`
+                    : "Benefit applied to this order"}
+                </span>
+              </div>
+            </div>
+            <button
+              className={styles.removeBtn}
+              onClick={() => {
+                void onCouponChange(null);
+                setApplyError(null);
+              }}
+              aria-label="Remove coupon"
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <>
+            {!couponsLoaded ? (
+              <p className={styles.couponsLoading}>Loading available offers…</p>
+            ) : cartCoupons.length > 0 ? (
+              <div className={styles.availableOffers}>
+                <h4 className={styles.availableOffersTitle}>Available coupons</h4>
+                <p className={styles.availableOffersHint}>Tap Apply — we&apos;ll check it against your cart.</p>
+                <ul className={styles.availableOffersList} role="list">
+                  {cartCoupons.map((c) => (
+                    <li key={c.code} className={styles.couponCardRowWrap}>
+                      <div
+                        className={styles.couponCardRow}
+                        style={{ "--coupon-color": c.color } as React.CSSProperties}
+                      >
+                        <div className={styles.couponCardStrip} aria-hidden />
+                        <div className={styles.couponCardBody}>
+                          <div className={styles.couponCardTop}>
+                            <span className={styles.couponCardCode}>{c.code}</span>
+                            <span className={styles.couponCardDiscount}>
+                              {c.discount}
+                              {c.label ? <span className={styles.couponCardLabel}>{c.label}</span> : null}
+                            </span>
+                          </div>
+                          <span className={styles.couponCardCondition}>{c.condition}</span>
+                          {c.desc ? <span className={styles.couponCardDesc}>{c.desc}</span> : null}
+                        </div>
+                        <button
+                          type="button"
+                          className={styles.couponCardApplyBtn}
+                          disabled={applyingCode !== null}
+                          onClick={() => {
+                            void (async () => {
+                              setApplyError(null);
+                              setApplyingCode(c.code);
+                              try {
+                                const res = await onCouponChange(c.code);
+                                if (res.ok) setManualCode("");
+                                else setApplyError(res.message);
+                              } finally {
+                                setApplyingCode(null);
+                              }
+                            })();
+                          }}
+                        >
+                          {applyingCode === c.code ? "Applying…" : "Apply"}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className={styles.couponListEmpty}>No featured coupons right now — enter a code below if you have one.</p>
+            )}
+
+            <div className={styles.manualCodeBlock}>
+              <span className={styles.manualCodeLabel}>Have a coupon code?</span>
+              <div className={styles.couponManualRow}>
+                <input
+                  type="text"
+                  className={styles.couponManualInput}
+                  placeholder="Enter code"
+                  value={manualCode}
+                  onChange={(e) => setManualCode(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const code = manualCode.trim().toUpperCase();
+                      if (!code) return;
+                      void (async () => {
+                        setApplyError(null);
+                        setApplyingCode(code);
+                        try {
+                          const res = await onCouponChange(code);
+                          if (res.ok) setManualCode("");
+                          else setApplyError(res.message);
+                        } finally {
+                          setApplyingCode(null);
+                        }
+                      })();
+                    }
+                  }}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-label="Coupon code"
+                />
+                <button
+                  type="button"
+                  className={styles.couponManualApply}
+                  disabled={applyingCode !== null}
+                  onClick={() => {
+                    const code = manualCode.trim().toUpperCase();
+                    if (!code) {
+                      setApplyError("Enter a coupon code");
+                      return;
+                    }
+                    void (async () => {
+                      setApplyError(null);
+                      setApplyingCode(code);
+                      try {
+                        const res = await onCouponChange(code);
+                        if (res.ok) setManualCode("");
+                        else setApplyError(res.message);
+                      } finally {
+                        setApplyingCode(null);
+                      }
+                    })();
+                  }}
+                >
+                  {applyingCode !== null &&
+                  manualCode.trim().toUpperCase() !== "" &&
+                  manualCode.trim().toUpperCase() === applyingCode
+                    ? "Applying…"
+                    : "Apply"}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {applyError && (
+          <div className={styles.couponApplyErr} role="alert">
+            {applyError}
+          </div>
+        )}
+      </div>
 
       {items.length > 0 && (
         <div className={styles.productList}>
@@ -110,125 +286,18 @@ export default function OrderSummary({
           <span className={styles.freeTag}>FREE</span>
         </div>
       )}
+      {freeShipping && (
+        <div className={styles.row}>
+          <span className={styles.rowLabel}>Shipping</span>
+          <span className={styles.freeTag}>FREE</span>
+        </div>
+      )}
 
       <div className={styles.divider} />
 
       <div className={`${styles.row} ${styles.totalRow}`}>
         <span className={styles.totalLabel}>Grand Total (incl. GST)</span>
         <span className={styles.totalVal}>₹{finalTotal.toFixed(2)}</span>
-      </div>
-
-      <div className={styles.couponSection}>
-        {couponBannerError && (
-          <div className={styles.couponBannerErr} role="status">
-            {couponBannerError}
-          </div>
-        )}
-        {appliedCoupon ? (
-          <div className={styles.appliedCoupon}>
-            <div className={styles.appliedLeft}>
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <div>
-                <span className={styles.appliedCode}>{appliedCoupon}</span>
-                <span className={styles.appliedDesc}>
-                  {couponMeta?.discount ?? "—"} · {couponMeta?.condition ?? ""}
-                </span>
-              </div>
-            </div>
-            <button
-              className={styles.removeBtn}
-              onClick={() => {
-                void onCouponChange(null);
-                setApplyError(null);
-              }}
-              aria-label="Remove coupon"
-            >
-              Remove
-            </button>
-          </div>
-        ) : (
-          <button className={styles.couponToggle} onClick={() => setCouponOpen((o) => !o)}>
-            <div className={styles.couponToggleLeft}>
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-                <line x1="7" y1="7" x2="7.01" y2="7" />
-              </svg>
-              <span>Apply Coupon</span>
-            </div>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              style={{ transform: couponOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-        )}
-
-        {applyError && (
-          <div className={styles.couponApplyErr} role="alert">
-            {applyError}
-          </div>
-        )}
-
-        {couponOpen && !appliedCoupon && (
-          <div className={styles.couponList}>
-            {cartCoupons.length === 0 ? (
-              <p className={styles.couponListEmpty}>No coupons available right now.</p>
-            ) : (
-              cartCoupons.map((c) => (
-                <button
-                  key={c.code}
-                  type="button"
-                  className={styles.couponCard}
-                  style={{ "--coupon-color": c.color } as React.CSSProperties}
-                  onClick={() => {
-                    void (async () => {
-                      setApplyError(null);
-                      const res = await onCouponChange(c.code);
-                      if (res.ok) setCouponOpen(false);
-                      else setApplyError(res.message);
-                    })();
-                  }}
-                >
-                  <div className={styles.couponCardStrip} />
-                  <div className={styles.couponCardBody}>
-                    <div className={styles.couponCardTop}>
-                      <span className={styles.couponCardCode}>{c.code}</span>
-                      <span className={styles.couponCardDiscount}>{c.discount}</span>
-                    </div>
-                    <span className={styles.couponCardCondition}>{c.condition}</span>
-                    <span className={styles.couponCardDesc}>{c.desc}</span>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        )}
       </div>
 
       {showMinError && (

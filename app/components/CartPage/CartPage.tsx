@@ -10,9 +10,11 @@ import OrderSuccessPopup from './OrderSuccessPopup/OrderSuccessPopup';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import {
   cartLinesForCouponApi,
-  COUPON_THEME_HEX,
+  mapPublicCouponToOption,
   type CartCouponOption,
   type CouponApplyResult,
+  type CouponValidateResponseJson,
+  type PublicCouponBannerJson,
 } from './cartCoupons';
 
 export default function CartPage() {
@@ -33,7 +35,9 @@ export default function CartPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [freeDispatch, setFreeDispatch] = useState(false);
+  const [freeShipping, setFreeShipping] = useState(false);
   const [cartCoupons, setCartCoupons] = useState<CartCouponOption[]>([]);
+  const [couponsLoaded, setCouponsLoaded] = useState(false);
   const [couponRevalidateError, setCouponRevalidateError] = useState<string | null>(null);
 
   const gstTotal = cartTotal - cartBasicTotal;
@@ -46,17 +50,27 @@ export default function CartPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, lines: cartLinesForCouponApi(cartItems) }),
       });
-      const j = (await res.json()) as {
-        valid?: boolean;
-        reason?: string;
-        discountAmount?: number;
-        freeDispatch?: boolean;
-      };
+      let j: CouponValidateResponseJson = {};
+      try {
+        j = (await res.json()) as CouponValidateResponseJson;
+      } catch {
+        j = {};
+      }
+      if (!res.ok) {
+        return {
+          ok: false as const,
+          message: j.message ?? j.reason ?? "Could not validate coupon",
+        };
+      }
       if (!j.valid) {
-        return { ok: false as const, message: j.reason ?? "Coupon not applicable" };
+        return {
+          ok: false as const,
+          message: j.reason ?? j.message ?? "Coupon not applicable",
+        };
       }
       setCouponDiscount(Number(j.discountAmount) || 0);
       setFreeDispatch(Boolean(j.freeDispatch));
+      setFreeShipping(Boolean(j.freeShipping));
       return { ok: true as const };
     },
     [cartItems]
@@ -67,21 +81,15 @@ export default function CartPage() {
     (async () => {
       try {
         const res = await fetch("/api/coupons?cart=1", { cache: "no-store" });
-        const json = (await res.json()) as {
-          data?: Array<{ code: string; discount: string; condition: string; desc?: string; theme?: string }>;
-        };
-        if (!res.ok || !Array.isArray(json.data) || cancelled) return;
-        setCartCoupons(
-          json.data.map((c) => ({
-            code: c.code,
-            discount: c.discount,
-            condition: c.condition,
-            desc: c.desc ?? "",
-            color: COUPON_THEME_HEX[c.theme ?? "blue"] ?? COUPON_THEME_HEX.blue,
-          }))
-        );
+        const json = (await res.json()) as { data?: PublicCouponBannerJson[] };
+        if (cancelled) return;
+        if (res.ok && Array.isArray(json.data)) {
+          setCartCoupons(json.data.map(mapPublicCouponToOption));
+        }
       } catch {
         /* keep empty */
+      } finally {
+        if (!cancelled) setCouponsLoaded(true);
       }
     })();
     return () => {
@@ -90,12 +98,14 @@ export default function CartPage() {
   }, []);
 
   useEffect(() => {
-    if (cartItems.length === 0) {
+    if (cartItems.length > 0) return;
+    queueMicrotask(() => {
       setAppliedCoupon(null);
       setCouponDiscount(0);
       setFreeDispatch(false);
+      setFreeShipping(false);
       setCouponRevalidateError(null);
-    }
+    });
   }, [cartItems.length]);
 
   useEffect(() => {
@@ -108,6 +118,7 @@ export default function CartPage() {
         setAppliedCoupon(null);
         setCouponDiscount(0);
         setFreeDispatch(false);
+        setFreeShipping(false);
         setCouponRevalidateError(r.message);
       } else {
         setCouponRevalidateError(null);
@@ -125,6 +136,7 @@ export default function CartPage() {
         setAppliedCoupon(null);
         setCouponDiscount(0);
         setFreeDispatch(false);
+        setFreeShipping(false);
         return { ok: true };
       }
       const r = await runCouponValidate(code);
@@ -261,10 +273,12 @@ export default function CartPage() {
                 itemCount={cartItems.length}
                 items={cartItems}
                 cartCoupons={cartCoupons}
+                couponsLoaded={couponsLoaded}
                 appliedCoupon={appliedCoupon}
                 couponDiscount={couponDiscount}
                 finalTotal={finalTotal}
                 freeDispatch={freeDispatch}
+                freeShipping={freeShipping}
                 couponBannerError={couponRevalidateError}
                 onCouponChange={handleCouponChange}
                 onPlaceOrder={handlePlaceOrder}

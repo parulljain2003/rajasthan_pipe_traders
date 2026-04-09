@@ -49,6 +49,8 @@ export default function Products() {
     const qty = getQty(entry);
     addToCart({
       productId: product.id,
+      mongoProductId: product.mongoProductId,
+      categoryMongoId: product.categoryMongoId,
       productName: product.name,
       productSlug: product.slug,
       productImage: product.image,

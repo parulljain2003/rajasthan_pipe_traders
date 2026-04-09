@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:coupons": "node --env-file=.env.local scripts/seed-sample-coupons.cjs"
   },
   "dependencies": {
     "cloudinary": "^2.9.0",

@@ -15,11 +15,18 @@ export type CouponLean = {
   isActive?: boolean;
 };
 
+/**
+ * Cart line for coupon math. `lineSubtotal` is always GST-inclusive (matches storefront cart totals).
+ * `lineBasicSubtotal` is optional ex-GST; used for reporting only when present.
+ */
 export type CartLineInput = {
   productMongoId?: string;
   categoryMongoId?: string;
   quantity: number;
+  /** GST-inclusive line total (₹) */
   lineSubtotal: number;
+  /** Ex-GST line total when known (₹) */
+  lineBasicSubtotal?: number;
 };
 
 export function isCouponInSchedule(
@@ -99,6 +106,9 @@ export function computeDiscountAmount(coupon: CouponLean, eligibleSubtotal: numb
       freeShipping: false,
     };
   }
+  if (coupon.discountType !== "percentage") {
+    return { discountAmount: 0, freeDispatch: false, freeShipping: false };
+  }
   const pct = Math.max(0, Math.min(100, Number(coupon.discountPercent) || 0));
   return {
     discountAmount: Math.round((sub * pct) / 100),
@@ -113,17 +123,41 @@ export type ValidateCouponResult =
       discountAmount: number;
       freeDispatch: boolean;
       freeShipping: boolean;
+      /** Sum of GST-inclusive subtotals for lines that count toward this coupon */
       eligibleSubtotal: number;
       eligibleQuantity: number;
       eligibleLineCount: number;
+      /** Full cart GST-inclusive subtotal (all lines), for reconciliation */
+      cartSubtotalInclGst: number;
     }
   | { ok: false; reason: string };
 
+function sumCartSubtotal(lines: CartLineInput[]): number {
+  let t = 0;
+  for (const line of lines) {
+    if (line.quantity <= 0) continue;
+    t += Math.max(0, line.lineSubtotal);
+  }
+  return roundMoney(t);
+}
+
+function roundMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * `minOrderValue` applies to the GST-inclusive eligible subtotal (same basis as cart “Grand Total”).
+ */
 export function validateCouponAgainstCart(
   coupon: CouponLean | null,
   lines: CartLineInput[],
   now: Date = new Date()
 ): ValidateCouponResult {
+  const activeLines = lines.filter((l) => l.quantity > 0 && Number.isFinite(l.lineSubtotal));
+  if (activeLines.length === 0) {
+    return { ok: false, reason: "Cart is empty" };
+  }
+
   if (!coupon) {
     return { ok: false, reason: "Invalid or expired coupon" };
   }
@@ -133,7 +167,8 @@ export function validateCouponAgainstCart(
   if (!isCouponInSchedule(coupon, now)) {
     return { ok: false, reason: "Coupon is not valid at this time" };
   }
-  const { eligibleSubtotal, eligibleQuantity, eligibleLineCount } = eligibleTotalsForCoupon(coupon, lines);
+  const cartSubtotalInclGst = sumCartSubtotal(activeLines);
+  const { eligibleSubtotal, eligibleQuantity, eligibleLineCount } = eligibleTotalsForCoupon(coupon, activeLines);
   const productIds = idSet(coupon.applicableProductIds as unknown[]);
   const categoryIds = idSet(coupon.applicableCategoryIds as unknown[]);
   const restricted = productIds.size > 0 || categoryIds.size > 0;
@@ -161,15 +196,20 @@ export function validateCouponAgainstCart(
       reason: `At least ${minLines} eligible product line(s) required`,
     };
   }
-  const { discountAmount, freeDispatch, freeShipping } = computeDiscountAmount(coupon, eligibleSubtotal);
+  let { discountAmount, freeDispatch, freeShipping } = computeDiscountAmount(coupon, eligibleSubtotal);
+  discountAmount = roundMoney(discountAmount);
+  if (discountAmount > cartSubtotalInclGst) {
+    discountAmount = cartSubtotalInclGst;
+  }
   return {
     ok: true,
     discountAmount,
     freeDispatch,
     freeShipping,
-    eligibleSubtotal,
+    eligibleSubtotal: roundMoney(eligibleSubtotal),
     eligibleQuantity,
     eligibleLineCount,
+    cartSubtotalInclGst,
   };
 }
 
