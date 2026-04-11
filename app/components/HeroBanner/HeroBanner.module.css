@@ -121,6 +121,15 @@
 /* Body (right) */
 .couponBody { flex:1; padding:0.55rem 0.7rem 0.55rem 0.6rem; display:flex; flex-direction:column; justify-content:center; gap:0.18rem; min-width:0; }
 .couponCond { font-size:0.72rem; font-weight:700; color:#f1f5f9; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.couponOfferScope {
+  font-size: 0.58rem;
+  color: #a8b4c8;
+  margin: 0.08rem 0 0;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .couponDescTxt { font-size:0.6rem; color:#94a3b8; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .couponCopy {
   display:inline-flex; align-items:center; gap:0.28rem;

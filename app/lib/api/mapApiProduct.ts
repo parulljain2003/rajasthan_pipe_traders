@@ -24,6 +24,7 @@ function mapApiSize(s: ApiProductSize): ProductSize {
     qtyPerBag: s.qtyPerBag ?? 0,
     pcsPerPacket: s.pcsPerPacket ?? 1,
     note: s.note,
+    packingLabels: s.packingLabels,
   };
 }
 
@@ -112,6 +113,7 @@ export function apiProductToProduct(p: ApiProduct): Product {
     certifications: p.certifications,
     material: p.material,
     moq: p.moq,
+    packingUnitLabels: p.packingUnitLabels,
   };
 }
 

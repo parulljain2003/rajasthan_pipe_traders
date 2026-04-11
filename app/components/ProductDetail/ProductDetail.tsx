@@ -42,7 +42,7 @@ export default function ProductDetail({
         {/* Top Section: Gallery + Info */}
         <div className={styles.topGrid}>
           <ImageGallery product={product} />
-          <ProductInfo product={product} />
+          <ProductInfo key={product.slug} product={product} />
         </div>
 
         {/* Description Block */}

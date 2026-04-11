@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import styles from './CartPage.module.css';
@@ -16,6 +16,7 @@ import {
   type CouponValidateResponseJson,
   type PublicCouponBannerJson,
 } from './cartCoupons';
+import { groupCartItemsByProductLine, cartGroupKey } from '@/lib/cart/groupCartLines';
 
 export default function CartPage() {
   const router = useRouter();
@@ -25,7 +26,9 @@ export default function CartPage() {
     cartTotal,
     cartBasicTotal,
     removeFromCart,
+    removeCartGroup,
     updateQuantity,
+    addToCart,
     clearCart,
   } = useCartWishlist();
 
@@ -42,6 +45,8 @@ export default function CartPage() {
 
   const gstTotal = cartTotal - cartBasicTotal;
   const finalTotal = Math.max(0, cartTotal - couponDiscount);
+
+  const cartGroups = useMemo(() => groupCartItemsByProductLine(cartItems), [cartItems]);
 
   const runCouponValidate = useCallback(
     async (code: string) => {
@@ -212,17 +217,19 @@ export default function CartPage() {
               <div className={styles.itemsHeader}>
                 <h2 className={styles.itemsTitle}>Products</h2>
                 <span className={styles.itemsSubtitle}>
-                  {cartItems.length} product type{cartItems.length !== 1 ? 's' : ''}
+                  {cartGroups.length} product{cartGroups.length !== 1 ? "s" : ""}
                 </span>
               </div>
 
               <div className={styles.itemsList}>
-                {cartItems.map(item => (
+                {cartGroups.map((lines) => (
                   <CartItemCard
-                    key={`${item.productId}-${item.size}`}
-                    item={item}
-                    onRemove={removeFromCart}
-                    onUpdateQty={updateQuantity}
+                    key={cartGroupKey(lines[0])}
+                    lines={lines}
+                    removeFromCart={removeFromCart}
+                    removeCartGroup={removeCartGroup}
+                    updateQuantity={updateQuantity}
+                    addToCart={addToCart}
                   />
                 ))}
               </div>
@@ -270,7 +277,7 @@ export default function CartPage() {
                 basicTotal={cartBasicTotal}
                 gstTotal={gstTotal}
                 grandTotal={cartTotal}
-                itemCount={cartItems.length}
+                itemCount={cartGroups.length}
                 items={cartItems}
                 cartCoupons={cartCoupons}
                 couponsLoaded={couponsLoaded}

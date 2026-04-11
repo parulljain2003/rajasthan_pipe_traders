@@ -1,3 +1,13 @@
+/** Display names for outer (bulk) / inner (priced) units — RPT price list & DB */
+export interface PackingUnitLabels {
+  inner: string;
+  innerPlural: string;
+  outer: string;
+  outerPlural: string;
+  outerHeading: string;
+  innerHeading: string;
+}
+
 export interface ProductSize {
   size: string;
   basicPrice: number;
@@ -5,6 +15,8 @@ export interface ProductSize {
   qtyPerBag: number;
   pcsPerPacket: number;
   note?: string;
+  /** Overrides `product.packingUnitLabels` for this row — matches PDF / DB wording */
+  packingLabels?: Partial<PackingUnitLabels>;
 }
 
 export interface DiscountTier {
@@ -51,6 +63,8 @@ export interface Product {
   certifications?: string[];
   material?: string;
   moq?: number;
+  /** Price-list wording for outer/inner pack (defaults by category; see `resolvePackingUnitLabels`) */
+  packingUnitLabels?: Partial<PackingUnitLabels>;
 }
 
 export const discountTiers: DiscountTier[] = [
@@ -367,6 +381,14 @@ export const products: Product[] = [
     tags: ["tape", "insulation", "electrical", "fr-tape"],
     material: "PVC with FR Adhesive",
     note: "Only 2% discount applicable on electric tapes.",
+    packingUnitLabels: {
+      inner: "box",
+      innerPlural: "boxes",
+      outer: "carton",
+      outerPlural: "cartons",
+      outerHeading: "Carton",
+      innerHeading: "Box",
+    },
     sizes: [
       {
         size: "MIX / WHITE / BLACK (5.5M × 16MM)",

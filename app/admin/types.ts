@@ -28,13 +28,8 @@ export type AdminCoupon = {
   title: string;
   description?: string;
   themeKey: string;
-  customColors?: {
-    accent?: string;
-    stubBackground?: string;
-    border?: string;
-    buttonBackground?: string;
-    buttonText?: string;
-  };
+  /** Shown on storefront cards; e.g. cartons/bags per price list */
+  offerAppliesTo?: string;
   applicableProductIds: string[];
   applicableCategoryIds: string[];
   applicableProducts?: Array<{ _id: string; sku?: string; name?: string; slug?: string }>;

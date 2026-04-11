@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './OrderSuccessPopup.module.css';
 import { CartItem } from '../../../context/CartWishlistContext';
+import { pricedPacketCount } from '@/lib/cart/packetLine';
 
 interface OrderSuccessPopupProps {
   isOpen: boolean;
@@ -63,7 +64,9 @@ export default function OrderSuccessPopup({
             {items.slice(0, 3).map((item, i) => (
               <li key={i} className={styles.itemRow}>
                 <span className={styles.itemName}>{item.productName}</span>
-                <span className={styles.itemMeta}>{item.size} × {item.quantity}</span>
+                <span className={styles.itemMeta}>
+                  {item.size} · {pricedPacketCount(item)} pkt
+                </span>
               </li>
             ))}
             {items.length > 3 && (

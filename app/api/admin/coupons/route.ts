@@ -6,8 +6,8 @@ import { serializeCouponLean } from "@/lib/db/serialize";
 import {
   isDiscountType,
   normalizeThemeKey,
-  parseCustomColors,
   parseObjectIdList,
+  parseOfferAppliesTo,
   parseOptionalDate,
 } from "@/lib/coupons/couponPayload";
 
@@ -61,7 +61,6 @@ export async function POST(req: NextRequest) {
         return err("fixedAmountOff (positive number) is required for fixed_amount coupons", 400);
       }
     }
-    const customColors = parseCustomColors(body);
     const doc = await CouponModel.create({
       code,
       name: typeof body.name === "string" ? body.name.trim() : undefined,
@@ -73,7 +72,7 @@ export async function POST(req: NextRequest) {
       title,
       description: typeof body.description === "string" ? body.description.trim() : "",
       themeKey: normalizeThemeKey(body.themeKey),
-      customColors,
+      offerAppliesTo: parseOfferAppliesTo(body.offerAppliesTo),
       applicableProductIds: parseObjectIdList(body.applicableProductIds),
       applicableCategoryIds: parseObjectIdList(body.applicableCategoryIds),
       minOrderValue: typeof body.minOrderValue === "number" ? Math.max(0, body.minOrderValue) : 0,

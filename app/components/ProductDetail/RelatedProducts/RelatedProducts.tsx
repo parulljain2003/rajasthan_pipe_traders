@@ -7,6 +7,7 @@ import styles from "./RelatedProducts.module.css";
 import { getSellerOffers, type Product } from "../../../data/products";
 import { productHeading, listingBrandPill } from "../../../lib/productHeading";
 import { useCartWishlist } from "../../../context/CartWishlistContext";
+import { resolvePackingUnitLabels } from "@/lib/packingLabels";
 import WhatsAppPopup from "../../WhatsAppPopup/WhatsAppPopup";
 
 interface RelatedProductsProps {
@@ -24,7 +25,7 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
 
   if (products.length === 0) return null;
 
-  const handleQtyChange = (id: number, val: number, step: number) => {
+  const handleQtyChange = (id: number, val: number) => {
     setQuantities(prev => ({
       ...prev,
       [id]: Math.max(0, val)
@@ -58,6 +59,7 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
       basicPricePerUnit: size.basicPrice,
       qtyPerBag: size.qtyPerBag,
       pcsPerPacket: size.pcsPerPacket,
+      orderMode: "packets" as const,
     };
 
     addToCart(payload, qty);
@@ -95,7 +97,7 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
                 : styles.listingBrandNstar;
           const size = offer.sizes[0];
           const qty = quantities[product.id] || 0;
-          const step = size.pcsPerPacket;
+          const listLabels = resolvePackingUnitLabels(product, size);
 
           return (
             <div key={product.id} className={styles.card}>
@@ -128,14 +130,14 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
                 <div className={styles.cardPricing}>
                   <span className={styles.fromLabel}>From</span>
                   <span className={styles.cardPrice}>₹{size.withGST.toFixed(2)}</span>
-                  <span className={styles.gstTag}>incl. GST</span>
+                  <span className={styles.gstTag}>incl. GST / {listLabels.inner}</span>
                 </div>
 
                 <div className={styles.cardCtaRow}>
                   <div className={styles.qtyCounter}>
                     <button 
                       className={styles.qtyBtn}
-                      onClick={() => handleQtyChange(product.id, qty - step, step)}
+                      onClick={() => handleQtyChange(product.id, qty - 1)}
                       disabled={qty <= 0}
                     >
                       −
@@ -145,29 +147,29 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
                         type="number" 
                         value={qty}
                         min={0}
-                        step={step}
+                        step={1}
                         onFocus={(e) => {
                           e.target.select();
                         }}
                         onChange={e => {
                           const v = parseInt(e.target.value) || 0;
                           if (v >= 0) {
-                            handleQtyChange(product.id, v, step);
+                            handleQtyChange(product.id, v);
                           }
                         }}
                         onWheel={e => e.currentTarget.blur()}
                         onBlur={e => {
                           const v = parseInt(e.target.value) || 0;
                           if (v < 0) {
-                            handleQtyChange(product.id, 0, step);
+                            handleQtyChange(product.id, 0);
                           }
                         }}
                       />
-                      <span className={styles.qtyUnit}>pc</span>
+                      <span className={styles.qtyUnit}>{listLabels.inner}</span>
                     </div>
                     <button 
                       className={styles.qtyBtn}
-                      onClick={() => handleQtyChange(product.id, qty + step, step)}
+                      onClick={() => handleQtyChange(product.id, qty + 1)}
                     >
                       +
                     </button>
@@ -189,7 +191,7 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
                   </div>
                 )}
                 <div className={styles.moqLabel}>
-                  Minimum Order Quantity: {product.moq ?? step} pc
+                  Minimum order: 1 {listLabels.inner}
                 </div>
               </div>
             </div>

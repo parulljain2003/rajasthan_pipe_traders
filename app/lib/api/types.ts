@@ -16,6 +16,15 @@ export interface ApiCategory extends ApiCategoryRef {
   updatedAt: string;
 }
 
+export interface ApiPackingLabelsPartial {
+  inner?: string;
+  innerPlural?: string;
+  outer?: string;
+  outerPlural?: string;
+  outerHeading?: string;
+  innerHeading?: string;
+}
+
 export interface ApiProductSize {
   size: string;
   basicPrice: number;
@@ -23,6 +32,7 @@ export interface ApiProductSize {
   qtyPerBag?: number;
   pcsPerPacket?: number;
   note?: string;
+  packingLabels?: ApiPackingLabelsPartial;
 }
 
 export interface ApiDiscountTier {
@@ -74,6 +84,7 @@ export interface ApiProduct {
   moq?: number;
   note?: string;
   listNotes?: string;
+  packingUnitLabels?: ApiPackingLabelsPartial;
   discountTiers?: ApiDiscountTier[];
   sizes?: ApiProductSize[];
   sellers?: ApiProductSellerOffer[];

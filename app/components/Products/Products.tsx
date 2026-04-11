@@ -10,6 +10,7 @@ import {
   type ProductListingEntry,
 } from '../../data/products';
 import { productHeading, listingBrandPill } from '../../lib/productHeading';
+import { resolvePackingUnitLabels } from '@/lib/packingLabels';
 import WhatsAppPopup from '../WhatsAppPopup/WhatsAppPopup';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 
@@ -63,6 +64,7 @@ export default function Products() {
       basicPricePerUnit: sizeRow.basicPrice,
       qtyPerBag: sizeRow.qtyPerBag,
       pcsPerPacket: sizeRow.pcsPerPacket,
+      orderMode: "packets" as const,
     }, qty);
     setPopupProduct(product.name);
     setPopupOpen(true);
@@ -113,8 +115,10 @@ export default function Products() {
                 : brandPill === "Tejas"
                   ? "listing-brand-pill-tejas"
                   : "listing-brand-pill-nstar";
-            const lowestPrice = offer.sizes[0].withGST;
-            const lowestBasic = offer.sizes[0].basicPrice;
+            const size0 = offer.sizes[0];
+            const lowestPrice = size0.withGST;
+            const lowestBasic = size0.basicPrice;
+            const listLabels = resolvePackingUnitLabels(product, size0);
             const lk = listingKey(product.id, offer.sellerId);
 
             return (
@@ -153,7 +157,7 @@ export default function Products() {
                   </div>
 
                   {/* Name */}
-                  <h3 className="product-title">{productHeading(product.name, offer.sizes[0].size)}</h3>
+                  <h3 className="product-title">{productHeading(product.name, size0.size)}</h3>
 
                   {/* Description */}
                   <p className="product-description">{product.description}</p>
@@ -163,7 +167,7 @@ export default function Products() {
                     <div className="pricing-left">
                       <span className="price-from">from</span>
                       <span className="sale-price">₹{lowestPrice.toFixed(2)}</span>
-                      <span className="gst-tag">incl. GST</span>
+                      <span className="gst-tag">incl. GST / {listLabels.inner}</span>
                     </div>
                     <span className="original-price">₹{lowestBasic.toFixed(2)}</span>
                   </div>
@@ -182,8 +186,7 @@ export default function Products() {
                           onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
                           onClick={e => {
                             e.preventDefault(); e.stopPropagation();
-                            const step = offer.sizes[0].pcsPerPacket;
-                            setQty(entry, Math.max(0, getQty(entry) - step));
+                            setQty(entry, Math.max(0, getQty(entry) - 1));
                             setErrorListingKey(null);
                           }}
                         >−</button>
@@ -193,7 +196,7 @@ export default function Products() {
                             className="qty-counter-input"
                             value={getQty(entry)}
                             min={0}
-                            step={offer.sizes[0].pcsPerPacket}
+                            step={1}
                             onFocus={(e) => e.target.select()}
                             onChange={e => {
                               e.stopPropagation();
@@ -208,9 +211,9 @@ export default function Products() {
                               if (v < 0) setQty(entry, 0);
                             }}
                             onClick={e => { e.preventDefault(); e.stopPropagation(); }}
-                            aria-label="Quantity in pc"
+                            aria-label={`Quantity in ${listLabels.innerPlural}`}
                           />
-                          <span className="qty-pc" aria-hidden>pc</span>
+                          <span className="qty-pc" aria-hidden>{listLabels.inner}</span>
                         </div>
                         <button
                           type="button"
@@ -218,8 +221,7 @@ export default function Products() {
                           onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
                           onClick={e => {
                             e.preventDefault(); e.stopPropagation();
-                            const step = offer.sizes[0].pcsPerPacket;
-                            setQty(entry, getQty(entry) + step);
+                            setQty(entry, getQty(entry) + 1);
                             setErrorListingKey(null);
                           }}
                         >+</button>

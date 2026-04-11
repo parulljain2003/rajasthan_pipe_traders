@@ -7,6 +7,7 @@ import styles from "./HeroBanner.module.css";
 import { useCartWishlist } from "../../context/CartWishlistContext";
 import WhatsAppPopup from "../WhatsAppPopup/WhatsAppPopup";
 import { productHeading, listingBrandPill } from "../../lib/productHeading";
+import { defaultPackingLabelsForCategory } from "@/lib/packingLabels";
 /* ════════════════════════════════════
    COUPON DATA (fallback if API empty)
 ════════════════════════════════════ */
@@ -19,13 +20,8 @@ type BannerCoupon = {
   condition: string;
   desc: string;
   theme: string;
-  customColors?: {
-    accent?: string;
-    stubBackground?: string;
-    border?: string;
-    buttonBackground?: string;
-    buttonText?: string;
-  };
+  /** Price list wording (cartons, bags, …) */
+  offerAppliesTo?: string;
 };
 
 const FALLBACK_COUPONS: BannerCoupon[] = [
@@ -36,6 +32,7 @@ const FALLBACK_COUPONS: BannerCoupon[] = [
     condition: "On 15+ Cartons / Bags",
     desc: "Mix items · complete price list",
     theme: "blue",
+    offerAppliesTo: "Cartons & bags (per price list)",
   },
   {
     code: "BULK9",
@@ -44,6 +41,7 @@ const FALLBACK_COUPONS: BannerCoupon[] = [
     condition: "On 50+ Cartons / Bags",
     desc: "Mix items · complete price list",
     theme: "indigo",
+    offerAppliesTo: "Cartons & bags (per price list)",
   },
   {
     code: "BULK12",
@@ -52,6 +50,7 @@ const FALLBACK_COUPONS: BannerCoupon[] = [
     condition: "On 85+ Cartons / Bags",
     desc: "Maximum bulk discount",
     theme: "green",
+    offerAppliesTo: "Cartons & bags (per price list)",
   },
   {
     code: "MIN25K",
@@ -60,23 +59,15 @@ const FALLBACK_COUPONS: BannerCoupon[] = [
     condition: "Min. Order ₹25,000",
     desc: "100% advance · TO PAY freight",
     theme: "amber",
+    offerAppliesTo: "All lines as per price list",
   },
 ];
 
 function normalizeBannerCoupon(raw: Record<string, unknown>): BannerCoupon {
   const theme = typeof raw.theme === "string" && COUPON_THEMES.has(raw.theme) ? raw.theme : "blue";
-  const cc = raw.customColors;
-  let customColors: BannerCoupon["customColors"];
-  if (cc && typeof cc === "object") {
-    const o = cc as Record<string, unknown>;
-    customColors = {
-      accent: typeof o.accent === "string" ? o.accent : undefined,
-      stubBackground: typeof o.stubBackground === "string" ? o.stubBackground : undefined,
-      border: typeof o.border === "string" ? o.border : undefined,
-      buttonBackground: typeof o.buttonBackground === "string" ? o.buttonBackground : undefined,
-      buttonText: typeof o.buttonText === "string" ? o.buttonText : undefined,
-    };
-  }
+  const offerRaw = raw.offerAppliesTo;
+  const offerAppliesTo =
+    typeof offerRaw === "string" && offerRaw.trim() !== "" ? offerRaw.trim() : undefined;
   return {
     code: String(raw.code ?? ""),
     discount: String(raw.discount ?? ""),
@@ -84,7 +75,7 @@ function normalizeBannerCoupon(raw: Record<string, unknown>): BannerCoupon {
     condition: String(raw.condition ?? ""),
     desc: String(raw.desc ?? ""),
     theme,
-    customColors,
+    offerAppliesTo,
   };
 }
 
@@ -146,26 +137,15 @@ function CouponCard({ c }: { c: BannerCoupon }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-  const cc = c.customColors;
-  const stubStyle = cc?.stubBackground ? { background: cc.stubBackground } : undefined;
-  const pctStyle = cc?.accent ? { color: cc.accent } : undefined;
-  const rootStyle = cc?.border ? { borderColor: cc.border } : undefined;
-  const btnStyle =
-    cc?.buttonBackground || cc?.buttonText
-      ? { background: cc.buttonBackground, color: cc.buttonText }
-      : undefined;
   return (
-    <div
-      className={`${styles.coupon} ${styles[`coupon_${c.theme}`]}`}
-      style={rootStyle}
-    >
+    <div className={`${styles.coupon} ${styles[`coupon_${c.theme}`]}`}>
       <div className={styles.couponNotchL} aria-hidden />
       <div className={styles.couponNotchR} aria-hidden />
 
       {/* stub */}
-      <div className={styles.couponStub} style={stubStyle}>
+      <div className={styles.couponStub}>
         <div className={styles.couponDiscBlock}>
-          <span className={styles.couponPct} style={pctStyle}>{c.discount}</span>
+          <span className={styles.couponPct}>{c.discount}</span>
           <span className={styles.couponLabel}>{c.label}</span>
         </div>
       </div>
@@ -175,11 +155,13 @@ function CouponCard({ c }: { c: BannerCoupon }) {
       {/* body */}
       <div className={styles.couponBody}>
         <p className={styles.couponCond}>{c.condition}</p>
+        {c.offerAppliesTo ? (
+          <p className={styles.couponOfferScope}>{c.offerAppliesTo}</p>
+        ) : null}
         <p className={styles.couponDescTxt}>{c.desc}</p>
         <button
           type="button"
           className={`${styles.couponCopy} ${styles[`couponCopy_${c.theme}`]}`}
-          style={btnStyle}
           onClick={copy}
         >
           {copied
@@ -241,6 +223,7 @@ function ProductCarousel() {
       basicPricePerUnit: p.firstBasic,
       qtyPerBag: p.qtyPerBag,
       pcsPerPacket: p.pcsPerPacket,
+      orderMode: "packets",
     }, qty);
     setPopupProduct(p.name);
     setPopupOpen(true);
@@ -248,8 +231,8 @@ function ProductCarousel() {
 
   const s = slides[active];
   const p = s.product;
-  const step = p.pcsPerPacket;
   const qty  = getQty(p);
+  const heroLabels = defaultPackingLabelsForCategory(p.category);
   const brandPill = listingBrandPill(p.brand);
   const slidePillClass =
     brandPill === "HiTech"
@@ -276,7 +259,7 @@ function ProductCarousel() {
           <h3 className={styles.slideName}>{productHeading(p.name, p.firstSize)}</h3>
           <p className={styles.slideDesc}>{p.description}</p>
           <div className={styles.slidePriceRow}>
-            <div><span className={styles.slideFrom}>from </span><span className={styles.slidePrice}>₹{p.firstWithGST.toFixed(2)}</span><span className={styles.slideGst}> incl. GST</span></div>
+            <div><span className={styles.slideFrom}>from </span><span className={styles.slidePrice}>₹{p.firstWithGST.toFixed(2)}</span><span className={styles.slideGst}> incl. GST / {heroLabels.inner}</span></div>
             <span className={styles.slideBasic}>₹{p.firstBasic.toFixed(2)} basic</span>
           </div>
 
@@ -289,7 +272,7 @@ function ProductCarousel() {
                   disabled={qty <= 0}
                   onClick={e => { 
                     e.stopPropagation(); 
-                    setQty(p.id, Math.max(0, qty - step));
+                    setQty(p.id, Math.max(0, qty - 1));
                     setErrorProductId(null);
                   }}
                 >−</button>
@@ -299,7 +282,7 @@ function ProductCarousel() {
                     className={styles.slideQtyInput}
                     value={qty}
                     min={0}
-                    step={step}
+                    step={1}
                     onFocus={(e) => e.target.select()}
                     onClick={e => e.stopPropagation()}
                     onChange={e => { 
@@ -314,16 +297,16 @@ function ProductCarousel() {
                       const v = parseInt(e.target.value) || 0;
                       if (v < 0) setQty(p.id, 0);
                     }}
-                    aria-label="Quantity in pc"
+                    aria-label={`Quantity in ${heroLabels.innerPlural}`}
                   />
-                  <span className={styles.slideQtyPc} aria-hidden>pc</span>
+                  <span className={styles.slideQtyPc} aria-hidden>{heroLabels.inner}</span>
                 </div>
                 <button
                   type="button"
                   className={styles.slideQtyBtn}
                   onClick={e => { 
                     e.stopPropagation(); 
-                    setQty(p.id, qty + step);
+                    setQty(p.id, qty + 1);
                     setErrorProductId(null);
                   }}
                 >+</button>

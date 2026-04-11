@@ -3,8 +3,15 @@
 import React, { useState } from "react";
 import styles from "./OrderSummary.module.css";
 import { CartItem } from "../../../context/CartWishlistContext";
+import { normalizeOrderMode, pricedPacketCount, totalPiecesForLine } from "@/lib/cart/packetLine";
+import { groupCartItemsByProductLine, cartGroupKey } from "@/lib/cart/groupCartLines";
+import { resolvePackingLabelsForCartLine } from "@/lib/packingLabels";
 import { productHeading } from "../../../lib/productHeading";
 import type { CartCouponOption, CouponApplyResult } from "../cartCoupons";
+
+function formatPieces(n: number) {
+  return n.toLocaleString("en-IN");
+}
 
 interface OrderSummaryProps {
   basicTotal: number;
@@ -29,7 +36,6 @@ interface OrderSummaryProps {
 export default function OrderSummary({
   basicTotal,
   gstTotal,
-  grandTotal,
   itemCount,
   items,
   cartCoupons,
@@ -91,7 +97,9 @@ export default function OrderSummary({
                 <span className={styles.appliedCode}>{appliedCoupon}</span>
                 <span className={styles.appliedDesc}>
                   {couponMeta
-                    ? `${couponMeta.discount}${couponMeta.label ? ` ${couponMeta.label}` : ""} · ${couponMeta.condition}`
+                    ? `${couponMeta.discount}${couponMeta.label ? ` ${couponMeta.label}` : ""} · ${couponMeta.condition}${
+                        couponMeta.offerAppliesTo ? ` · ${couponMeta.offerAppliesTo}` : ""
+                      }`
                     : "Benefit applied to this order"}
                 </span>
               </div>
@@ -132,6 +140,9 @@ export default function OrderSummary({
                             </span>
                           </div>
                           <span className={styles.couponCardCondition}>{c.condition}</span>
+                          {c.offerAppliesTo ? (
+                            <span className={styles.couponCardOfferScope}>{c.offerAppliesTo}</span>
+                          ) : null}
                           {c.desc ? <span className={styles.couponCardDesc}>{c.desc}</span> : null}
                         </div>
                         <button
@@ -238,19 +249,36 @@ export default function OrderSummary({
 
       {items.length > 0 && (
         <div className={styles.productList}>
-          {items.map((item) => {
-            const safeQty = Number(item.quantity) || 1;
-            const safePrice = Number(item.pricePerUnit) || 0;
-            const lineTotal = safePrice * safeQty;
+          {groupCartItemsByProductLine(items).map((lines) => {
+            const first = lines[0];
+            const labels = resolvePackingLabelsForCartLine(first);
+            const rowTotal = lines.reduce(
+              (s, l) => s + (Number(l.pricePerUnit) || 0) * pricedPacketCount(l),
+              0
+            );
+            const metaLines = lines.map((l) => {
+              const pk = pricedPacketCount(l);
+              const pc = totalPiecesForLine(l);
+              if (normalizeOrderMode(l.orderMode) === "master_bag") {
+                const bq = Number(l.quantity) || 0;
+                const outerWord = bq === 1 ? labels.outer : labels.outerPlural;
+                return `${bq} ${outerWord} → ${pk} ${labels.innerPlural} (${formatPieces(pc)} pc)`;
+              }
+              return `${pk} ${labels.innerPlural} (${formatPieces(pc)} pc)`;
+            });
             return (
-              <div key={`${item.productId}-${item.size}`} className={styles.productRow}>
+              <div key={cartGroupKey(first)} className={styles.productRow}>
                 <div className={styles.productInfo}>
-                  <span className={styles.productName}>{productHeading(item.productName, item.size)}</span>
-                  <span className={styles.productMeta}>
-                    {safeQty} pc{safeQty !== 1 ? "s" : ""}
-                  </span>
+                  <span className={styles.productName}>{productHeading(first.productName, first.size)}</span>
+                  <div className={styles.productMeta}>
+                    {metaLines.map((line, i) => (
+                      <span key={i} className={styles.productMetaLine}>
+                        {line}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <span className={styles.productTotal}>₹{lineTotal.toFixed(0)}</span>
+                <span className={styles.productTotal}>₹{rowTotal.toFixed(0)}</span>
               </div>
             );
           })}

@@ -40,14 +40,7 @@ export function isDiscountType(v: unknown): v is "percentage" | "fixed_amount" |
   return typeof v === "string" && DISCOUNT_TYPES.has(v);
 }
 
-export function parseCustomColors(body: Record<string, unknown>): Record<string, string> | undefined {
-  const raw = body.customColors;
-  if (!raw || typeof raw !== "object") return undefined;
-  const o = raw as Record<string, unknown>;
-  const out: Record<string, string> = {};
-  const keys = ["accent", "stubBackground", "border", "buttonBackground", "buttonText"] as const;
-  for (const k of keys) {
-    if (typeof o[k] === "string" && o[k].trim()) out[k] = o[k].trim();
-  }
-  return Object.keys(out).length ? out : undefined;
+export function parseOfferAppliesTo(v: unknown): string {
+  if (typeof v !== "string") return "";
+  return v.trim();
 }

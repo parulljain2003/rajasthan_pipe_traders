@@ -10,6 +10,18 @@ const discountTierSchema = new Schema(
 
 
 
+const packingLabelsPartialSchema = new Schema(
+  {
+    inner: { type: String, trim: true },
+    innerPlural: { type: String, trim: true },
+    outer: { type: String, trim: true },
+    outerPlural: { type: String, trim: true },
+    outerHeading: { type: String, trim: true },
+    innerHeading: { type: String, trim: true },
+  },
+  { _id: false }
+);
+
 const catalogSizeSchema = new Schema(
   {
     size: { type: String, required: true },
@@ -18,6 +30,7 @@ const catalogSizeSchema = new Schema(
     qtyPerBag: Number,
     pcsPerPacket: Number,
     note: { type: String, trim: true },
+    packingLabels: { type: packingLabelsPartialSchema, default: undefined },
   },
   { _id: false }
 );
@@ -122,6 +135,8 @@ const productSchema = new Schema(
     pricing: { type: pricingSchema, required: true },
     packaging: { type: packagingSchema, default: () => ({}) },
     listNotes: { type: String, trim: true },
+    /** RPT price list wording for PDP order UI (outer bulk / inner priced unit) */
+    packingUnitLabels: { type: packingLabelsPartialSchema, default: undefined },
     isActive: { type: Boolean, default: true },
     sourceDocument: { type: String, default: "RPT PRICE LIST" },
   },

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react";
+import {
+  normalizeOrderMode,
+  pricedPacketCount,
+  type CartOrderMode,
+} from "@/lib/cart/packetLine";
+import { loadCartFromStorage, saveCartToStorage } from "@/lib/cart/cartStorage";
 
 /** Must match `DEFAULT_SELLER_ID` in `app/data/products.ts` (not imported here to keep this client bundle lean). */
 const DEFAULT_SELLER_ID = "default";
@@ -19,14 +25,23 @@ export interface CartItem {
   sellerId: string;
   sellerName: string;
   size: string;
+  /** Packet count when `orderMode` is `packets`; bag count when `orderMode` is `master_bag` */
   quantity: number;
-  pricePerUnit: number;       // incl. GST
-  basicPricePerUnit: number;  // ex-GST
+  /** With GST, per packet (priced unit) */
+  pricePerUnit: number;
+  basicPricePerUnit: number;
   qtyPerBag: number;
   pcsPerPacket: number;
+  /**
+   * `packets`: `quantity` = number of packets (price × packets).
+   * `master_bag`: `quantity` = number of master bags; line amount = price × (quantity × qtyPerBag) packets.
+   */
+  orderMode?: CartOrderMode;
 }
 
-type AddCartItemInput = Omit<CartItem, "quantity">;
+export type { CartOrderMode };
+
+export type AddCartItemInput = Omit<CartItem, "quantity">;
 
 function normalizeSellerId(sellerId: string | undefined): string {
   return sellerId && sellerId.length > 0 ? sellerId : DEFAULT_SELLER_ID;
@@ -36,12 +51,14 @@ function sameLine(
   ci: CartItem,
   productId: number,
   size: string,
-  sellerId: string
+  sellerId: string,
+  orderMode: CartOrderMode
 ): boolean {
   return (
     ci.productId === productId &&
     ci.size === size &&
-    ci.sellerId === normalizeSellerId(sellerId)
+    ci.sellerId === normalizeSellerId(sellerId) &&
+    normalizeOrderMode(ci.orderMode) === orderMode
   );
 }
 
@@ -51,8 +68,10 @@ interface CartWishlistState {
   cartTotal: number;
   cartBasicTotal: number;
   addToCart: (item: AddCartItemInput, qty?: number) => void;
-  removeFromCart: (productId: number, size: string, sellerId?: string) => void;
-  updateQuantity: (productId: number, size: string, qty: number, sellerId?: string) => void;
+  removeFromCart: (productId: number, size: string, sellerId?: string, orderMode?: CartOrderMode) => void;
+  /** Remove every line for this product + size + seller (both packet and bulk rows) */
+  removeCartGroup: (productId: number, size: string, sellerId?: string) => void;
+  updateQuantity: (productId: number, size: string, qty: number, sellerId?: string, orderMode?: CartOrderMode) => void;
   updateSize: (
     productId: number,
     oldSize: string,
@@ -61,7 +80,8 @@ interface CartWishlistState {
     newBasicPrice: number,
     newQtyPerBag: number,
     newPcsPerPacket: number,
-    sellerId?: string
+    sellerId?: string,
+    orderMode?: CartOrderMode
   ) => void;
   clearCart: () => void;
 }
@@ -70,32 +90,56 @@ const CartWishlistContext = createContext<CartWishlistState | null>(null);
 
 export function CartWishlistProvider({ children }: { children: React.ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  /** False until client has read localStorage — avoids overwriting saved cart with [] on first paint */
+  const [cartHydrated, setCartHydrated] = useState(false);
+
+  useEffect(() => {
+    /* Persisted cart only exists in the browser — load after mount to match SSR (empty) then fill */
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    setCartItems(loadCartFromStorage());
+    setCartHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!cartHydrated) return;
+    saveCartToStorage(cartItems);
+  }, [cartItems, cartHydrated]);
 
   const addToCart = useCallback((item: AddCartItemInput, qty: number = 1) => {
     const sid = normalizeSellerId(item.sellerId);
-    const row: AddCartItemInput = { ...item, sellerId: sid };
+    const mode = normalizeOrderMode(item.orderMode);
+    const row: AddCartItemInput = { ...item, sellerId: sid, orderMode: mode };
     setCartItems(prev => {
-      const existing = prev.find((ci) => sameLine(ci, row.productId, row.size, row.sellerId));
+      const existing = prev.find((ci) => sameLine(ci, row.productId, row.size, row.sellerId, mode));
       if (existing) {
         return prev.map((ci) =>
-          sameLine(ci, row.productId, row.size, row.sellerId) ? { ...ci, quantity: qty } : ci
+          sameLine(ci, row.productId, row.size, row.sellerId, mode) ? { ...ci, quantity: qty } : ci
         );
       }
       return [...prev, { ...row, quantity: qty }];
     });
   }, []);
 
-  const removeFromCart = useCallback((productId: number, size: string, sellerId?: string) => {
+  const removeFromCart = useCallback((productId: number, size: string, sellerId?: string, orderMode?: CartOrderMode) => {
     const sid = normalizeSellerId(sellerId);
-    setCartItems((prev) => prev.filter((ci) => !sameLine(ci, productId, size, sid)));
+    const mode = normalizeOrderMode(orderMode);
+    setCartItems((prev) => prev.filter((ci) => !sameLine(ci, productId, size, sid, mode)));
   }, []);
 
-  const updateQuantity = useCallback((productId: number, size: string, qty: number, sellerId?: string) => {
-    if (qty < 1) return;
+  const removeCartGroup = useCallback((productId: number, size: string, sellerId?: string) => {
     const sid = normalizeSellerId(sellerId);
     setCartItems((prev) =>
+      prev.filter((ci) => !(ci.productId === productId && ci.size === size && ci.sellerId === sid))
+    );
+  }, []);
+
+  const updateQuantity = useCallback((productId: number, size: string, qty: number, sellerId?: string, orderMode?: CartOrderMode) => {
+    if (qty < 1) return;
+    const sid = normalizeSellerId(sellerId);
+    const mode = normalizeOrderMode(orderMode);
+    setCartItems((prev) =>
       prev.map((ci) =>
-        sameLine(ci, productId, size, sid) ? { ...ci, quantity: qty } : ci
+        sameLine(ci, productId, size, sid, mode) ? { ...ci, quantity: qty } : ci
       )
     );
   }, []);
@@ -109,11 +153,13 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
     newQtyPerBag: number,
     newPcsPerPacket: number,
     sellerId?: string,
+    orderMode?: CartOrderMode,
   ) => {
     const sid = normalizeSellerId(sellerId);
+    const mode = normalizeOrderMode(orderMode);
     setCartItems((prev) =>
       prev.map((ci) =>
-        sameLine(ci, productId, oldSize, sid)
+        sameLine(ci, productId, oldSize, sid, mode)
           ? {
               ...ci,
               size: newSize,
@@ -135,12 +181,20 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
   );
 
   const cartTotal = useMemo(
-    () => cartItems.reduce((sum, ci) => sum + (ci.pricePerUnit * ci.quantity), 0),
+    () =>
+      cartItems.reduce(
+        (sum, ci) => sum + ci.pricePerUnit * pricedPacketCount(ci),
+        0
+      ),
     [cartItems]
   );
 
   const cartBasicTotal = useMemo(
-    () => cartItems.reduce((sum, ci) => sum + (ci.basicPricePerUnit * ci.quantity), 0),
+    () =>
+      cartItems.reduce(
+        (sum, ci) => sum + ci.basicPricePerUnit * pricedPacketCount(ci),
+        0
+      ),
     [cartItems]
   );
 
@@ -153,6 +207,7 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
         cartBasicTotal,
         addToCart,
         removeFromCart,
+        removeCartGroup,
         updateQuantity,
         updateSize,
         clearCart,

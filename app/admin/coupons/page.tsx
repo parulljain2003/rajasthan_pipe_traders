@@ -40,11 +40,7 @@ const emptyForm = {
   title: "",
   description: "",
   themeKey: "blue",
-  colorAccent: "",
-  colorStub: "",
-  colorBorder: "",
-  colorBtnBg: "",
-  colorBtnText: "",
+  offerAppliesTo: "",
   applicableProductIds: "",
   applicableCategoryIds: "",
   minOrderValue: 0,
@@ -96,7 +92,6 @@ export default function AdminCouponsPage() {
 
   function openEdit(c: AdminCoupon) {
     setEditingId(c._id);
-    const cc = c.customColors ?? {};
     setForm({
       code: c.code,
       name: c.name ?? "",
@@ -108,11 +103,7 @@ export default function AdminCouponsPage() {
       title: c.title,
       description: c.description ?? "",
       themeKey: c.themeKey ?? "blue",
-      colorAccent: cc.accent ?? "",
-      colorStub: cc.stubBackground ?? "",
-      colorBorder: cc.border ?? "",
-      colorBtnBg: cc.buttonBackground ?? "",
-      colorBtnText: cc.buttonText ?? "",
+      offerAppliesTo: c.offerAppliesTo ?? "",
       applicableProductIds: (c.applicableProductIds ?? []).join(", "),
       applicableCategoryIds: (c.applicableCategoryIds ?? []).join(", "),
       minOrderValue: c.minOrderValue ?? 0,
@@ -130,23 +121,6 @@ export default function AdminCouponsPage() {
   }
 
   function buildBody(): Record<string, unknown> {
-    const hasColor =
-      form.colorAccent.trim() ||
-      form.colorStub.trim() ||
-      form.colorBorder.trim() ||
-      form.colorBtnBg.trim() ||
-      form.colorBtnText.trim();
-    const customColors = hasColor
-      ? {
-          accent: form.colorAccent.trim() || undefined,
-          stubBackground: form.colorStub.trim() || undefined,
-          border: form.colorBorder.trim() || undefined,
-          buttonBackground: form.colorBtnBg.trim() || undefined,
-          buttonText: form.colorBtnText.trim() || undefined,
-        }
-      : editingId
-        ? null
-        : undefined;
     return {
       code: form.code.trim().toUpperCase(),
       name: form.name.trim() || undefined,
@@ -158,7 +132,7 @@ export default function AdminCouponsPage() {
       title: form.title.trim(),
       description: form.description.trim(),
       themeKey: form.themeKey,
-      customColors,
+      offerAppliesTo: form.offerAppliesTo.trim(),
       applicableProductIds: form.applicableProductIds,
       applicableCategoryIds: form.applicableCategoryIds,
       minOrderValue: Number(form.minOrderValue) || 0,
@@ -438,54 +412,19 @@ export default function AdminCouponsPage() {
                 </div>
               </div>
 
-              <p className="muted" style={{ margin: "0.25rem 0 0.5rem" }}>
-                Optional hex colors override the preset for the storefront card.
+              <div className="admin-field">
+                <label htmlFor="cp-offer">Offer applies to (price list)</label>
+                <input
+                  id="cp-offer"
+                  value={form.offerAppliesTo}
+                  onChange={(e) => setForm((f) => ({ ...f, offerAppliesTo: e.target.value }))}
+                  placeholder="e.g. Cartons & bags — as per current price list"
+                />
+              </div>
+              <p className="muted" style={{ margin: "0 0 0.75rem", fontSize: "0.85rem" }}>
+                Shown on the storefront coupon card. Use the same wording as your PDF (cartons, bags, etc.). This is
+                display-only; targeting still uses product/category IDs and minimums below.
               </p>
-              <div className="admin-field-row">
-                <div className="admin-field">
-                  <label htmlFor="cp-ca">Accent text</label>
-                  <input
-                    id="cp-ca"
-                    value={form.colorAccent}
-                    onChange={(e) => setForm((f) => ({ ...f, colorAccent: e.target.value }))}
-                    placeholder="#93c5fd"
-                  />
-                </div>
-                <div className="admin-field">
-                  <label htmlFor="cp-cs">Stub background</label>
-                  <input
-                    id="cp-cs"
-                    value={form.colorStub}
-                    onChange={(e) => setForm((f) => ({ ...f, colorStub: e.target.value }))}
-                  />
-                </div>
-                <div className="admin-field">
-                  <label htmlFor="cp-cb">Border</label>
-                  <input
-                    id="cp-cb"
-                    value={form.colorBorder}
-                    onChange={(e) => setForm((f) => ({ ...f, colorBorder: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <div className="admin-field-row">
-                <div className="admin-field">
-                  <label htmlFor="cp-cbb">Button background</label>
-                  <input
-                    id="cp-cbb"
-                    value={form.colorBtnBg}
-                    onChange={(e) => setForm((f) => ({ ...f, colorBtnBg: e.target.value }))}
-                  />
-                </div>
-                <div className="admin-field">
-                  <label htmlFor="cp-cbt">Button text</label>
-                  <input
-                    id="cp-cbt"
-                    value={form.colorBtnText}
-                    onChange={(e) => setForm((f) => ({ ...f, colorBtnText: e.target.value }))}
-                  />
-                </div>
-              </div>
 
               <div className="admin-field">
                 <label htmlFor="cp-prod">Applicable product IDs (comma or whitespace)</label>

@@ -6,8 +6,8 @@ import { serializeCouponLean } from "@/lib/db/serialize";
 import {
   isDiscountType,
   normalizeThemeKey,
-  parseCustomColors,
   parseObjectIdList,
+  parseOfferAppliesTo,
   parseOptionalDate,
 } from "@/lib/coupons/couponPayload";
 
@@ -59,18 +59,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (typeof body.title === "string") $set.title = body.title.trim();
     if (typeof body.description === "string") $set.description = body.description.trim();
     if (body.themeKey !== undefined) $set.themeKey = normalizeThemeKey(body.themeKey);
-    if ("customColors" in body) {
-      if (body.customColors === null) {
-        $unset.customColors = 1;
-      } else {
-        const cc = parseCustomColors(body);
-        if (cc === undefined) {
-          $unset.customColors = 1;
-        } else {
-          $set.customColors = cc;
-        }
-      }
-    }
+    if (body.offerAppliesTo !== undefined) $set.offerAppliesTo = parseOfferAppliesTo(body.offerAppliesTo);
     if (body.applicableProductIds !== undefined) {
       $set.applicableProductIds = parseObjectIdList(body.applicableProductIds);
     }

@@ -90,8 +90,16 @@
 }
 
 .productMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
   font-size: 0.68rem;
   color: #94a3b8;
+}
+
+.productMetaLine {
+  display: block;
+  line-height: 1.35;
 }
 
 .productTotal {
@@ -398,6 +406,14 @@
 .couponCardDesc {
   font-size: 0.67rem;
   color: #94a3b8;
+}
+
+.couponCardOfferScope {
+  display: block;
+  font-size: 0.62rem;
+  color: #a8b4c8;
+  margin-top: 0.12rem;
+  line-height: 1.3;
 }
 
 /* Applied state */

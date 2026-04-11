@@ -43,19 +43,13 @@ You can combine both flags. Only **active** coupons inside **`startAt` / `endAt`
       "condition": "On 15+ Cartons / Bags",
       "desc": "Mix items · complete price list",
       "theme": "blue",
-      "customColors": {
-        "accent": "#93c5fd",
-        "stubBackground": "…",
-        "border": "…",
-        "buttonBackground": "…",
-        "buttonText": "…"
-      }
+      "offerAppliesTo": "Cartons & bags (per price list)"
     }
   ]
 }
 ```
 
-`customColors` is omitted when empty.
+`offerAppliesTo` is omitted when empty. It is display-only (e.g. wording aligned with your price list PDF).
 
 ---
 
@@ -160,7 +154,7 @@ There is **no separate auth layer** in this project; these routes are the same a
 | `title` | string | Required; condition line |
 | `description` | string | |
 | `themeKey` | string | `blue` \| `indigo` \| `green` \| `amber` \| `brown` |
-| `customColors` | object | Optional: `accent`, `stubBackground`, `border`, `buttonBackground`, `buttonText` |
+| `offerAppliesTo` | string | Optional; shown on storefront cards (e.g. cartons/bags per price list); display-only |
 | `applicableProductIds` | string or string[] | Comma/whitespace-separated ObjectIds or array |
 | `applicableCategoryIds` | string or string[] | Same; empty = all |
 | `minOrderValue` | number | On **eligible** lines (INR) |
@@ -202,7 +196,7 @@ There is **no separate auth layer** in this project; these routes are the same a
 | **Path** | `/api/admin/coupons/:id` |
 | **Headers** | `Content-Type: application/json` |
 
-Send only fields to change. To clear **custom colors**, send `"customColors": null`.
+Send only fields to change. To clear **offer applies to**, send `"offerAppliesTo": ""`.
 
 **Response** `200` — `{ "data": { … } }`  
 **Errors** `400`, `404`, `409`, `500`

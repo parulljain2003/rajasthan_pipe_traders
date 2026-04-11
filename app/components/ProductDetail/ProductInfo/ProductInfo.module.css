@@ -232,6 +232,10 @@
   gap: 1rem;
 }
 
+.packingGridOne {
+  grid-template-columns: 1fr;
+}
+
 .packingCard {
   display: flex;
   flex-direction: column;
@@ -559,10 +563,18 @@
 }
 
 .dualQtyWrapper {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
   flex: 1;
+  width: 100%;
+}
+
+.dualQtySingle {
+  max-width: 22rem;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
 }
 
 .qtySection {
@@ -718,12 +730,6 @@
   }
   .packingItem {
     flex: 0 0 calc(50% - 0.25rem);
-  }
-  .dualQtyWrapper {
-    grid-template-columns: 1fr;
-  }
-  .dualQtyWrapper {
-    grid-template-columns: 1fr;
   }
   .bagActionControls {
     flex-direction: column;

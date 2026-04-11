@@ -5,17 +5,6 @@ export type CouponThemeKey = (typeof THEME_KEYS)[number];
 
 const DISCOUNT_TYPES = ["percentage", "fixed_amount", "free_dispatch", "free_shipping"] as const;
 
-const customColorsSchema = new Schema(
-  {
-    accent: { type: String, trim: true },
-    stubBackground: { type: String, trim: true },
-    border: { type: String, trim: true },
-    buttonBackground: { type: String, trim: true },
-    buttonText: { type: String, trim: true },
-  },
-  { _id: false }
-);
-
 const couponSchema = new Schema(
   {
     code: {
@@ -46,8 +35,11 @@ const couponSchema = new Schema(
       enum: THEME_KEYS,
       default: "blue",
     },
-    /** Optional hex overrides for the storefront card (inline styles) */
-    customColors: { type: customColorsSchema, default: undefined },
+    /**
+     * What this offer applies to (e.g. cartons, bags) — matches wording on the price list PDF.
+     * Shown on hero and cart coupon cards; informational only (discount rules use product/category IDs + minimums).
+     */
+    offerAppliesTo: { type: String, trim: true, default: "" },
     /** Empty arrays = all products / categories allowed */
     applicableProductIds: [{ type: Schema.Types.ObjectId, ref: "Product" }],
     applicableCategoryIds: [{ type: Schema.Types.ObjectId, ref: "Category" }],

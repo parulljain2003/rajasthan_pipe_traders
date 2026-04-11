@@ -6,6 +6,7 @@ import Link from 'next/link';
 import styles from './ProductGrid.module.css';
 import type { ProductListingEntry } from '../../../data/products';
 import { productHeading, listingBrandPill } from '../../../lib/productHeading';
+import { resolvePackingUnitLabels } from '@/lib/packingLabels';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
 import WhatsAppPopup from '../../WhatsAppPopup/WhatsAppPopup';
 
@@ -61,6 +62,7 @@ export default function ProductGrid({ listingEntries: entries }: ProductGridProp
       basicPricePerUnit: sizeRow.basicPrice,
       qtyPerBag: sizeRow.qtyPerBag,
       pcsPerPacket: sizeRow.pcsPerPacket,
+      orderMode: "packets" as const,
     }, qty);
     setPopupProductName(product.name);
     setPopupOpen(true);
@@ -96,8 +98,10 @@ export default function ProductGrid({ listingEntries: entries }: ProductGridProp
             : brandPill === "Tejas"
               ? styles.listingBrandTejas
               : styles.listingBrandNstar;
-        const lowestPrice = offer.sizes[0].withGST;
-        const lowestBasic = offer.sizes[0].basicPrice;
+        const size0 = offer.sizes[0];
+        const lowestPrice = size0.withGST;
+        const lowestBasic = size0.basicPrice;
+        const listLabels = resolvePackingUnitLabels(product, size0);
         const lk = listingKey(product.id, offer.sellerId);
 
         return (
@@ -128,14 +132,14 @@ export default function ProductGrid({ listingEntries: entries }: ProductGridProp
                 </span>
               </div>
 
-              <h3 className={styles.title}>{productHeading(product.name, offer.sizes[0].size)}</h3>
+              <h3 className={styles.title}>{productHeading(product.name, size0.size)}</h3>
               <p className={styles.description}>{product.description}</p>
 
               <div className={styles.pricing}>
                 <div className={styles.pricingLeft}>
                   <span className={styles.priceFrom}>from</span>
                   <span className={styles.salePrice}>₹{lowestPrice.toFixed(2)}</span>
-                  <span className={styles.gstTag}>incl. GST</span>
+                  <span className={styles.gstTag}>incl. GST / {listLabels.inner}</span>
                 </div>
                 <span className={styles.originalPrice}>₹{lowestBasic.toFixed(2)}</span>
               </div>
@@ -153,8 +157,7 @@ export default function ProductGrid({ listingEntries: entries }: ProductGridProp
                       onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
                       onClick={e => {
                         e.preventDefault(); e.stopPropagation();
-                        const step = offer.sizes[0].pcsPerPacket;
-                        setQty(entry, Math.max(0, getQty(entry) - step));
+                        setQty(entry, Math.max(0, getQty(entry) - 1));
                         setErrorListingKey(null);
                       }}
                     >−</button>
@@ -164,7 +167,7 @@ export default function ProductGrid({ listingEntries: entries }: ProductGridProp
                         className={styles.qtyCounterInput}
                         value={getQty(entry)}
                         min={0}
-                        step={offer.sizes[0].pcsPerPacket}
+                        step={1}
                         onFocus={(e) => e.target.select()}
                         onChange={e => {
                           e.stopPropagation();
@@ -179,9 +182,9 @@ export default function ProductGrid({ listingEntries: entries }: ProductGridProp
                           if (v < 0) setQty(entry, 0);
                         }}
                         onClick={e => { e.preventDefault(); e.stopPropagation(); }}
-                        aria-label="Quantity in pc"
+                        aria-label={`Quantity in ${listLabels.innerPlural}`}
                       />
-                      <span className={styles.qtyPc} aria-hidden>pc</span>
+                      <span className={styles.qtyPc} aria-hidden>{listLabels.inner}</span>
                     </div>
                     <button
                       type="button"
@@ -189,8 +192,7 @@ export default function ProductGrid({ listingEntries: entries }: ProductGridProp
                       onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
                       onClick={e => {
                         e.preventDefault(); e.stopPropagation();
-                        const step = offer.sizes[0].pcsPerPacket;
-                        setQty(entry, getQty(entry) + step);
+                        setQty(entry, getQty(entry) + 1);
                         setErrorListingKey(null);
                       }}
                     >+</button>

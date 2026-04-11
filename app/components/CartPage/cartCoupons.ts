@@ -1,4 +1,5 @@
 import type { CartItem } from "../../context/CartWishlistContext";
+import { pricedPacketCount } from "@/lib/cart/packetLine";
 
 /** Shape returned by GET /api/coupons (see `toPublicCouponBanner` in lib/coupons/evaluate.ts) */
 export type PublicCouponBannerJson = {
@@ -8,13 +9,8 @@ export type PublicCouponBannerJson = {
   condition?: unknown;
   desc?: unknown;
   theme?: unknown;
-  customColors?: {
-    accent?: string;
-    stubBackground?: string;
-    border?: string;
-    buttonBackground?: string;
-    buttonText?: string;
-  };
+  /** e.g. cartons/bags — from admin, matches price list wording */
+  offerAppliesTo?: unknown;
 };
 
 export type CartCouponOption = {
@@ -26,7 +22,9 @@ export type CartCouponOption = {
   /** Title line */
   condition: string;
   desc: string;
-  /** Accent for card strip (theme or custom accent) */
+  /** Shown on card; price list scope (cartons, bags, …) */
+  offerAppliesTo: string;
+  /** Accent for card strip (theme) */
   color: string;
 };
 
@@ -40,31 +38,36 @@ export const COUPON_THEME_HEX: Record<string, string> = {
 
 export function mapPublicCouponToOption(c: PublicCouponBannerJson): CartCouponOption {
   const theme = typeof c.theme === "string" ? c.theme : "blue";
-  const accent = c.customColors?.accent?.trim();
-  const color =
-    accent && accent.length > 0 ? accent : COUPON_THEME_HEX[theme] ?? COUPON_THEME_HEX.blue;
+  const color = COUPON_THEME_HEX[theme] ?? COUPON_THEME_HEX.blue;
+  const offerRaw = c.offerAppliesTo;
+  const offerAppliesTo = typeof offerRaw === "string" ? offerRaw.trim() : "";
   return {
     code: String(c.code ?? "").trim(),
     discount: String(c.discount ?? ""),
     label: typeof c.label === "string" ? c.label : "",
     condition: String(c.condition ?? ""),
     desc: typeof c.desc === "string" ? c.desc : "",
+    offerAppliesTo,
     color,
   };
 }
 
 export function cartLinesForCouponApi(items: CartItem[]) {
-  return items.map((ci) => ({
-    productMongoId: ci.mongoProductId,
-    /** Matches MongoDB Product.legacyId — lets coupons work when mongo ids were not stored on cart add */
-    legacyProductId: ci.productId,
-    categoryMongoId: ci.categoryMongoId,
-    sellerId: ci.sellerId,
-    size: ci.size,
-    quantity: ci.quantity,
-    lineSubtotal: ci.pricePerUnit * ci.quantity,
-    lineBasicSubtotal: ci.basicPricePerUnit * ci.quantity,
-  }));
+  return items.map((ci) => {
+    const pk = pricedPacketCount(ci);
+    return {
+      productMongoId: ci.mongoProductId,
+      /** Matches MongoDB Product.legacyId — lets coupons work when mongo ids were not stored on cart add */
+      legacyProductId: ci.productId,
+      categoryMongoId: ci.categoryMongoId,
+      sellerId: ci.sellerId,
+      size: ci.size,
+      /** Priced packet count (bags expand to packets) — matches coupon quantity rules */
+      quantity: pk,
+      lineSubtotal: ci.pricePerUnit * pk,
+      lineBasicSubtotal: ci.basicPricePerUnit * pk,
+    };
+  });
 }
 
 export type CouponApplyResult = { ok: true } | { ok: false; message: string };

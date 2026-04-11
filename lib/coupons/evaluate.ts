@@ -220,20 +220,17 @@ export function themeKeyOrDefault(key: string | undefined): CouponThemeKey {
 }
 
 export function toPublicCouponBanner(doc: Record<string, unknown>): Record<string, unknown> {
-  const raw = doc.customColors as Record<string, unknown> | undefined;
-  const custom =
-    raw && typeof raw === "object"
-      ? Object.fromEntries(
-          Object.entries(raw).filter(([, v]) => typeof v === "string" && v.trim() !== "")
-        )
-      : undefined;
-  return {
+  const offerRaw = doc.offerAppliesTo;
+  const offerAppliesTo =
+    typeof offerRaw === "string" && offerRaw.trim() !== "" ? offerRaw.trim() : undefined;
+  const out: Record<string, unknown> = {
     code: doc.code,
     discount: doc.displayPrimary,
     label: doc.displaySecondary ?? "",
     condition: doc.title,
     desc: doc.description ?? "",
     theme: themeKeyOrDefault(String(doc.themeKey ?? "blue")),
-    customColors: custom && Object.keys(custom).length ? custom : undefined,
   };
+  if (offerAppliesTo) out.offerAppliesTo = offerAppliesTo;
+  return out;
 }
