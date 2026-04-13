@@ -48,6 +48,15 @@ export function loadCartFromStorage(): CartItem[] {
         qtyPerBag: Number(r.qtyPerBag) || 0,
         pcsPerPacket: Math.max(1, Number(r.pcsPerPacket) || 1),
         orderMode: normalizeOrderMode(r.orderMode),
+        comboPricedPackets:
+          typeof r.comboPricedPackets === "number" && Number.isFinite(r.comboPricedPackets)
+            ? Math.max(0, r.comboPricedPackets)
+            : undefined,
+        comboSubtotalInclGst:
+          typeof r.comboSubtotalInclGst === "number" && Number.isFinite(r.comboSubtotalInclGst)
+            ? Math.max(0, r.comboSubtotalInclGst)
+            : undefined,
+        isComboApplied: typeof r.isComboApplied === "boolean" ? r.isComboApplied : undefined,
       });
     }
     return out;

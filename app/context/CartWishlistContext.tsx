@@ -7,6 +7,7 @@ import {
   type CartOrderMode,
 } from "@/lib/cart/packetLine";
 import { loadCartFromStorage, saveCartToStorage } from "@/lib/cart/cartStorage";
+import { comboCartLineKeyFromCartItem } from "@/lib/cart/cartLineKey";
 
 /** Must match `DEFAULT_SELLER_ID` in `app/data/products.ts` (not imported here to keep this client bundle lean). */
 const DEFAULT_SELLER_ID = "default";
@@ -37,7 +38,16 @@ export interface CartItem {
    * `master_bag`: `quantity` = number of master bags; line amount = price × (quantity × qtyPerBag) packets.
    */
   orderMode?: CartOrderMode;
+  /** Packets on this line priced at RPT combo net rate (set by combo pricing sync) */
+  comboPricedPackets?: number;
+  /** GST-inclusive value of combo net-priced packets (authoritative for coupon exclusion) */
+  comboSubtotalInclGst?: number;
+  /** True when any packets use combo net rate */
+  isComboApplied?: boolean;
 }
+
+/** How to combine combo rates with coupons: combo lines stay net; coupon hits non-combo only, unless user forgoes combo. */
+export type CartCouponPricingMode = "combo_first" | "list_for_full_coupon";
 
 export type { CartOrderMode };
 
@@ -64,9 +74,24 @@ function sameLine(
 
 interface CartWishlistState {
   cartItems: CartItem[];
+  /** True after localStorage cart has been loaded on the client */
+  cartHydrated: boolean;
   cartCount: number;
   cartTotal: number;
   cartBasicTotal: number;
+  applyComboPricingLines: (
+    updates: Array<{
+      key: string;
+      pricePerUnit: number;
+      basicPricePerUnit: number;
+      comboPricedPackets: number;
+      comboSubtotalInclGst?: number;
+      isComboApplied?: boolean;
+    }>
+  ) => void;
+  /** When `list_for_full_coupon`, combo allocation is skipped so coupons can use list-priced totals */
+  couponPricingMode: CartCouponPricingMode;
+  setCouponPricingMode: (mode: CartCouponPricingMode) => void;
   addToCart: (item: AddCartItemInput, qty?: number) => void;
   removeFromCart: (productId: number, size: string, sellerId?: string, orderMode?: CartOrderMode) => void;
   /** Remove every line for this product + size + seller (both packet and bulk rows) */
@@ -92,6 +117,7 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   /** False until client has read localStorage — avoids overwriting saved cart with [] on first paint */
   const [cartHydrated, setCartHydrated] = useState(false);
+  const [couponPricingMode, setCouponPricingMode] = useState<CartCouponPricingMode>("combo_first");
 
   useEffect(() => {
     /* Persisted cart only exists in the browser — load after mount to match SSR (empty) then fill */
@@ -175,6 +201,50 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
 
   const clearCart = useCallback(() => setCartItems([]), []);
 
+  const applyComboPricingLines = useCallback(
+    (
+      updates: Array<{
+        key: string;
+        pricePerUnit: number;
+        basicPricePerUnit: number;
+        comboPricedPackets: number;
+        comboSubtotalInclGst?: number;
+        isComboApplied?: boolean;
+      }>
+    ) => {
+      const map = new Map(updates.map((u) => [u.key, u]));
+      setCartItems((prev) => {
+        let changed = false;
+        const next = prev.map((ci) => {
+          const hit = map.get(comboCartLineKeyFromCartItem(ci));
+          if (!hit) return ci;
+          const nextComboGst = hit.comboSubtotalInclGst;
+          const nextIsCombo = Boolean(hit.isComboApplied);
+          if (
+            ci.pricePerUnit === hit.pricePerUnit &&
+            ci.basicPricePerUnit === hit.basicPricePerUnit &&
+            (ci.comboPricedPackets ?? 0) === hit.comboPricedPackets &&
+            Math.abs((ci.comboSubtotalInclGst ?? 0) - (nextComboGst ?? 0)) < 0.005 &&
+            Boolean(ci.isComboApplied) === nextIsCombo
+          ) {
+            return ci;
+          }
+          changed = true;
+          return {
+            ...ci,
+            pricePerUnit: hit.pricePerUnit,
+            basicPricePerUnit: hit.basicPricePerUnit,
+            comboPricedPackets: hit.comboPricedPackets,
+            comboSubtotalInclGst: nextComboGst,
+            isComboApplied: nextIsCombo,
+          };
+        });
+        return changed ? next : prev;
+      });
+    },
+    []
+  );
+
   const cartCount = useMemo(
     () => cartItems.length,
     [cartItems]
@@ -202,9 +272,13 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
     <CartWishlistContext.Provider
       value={{
         cartItems,
+        cartHydrated,
         cartCount,
         cartTotal,
         cartBasicTotal,
+        applyComboPricingLines,
+        couponPricingMode,
+        setCouponPricingMode,
         addToCart,
         removeFromCart,
         removeCartGroup,

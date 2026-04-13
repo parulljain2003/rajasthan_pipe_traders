@@ -38,6 +38,12 @@ function parseIncomingLines(raw: unknown): IncomingCouponLine[] | null {
       if (Number.isFinite(n) && n > 0) legacyProductId = Math.floor(n);
     }
 
+    let comboSubtotalInclGst: number | undefined;
+    if (o.comboSubtotalInclGst !== undefined && o.comboSubtotalInclGst !== null) {
+      const c = typeof o.comboSubtotalInclGst === "number" ? o.comboSubtotalInclGst : Number(o.comboSubtotalInclGst);
+      if (Number.isFinite(c) && c >= 0) comboSubtotalInclGst = c;
+    }
+
     out.push({
       productMongoId: typeof o.productMongoId === "string" ? o.productMongoId.trim() : undefined,
       legacyProductId,
@@ -47,6 +53,7 @@ function parseIncomingLines(raw: unknown): IncomingCouponLine[] | null {
       quantity,
       lineSubtotal,
       lineBasicSubtotal,
+      comboSubtotalInclGst,
     });
   }
   return out;

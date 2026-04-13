@@ -61,6 +61,14 @@
   width: fit-content;
 }
 
+.nameRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
 .name {
   font-size: 0.95rem;
   font-weight: 700;
@@ -71,10 +79,24 @@
   overflow: hidden;
   text-overflow: ellipsis;
   transition: color 0.15s;
+  min-width: 0;
 }
 
 .name:hover {
   color: #2563eb;
+}
+
+.comboBadge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #047857;
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .category {

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import styles from './CartPage.module.css';
 import CartItemCard from './CartItemCard/CartItemCard';
 import OrderSummary from './OrderSummary/OrderSummary';
+import ComboCartPricingSync from './ComboCartPricingSync';
 import OrderSuccessPopup from './OrderSuccessPopup/OrderSuccessPopup';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import {
@@ -30,6 +31,8 @@ export default function CartPage() {
     updateQuantity,
     addToCart,
     clearCart,
+    couponPricingMode,
+    setCouponPricingMode,
   } = useCartWishlist();
 
   const [successOpen, setSuccessOpen] = useState(false);
@@ -42,6 +45,12 @@ export default function CartPage() {
   const [cartCoupons, setCartCoupons] = useState<CartCouponOption[]>([]);
   const [couponsLoaded, setCouponsLoaded] = useState(false);
   const [couponRevalidateError, setCouponRevalidateError] = useState<string | null>(null);
+  const [comboMeta, setComboMeta] = useState({
+    suggestion: null as string | null,
+    minimumOrderInclGst: 25_000,
+    minimumOrderMet: true,
+    comboSavingsInclGst: 0,
+  });
 
   const gstTotal = cartTotal - cartBasicTotal;
   const finalTotal = Math.max(0, cartTotal - couponDiscount);
@@ -110,8 +119,9 @@ export default function CartPage() {
       setFreeDispatch(false);
       setFreeShipping(false);
       setCouponRevalidateError(null);
+      setCouponPricingMode("combo_first");
     });
-  }, [cartItems.length]);
+  }, [cartItems.length, setCouponPricingMode]);
 
   useEffect(() => {
     if (!appliedCoupon || cartItems.length === 0) return;
@@ -142,6 +152,7 @@ export default function CartPage() {
         setCouponDiscount(0);
         setFreeDispatch(false);
         setFreeShipping(false);
+        setCouponPricingMode("combo_first");
         return { ok: true };
       }
       const r = await runCouponValidate(code);
@@ -149,7 +160,7 @@ export default function CartPage() {
       setAppliedCoupon(code);
       return { ok: true };
     },
-    [runCouponValidate]
+    [runCouponValidate, setCouponPricingMode]
   );
 
   const handlePlaceOrder = () => {
@@ -212,6 +223,7 @@ export default function CartPage() {
         ) : (
           /* ── Cart layout ── */
           <div className={styles.layout}>
+            <ComboCartPricingSync onMeta={setComboMeta} />
             {/* Left: Items list */}
             <div className={styles.itemsCol}>
               <div className={styles.itemsHeader}>
@@ -252,8 +264,10 @@ export default function CartPage() {
                   Buyer Arranges Transport
                 </div>
 
-                <div className={`${styles.policyItem} ${cartTotal >= 25000 ? styles.policyItemOk : styles.policyItemWarn}`}>
-                  {cartTotal >= 25000 ? (
+                <div
+                  className={`${styles.policyItem} ${cartTotal >= comboMeta.minimumOrderInclGst ? styles.policyItemOk : styles.policyItemWarn}`}
+                >
+                  {cartTotal >= comboMeta.minimumOrderInclGst ? (
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
@@ -264,9 +278,9 @@ export default function CartPage() {
                       <line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
                   )}
-                  {cartTotal >= 25000
-                    ? 'Minimum order ₹25,000 met'
-                    : `Min. order ₹25,000 · Add ₹${(25000 - cartTotal).toFixed(0)} more`}
+                  {cartTotal >= comboMeta.minimumOrderInclGst
+                    ? `Minimum order ₹${comboMeta.minimumOrderInclGst.toLocaleString("en-IN")} met`
+                    : `Min. order ₹${comboMeta.minimumOrderInclGst.toLocaleString("en-IN")} · Add ₹${(comboMeta.minimumOrderInclGst - cartTotal).toFixed(0)} more`}
                 </div>
               </div>
             </div>
@@ -277,6 +291,7 @@ export default function CartPage() {
                 basicTotal={cartBasicTotal}
                 gstTotal={gstTotal}
                 grandTotal={cartTotal}
+                minimumOrderInclGst={comboMeta.minimumOrderInclGst}
                 itemCount={cartGroups.length}
                 items={cartItems}
                 cartCoupons={cartCoupons}
@@ -289,6 +304,10 @@ export default function CartPage() {
                 couponBannerError={couponRevalidateError}
                 onCouponChange={handleCouponChange}
                 onPlaceOrder={handlePlaceOrder}
+                comboSuggestion={comboMeta.suggestion}
+                comboSavingsInclGst={comboMeta.comboSavingsInclGst}
+                couponPricingMode={couponPricingMode}
+                onCouponPricingModeChange={setCouponPricingMode}
               />
             </div>
           </div>
