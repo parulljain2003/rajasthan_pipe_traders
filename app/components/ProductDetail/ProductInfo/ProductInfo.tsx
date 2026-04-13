@@ -12,13 +12,18 @@ interface ProductInfoProps {
   product: Product;
 }
 
+const BRAND_PILL_COLORS: Record<string, string> = {
+  "Hitech Square": "#7c3aed",
+  "Tejas Craft": "#2563eb",
+  "N-Star": "#059669",
+};
+
 export default function ProductInfo({ product }: ProductInfoProps) {
-  const { addToCart } = useCartWishlist();
+  const { addToCart, removeFromCart } = useCartWishlist();
   const offers = getSellerOffers(product);
   const [sellerIdx, setSellerIdx] = useState(0);
   const [selectedSizeIndex] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
-  const [bulkAddedToCart, setBulkAddedToCart] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
   const [showQtyError, setShowQtyError] = useState(false);
   const [quantity, setQuantity] = useState(0);
@@ -27,6 +32,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const [masterBags, setMasterBags] = useState(0);
 
   const activeOffer = offers[sellerIdx];
+  const brandPillColor = BRAND_PILL_COLORS[activeOffer.brand] ?? "#2563eb";
   const selectedSize = activeOffer.sizes[selectedSizeIndex];
   const labels = resolvePackingUnitLabels(product, selectedSize);
   const hasBulk = selectedSize.qtyPerBag > 0;
@@ -35,7 +41,6 @@ export default function ProductInfo({ product }: ProductInfoProps) {
     setQuantity(0);
     setMasterBags(0);
     setAddedToCart(false);
-    setBulkAddedToCart(false);
     setShowQtyError(false);
   };
 
@@ -69,19 +74,47 @@ export default function ProductInfo({ product }: ProductInfoProps) {
     setPopupOpen(true);
   };
 
-  const handleMasterBagAddToCart = () => {
-    if (masterBags <= 0) {
+  /** One button: syncs carton (master_bag) + box (packets) lines with the cart. */
+  const handleBestValueAddToCart = () => {
+    if (!hasBulk) {
+      handleAddToCart();
+      return;
+    }
+    if (masterBags <= 0 && quantity <= 0) {
       setShowQtyError(true);
       return;
     }
     setShowQtyError(false);
-    addToCart(cartPayload("master_bag"), masterBags);
-    setBulkAddedToCart(true);
+    const pid = product.id;
+    const size = selectedSize.size;
+    const sid = activeOffer.sellerId;
+
+    if (masterBags > 0) {
+      addToCart(cartPayload("master_bag"), masterBags);
+    } else {
+      removeFromCart(pid, size, sid, "master_bag");
+    }
+    if (quantity > 0) {
+      addToCart(cartPayload("packets"), quantity);
+    } else {
+      removeFromCart(pid, size, sid, "packets");
+    }
+
+    setAddedToCart(true);
     setPopupOpen(true);
   };
 
   return (
     <div className={styles.infoPanel}>
+      <div className={styles.metaRow}>
+        <span
+          className={styles.sellerBrandPill}
+          style={{ "--brand-color": brandPillColor } as React.CSSProperties}
+        >
+          {activeOffer.brand}
+        </span>
+      </div>
+
       {/* Product Name */}
       <h1 className={styles.productName}>{productHeading(product.name, selectedSize.size)}</h1>
 
@@ -210,17 +243,35 @@ export default function ProductInfo({ product }: ProductInfoProps) {
           </div>
           <p className={styles.bagCalc}>
             {hasBulk ? (
-              masterBags > 0 ? (
-                <>
-                  {masterBags} {labels.outerPlural} = {masterBags * selectedSize.qtyPerBag} {labels.innerPlural} ·{" "}
-                  {masterBags * selectedSize.qtyPerBag * selectedSize.pcsPerPacket} pcs
-                </>
-              ) : (
-                <>
-                  1 {labels.outer} = {selectedSize.qtyPerBag} {labels.innerPlural} (
-                  {selectedSize.qtyPerBag * selectedSize.pcsPerPacket} pcs)
-                </>
-              )
+              (() => {
+                const qtyPerBag = selectedSize.qtyPerBag;
+                const pcs = selectedSize.pcsPerPacket;
+                const boxesFromCartons = masterBags * qtyPerBag;
+                if (masterBags === 0 && quantity === 0) {
+                  return (
+                    <>
+                      1 {labels.outer} = {qtyPerBag} {labels.innerPlural} ({qtyPerBag * pcs} pcs)
+                    </>
+                  );
+                }
+                const innerWord = quantity === 1 ? labels.inner : labels.innerPlural;
+                const outerWord = masterBags === 1 ? labels.outer : labels.outerPlural;
+                const totalInner = boxesFromCartons + quantity;
+                const totalPcs = totalInner * pcs;
+                if (masterBags > 0) {
+                  return (
+                    <>
+                      {masterBags} {outerWord} = {boxesFromCartons} {labels.innerPlural} + {quantity} {innerWord} ={" "}
+                      {totalPcs} pcs
+                    </>
+                  );
+                }
+                return (
+                  <>
+                    {quantity} {innerWord} = {totalPcs} pcs
+                  </>
+                );
+              })()
             ) : (
               <>
                 1 {labels.inner} = {selectedSize.pcsPerPacket} pcs · Price is per {labels.inner}
@@ -230,129 +281,162 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         </div>
 
         <div className={styles.bagActionControls}>
-          <div
-            className={`${styles.dualQtyWrapper} ${!hasBulk ? styles.dualQtySingle : ""}`}
-          >
-            {hasBulk && (
-              <div className={styles.qtySection}>
-                <label className={styles.qtyCounterLabel}>
-                  Order by {labels.outerHeading}
-                </label>
-                <div className={styles.bagQtyCounter}>
-                  <button type="button" disabled={masterBags <= 0} onClick={() => setMasterBags((n) => Math.max(0, n - 1))}>
-                    −
-                  </button>
-                  <input type="number" readOnly value={masterBags} aria-label={`Count in ${labels.outerPlural}`} />
-                  <button type="button" onClick={() => setMasterBags((n) => n + 1)}>
-                    +
-                  </button>
-                  <span className={styles.bagQtyUnit}>{labels.outerPlural}</span>
+          <div className={`${styles.dualQtyWrapper} ${!hasBulk ? styles.dualQtySingle : ""}`}>
+            {hasBulk ? (
+              <div className={styles.bulkQtyRow}>
+                <div className={styles.qtySection}>
+                  <label className={styles.qtyCounterLabel}>Order by {labels.outerHeading}</label>
+                  <div className={styles.bagQtyCounter}>
+                    <button type="button" disabled={masterBags <= 0} onClick={() => setMasterBags((n) => Math.max(0, n - 1))}>
+                      −
+                    </button>
+                    <input type="number" readOnly value={masterBags} aria-label={`Count in ${labels.outerPlural}`} />
+                    <button type="button" onClick={() => setMasterBags((n) => n + 1)}>
+                      +
+                    </button>
+                    <span className={styles.bagQtyUnit}>{labels.outerPlural}</span>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  className={`${styles.bagAddToCartBtn} ${bulkAddedToCart ? styles.btnSuccess : ""}`}
-                  onClick={handleMasterBagAddToCart}
-                >
-                  {bulkAddedToCart ? (
-                    <>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                        <path d="M20 7 9 18l-5-5" />
-                      </svg>{" "}
-                      <span>Bulk added</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                        <circle cx="8" cy="21" r="1" />
-                        <circle cx="19" cy="21" r="1" />
-                        <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
-                      </svg>{" "}
-                      <span>Bulk add</span>
-                    </>
-                  )}
-                </button>
+
+                <div className={styles.qtySection}>
+                  <label className={styles.qtyCounterLabel}>Order by {labels.innerHeading}</label>
+                  <div className={styles.modernQtyCounter}>
+                    <button
+                      type="button"
+                      className={styles.modernQtyBtn}
+                      disabled={quantity <= 0}
+                      onClick={() => {
+                        setQuantity((q) => Math.max(0, q - 1));
+                        setShowQtyError(false);
+                      }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    </button>
+
+                    <div className={styles.modernQtyInputBlock}>
+                      <input
+                        type="number"
+                        className={styles.modernQtyInput}
+                        value={quantity}
+                        min={0}
+                        step={1}
+                        onFocus={(e) => e.currentTarget.select()}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10) || 0;
+                          if (v >= 0) {
+                            setQuantity(v);
+                            setShowQtyError(false);
+                          }
+                        }}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        onBlur={(e) => {
+                          const v = parseInt(e.target.value, 10) || 0;
+                          if (v < 0) setQuantity(0);
+                        }}
+                      />
+                      <span className={styles.modernQtyUnit}>{labels.inner}</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      className={styles.modernQtyBtn}
+                      onClick={() => {
+                        setQuantity((q) => q + 1);
+                        setShowQtyError(false);
+                      }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.qtySection}>
+                <label className={styles.qtyCounterLabel}>Order by {labels.innerHeading}</label>
+                <div className={styles.modernQtyCounter}>
+                  <button
+                    type="button"
+                    className={styles.modernQtyBtn}
+                    disabled={quantity <= 0}
+                    onClick={() => {
+                      setQuantity((q) => Math.max(0, q - 1));
+                      setShowQtyError(false);
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </button>
+
+                  <div className={styles.modernQtyInputBlock}>
+                    <input
+                      type="number"
+                      className={styles.modernQtyInput}
+                      value={quantity}
+                      min={0}
+                      step={1}
+                      onFocus={(e) => e.currentTarget.select()}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10) || 0;
+                        if (v >= 0) {
+                          setQuantity(v);
+                          setShowQtyError(false);
+                        }
+                      }}
+                      onWheel={(e) => e.currentTarget.blur()}
+                      onBlur={(e) => {
+                        const v = parseInt(e.target.value, 10) || 0;
+                        if (v < 0) setQuantity(0);
+                      }}
+                    />
+                    <span className={styles.modernQtyUnit}>{labels.inner}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className={styles.modernQtyBtn}
+                    onClick={() => {
+                      setQuantity((q) => q + 1);
+                      setShowQtyError(false);
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             )}
 
-            <div className={styles.qtySection}>
-              <label className={styles.qtyCounterLabel}>Order by {labels.innerHeading}</label>
-              <div className={styles.modernQtyCounter}>
-                <button
-                  type="button"
-                  className={styles.modernQtyBtn}
-                  disabled={quantity <= 0}
-                  onClick={() => {
-                    setQuantity((q) => Math.max(0, q - 1));
-                    setShowQtyError(false);
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </button>
-
-                <div className={styles.modernQtyInputBlock}>
-                  <input
-                    type="number"
-                    className={styles.modernQtyInput}
-                    value={quantity}
-                    min={0}
-                    step={1}
-                    onFocus={(e) => e.currentTarget.select()}
-                    onChange={(e) => {
-                      const v = parseInt(e.target.value, 10) || 0;
-                      if (v >= 0) {
-                        setQuantity(v);
-                        setShowQtyError(false);
-                      }
-                    }}
-                    onWheel={(e) => e.currentTarget.blur()}
-                    onBlur={(e) => {
-                      const v = parseInt(e.target.value, 10) || 0;
-                      if (v < 0) setQuantity(0);
-                    }}
-                  />
-                  <span className={styles.modernQtyUnit}>{labels.inner}</span>
-                </div>
-
-                <button
-                  type="button"
-                  className={styles.modernQtyBtn}
-                  onClick={() => {
-                    setQuantity((q) => q + 1);
-                    setShowQtyError(false);
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </button>
-              </div>
-              <button
-                type="button"
-                className={`${styles.bagAddToCartBtn} ${addedToCart ? styles.btnSuccess : ""}`}
-                onClick={handleAddToCart}
-              >
-                {addedToCart ? (
-                  <>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                      <path d="M20 7 9 18l-5-5" />
-                    </svg>{" "}
-                    <span>Added</span>
-                  </>
-                ) : (
-                  <>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <circle cx="8" cy="21" r="1" />
-                      <circle cx="19" cy="21" r="1" />
-                      <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
-                    </svg>{" "}
-                    <span>Add to cart</span>
-                  </>
-                )}
-              </button>
-            </div>
+            <button
+              type="button"
+              className={`${styles.bagAddToCartBtn} ${styles.bagAddToCartBtnFull} ${addedToCart ? styles.btnSuccess : ""}`}
+              onClick={handleBestValueAddToCart}
+            >
+              {addedToCart ? (
+                <>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <path d="M20 7 9 18l-5-5" />
+                  </svg>{" "}
+                  <span>Added</span>
+                </>
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <circle cx="8" cy="21" r="1" />
+                    <circle cx="19" cy="21" r="1" />
+                    <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+                  </svg>{" "}
+                  <span>Add to cart</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 

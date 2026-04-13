@@ -7,7 +7,7 @@ import styles from "./CartItemCard.module.css";
 import type { AddCartItemInput, CartItem } from "../../../context/CartWishlistContext";
 import { normalizeOrderMode, pricedPacketCount, totalPiecesForLine, type CartOrderMode } from "@/lib/cart/packetLine";
 import { resolvePackingLabelsForCartLine } from "@/lib/packingLabels";
-import { productHeading, shouldShowBrandBadge } from "../../../lib/productHeading";
+import { productHeading } from "../../../lib/productHeading";
 
 interface CartItemCardProps {
   /** One or two lines (packets + optional bulk) merged into one card */
@@ -17,12 +17,6 @@ interface CartItemCardProps {
   updateQuantity: (productId: number, size: string, qty: number, sellerId: string, orderMode?: CartItem["orderMode"]) => void;
   addToCart: (item: AddCartItemInput, qty?: number) => void;
 }
-
-const BRAND_COLORS: Record<string, string> = {
-  "Hitech Square": "#7c3aed",
-  "Tejas Craft": "#2563eb",
-  "N-Star": "#059669",
-};
 
 function formatPieces(n: number) {
   return n.toLocaleString("en-IN");
@@ -58,7 +52,6 @@ export default function CartItemCard({
   addToCart,
 }: CartItemCardProps) {
   const base = lines[0];
-  const brandColor = BRAND_COLORS[base.brand] ?? "#2563eb";
   const labels = resolvePackingLabelsForCartLine(base);
   const hasBulk = Number(base.qtyPerBag) > 0;
 
@@ -140,22 +133,24 @@ export default function CartItemCard({
     }
   };
 
-  const qtySummaryLines: string[] = [];
-  if (pktQty > 0 && packetLine) {
-    const pk = pricedPacketCount(packetLine);
-    qtySummaryLines.push(`${pk} ${labels.innerPlural} (${formatPieces(totalPiecesForLine(packetLine))} pc)`);
-  }
-  if (bagQty > 0 && bagLine) {
-    const pk = pricedPacketCount(bagLine);
-    const pc = totalPiecesForLine(bagLine);
-    const outerWord = bagQty === 1 ? labels.outer : labels.outerPlural;
-    qtySummaryLines.push(
-      `${bagQty} ${outerWord} → ${pk} ${labels.innerPlural} (${formatPieces(pc)} pc)`
-    );
-  }
-  if (qtySummaryLines.length === 0) {
-    qtySummaryLines.push(`${combinedPacketCount} ${labels.innerPlural} (${formatPieces(combinedPieces)} pc)`);
-  }
+  const pkFromBags = bagLine ? pricedPacketCount(bagLine) : 0;
+  const pkLoose = packetLine ? pricedPacketCount(packetLine) : 0;
+
+  const qtySummaryText = (() => {
+    if (hasBulk && bagQty > 0 && pktQty > 0) {
+      const outerWord = bagQty === 1 ? labels.outer : labels.outerPlural;
+      const looseWord = pktQty === 1 ? labels.inner : labels.innerPlural;
+      return `${bagQty} ${outerWord} = ${pkFromBags} ${labels.innerPlural} + ${pktQty} ${looseWord} = ${formatPieces(combinedPieces)} pcs`;
+    }
+    if (hasBulk && bagQty > 0 && pktQty === 0) {
+      const outerWord = bagQty === 1 ? labels.outer : labels.outerPlural;
+      return `${bagQty} ${outerWord} = ${pkFromBags} ${labels.innerPlural} = ${formatPieces(combinedPieces)} pcs`;
+    }
+    if (pktQty > 0 && packetLine) {
+      return `${pkLoose} ${labels.innerPlural} (${formatPieces(totalPiecesForLine(packetLine))} pc)`;
+    }
+    return `${combinedPacketCount} ${labels.innerPlural} (${formatPieces(combinedPieces)} pc)`;
+  })();
 
   return (
     <div className={styles.card}>
@@ -172,14 +167,6 @@ export default function CartItemCard({
       <div className={styles.detailsCol}>
         <div className={styles.topRow}>
           <div className={styles.nameGroup}>
-            {shouldShowBrandBadge(base.brand) && (
-              <span
-                className={styles.brand}
-                style={{ "--brand-color": brandColor } as React.CSSProperties}
-              >
-                {base.brand}
-              </span>
-            )}
             <div className={styles.nameRow}>
               <Link href={`/products/${base.productSlug}`} className={styles.name}>
                 {productHeading(base.productName, base.size)}
@@ -208,7 +195,7 @@ export default function CartItemCard({
           </button>
         </div>
 
-        <div className={styles.stackedQtyBlock}>
+        <div className={`${styles.stackedQtyBlock} ${hasBulk ? styles.stackedQtyBlockRow : ""}`}>
           <div className={styles.qtyRow}>
             <span className={styles.fieldLabel}>Quantity ({labels.innerPlural})</span>
             <div className={styles.qtyControls}>
@@ -308,13 +295,7 @@ export default function CartItemCard({
 
         <div className={styles.pricingRow}>
           <span className={styles.pricingLabel}>Quantity</span>
-          <div className={styles.qtySummaryStack}>
-            {qtySummaryLines.map((line, i) => (
-              <p key={i} className={styles.qtySummaryLine}>
-                {line}
-              </p>
-            ))}
-          </div>
+          <p className={styles.qtySummaryLine}>{qtySummaryText}</p>
         </div>
 
         <div className={styles.pricingRow}>
@@ -322,6 +303,7 @@ export default function CartItemCard({
           <div className={styles.pricingValues}>
             <span className={styles.strike}>₹{mrpTotal.toFixed(2)}</span>
             <span className={styles.totalMain}>₹{combinedLineTotal.toFixed(2)}</span>
+            <span className={styles.gstNote}>Total price without GST · ₹{combinedBasic.toFixed(2)}</span>
             <span className={styles.gstNote}>incl. GST · GST ₹{gstAmount.toFixed(2)}</span>
           </div>
         </div>

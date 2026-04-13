@@ -48,19 +48,6 @@
   min-width: 0;
 }
 
-.brand {
-  font-size: 0.65rem;
-  font-weight: 800;
-  color: var(--brand-color, #2563eb);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  background: color-mix(in srgb, var(--brand-color, #2563eb) 10%, white);
-  padding: 0.1rem 0.45rem;
-  border-radius: 4px;
-  border: 1px solid color-mix(in srgb, var(--brand-color, #2563eb) 20%, white);
-  width: fit-content;
-}
-
 .nameRow {
   display: flex;
   flex-wrap: wrap;
@@ -154,6 +141,20 @@
   max-width: 20rem;
 }
 
+/* Carton + box counters on one row (matches product detail bulk row) */
+.stackedQtyBlockRow {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem 1.25rem;
+  max-width: none;
+}
+
+.stackedQtyBlockRow .qtyRow {
+  flex: 1 1 10rem;
+  min-width: min(100%, 9.5rem);
+}
+
 .qtyRow {
   display: flex;
   flex-direction: column;
@@ -238,7 +239,9 @@
   font-size: 0.88rem;
   font-weight: 600;
   color: #334155;
-  line-height: 1.4;
+  line-height: 1.45;
+  max-width: 100%;
+  word-break: break-word;
 }
 
 .qtyControls {
@@ -387,6 +390,15 @@
 
   .pricingCol {
     width: 100%;
+  }
+
+  .stackedQtyBlockRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stackedQtyBlockRow .qtyRow {
+    min-width: 0;
   }
 }
 

@@ -216,7 +216,7 @@ export default function ProductGrid({ listingEntries: entries }: ProductGridProp
                 </div>
               )}
               <div className={styles.moqLabel}>
-                Minimum Order Quantity: {product.moq ?? offer.sizes[0].pcsPerPacket} pc
+                Minimum Order Quantity: {product.moq ?? offer.sizes[0].pcsPerPacket} packets
               </div>
             </div>
           </Link>

@@ -12,6 +12,19 @@
   gap: 0.5rem;
 }
 
+.sellerBrandPill {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--brand-color, #2563eb);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: color-mix(in srgb, var(--brand-color, #2563eb) 10%, white);
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--brand-color, #2563eb) 20%, white);
+  width: fit-content;
+}
+
 .brandBadge {
   background: #eff6ff;
   color: #1d4ed8;
@@ -570,6 +583,19 @@
   width: 100%;
 }
 
+.bulkQtyRow {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 1rem;
+  width: 100%;
+}
+
+.bulkQtyRow .qtySection {
+  flex: 1;
+  min-width: 0;
+}
+
 .dualQtySingle {
   max-width: 22rem;
   margin-left: auto;
@@ -661,6 +687,11 @@
   min-width: 0;
 }
 
+.bagAddToCartBtnFull {
+  width: 100%;
+  flex: none;
+}
+
 .bagAddToCartBtn:hover {
   transform: translateY(-2px);
   background: #0369a1;
@@ -733,6 +764,11 @@
   }
   .bagActionControls {
     flex-direction: column;
+  }
+
+  .bulkQtyRow {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
