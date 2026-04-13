@@ -1,5 +1,9 @@
 import mongoose from "mongoose";
 import { ProductModel } from "@/lib/db/models/Product";
+import {
+  buildPackagingContextFromProduct,
+  computeCouponTierPacketCount,
+} from "@/lib/coupons/couponTierQuantity";
 import type { CartLineInput } from "./evaluate";
 
 export type IncomingCouponLine = {
@@ -35,6 +39,7 @@ type LeanProduct = {
   _id: unknown;
   isActive?: boolean;
   category?: unknown;
+  packaging?: Record<string, unknown>;
   sellers?: Array<{
     sellerId: string;
     sizes?: Array<{ size: string; basicPrice: number; priceWithGst: number }>;
@@ -116,12 +121,12 @@ export async function resolveCartLinesForCoupon(
   const [byOidRows, byLegacyRows] = await Promise.all([
     uniqueIds.length > 0
       ? ProductModel.find({ _id: { $in: uniqueIds.map((id) => new mongoose.Types.ObjectId(id)) } })
-          .select({ sellers: 1, sizes: 1, pricing: 1, category: 1, isActive: 1, legacyId: 1 })
+          .select({ sellers: 1, sizes: 1, pricing: 1, category: 1, isActive: 1, legacyId: 1, packaging: 1 })
           .lean()
       : Promise.resolve([]),
     legacyIds.size > 0
       ? ProductModel.find({ legacyId: { $in: [...legacyIds] } })
-          .select({ sellers: 1, sizes: 1, pricing: 1, category: 1, isActive: 1, legacyId: 1 })
+          .select({ sellers: 1, sizes: 1, pricing: 1, category: 1, isActive: 1, legacyId: 1, packaging: 1 })
           .lean()
       : Promise.resolve([]),
   ]);
@@ -187,11 +192,19 @@ export async function resolveCartLinesForCoupon(
         row.comboSubtotalInclGst != null && Number.isFinite(Number(row.comboSubtotalInclGst))
           ? roundMoney(Math.max(0, Number(row.comboSubtotalInclGst)))
           : undefined;
+      const pkgCtx = buildPackagingContextFromProduct(prod as Parameters<typeof buildPackagingContextFromProduct>[0], row.sellerId, row.size);
+      const tierPackets = computeCouponTierPacketCount({
+        lineSubtotalInclGst: lineSubtotal,
+        unitPriceWithGst: unit.priceWithGst,
+        product: pkgCtx,
+        clientPacketQuantity: q,
+      });
       cartSubtotalInclGst += lineSubtotal;
       lines.push({
         productMongoId: pid,
         categoryMongoId,
         quantity: q,
+        tierPacketQuantity: tierPackets,
         lineSubtotal,
         lineBasicSubtotal,
         ...(comboSt !== undefined && comboSt > 0 ? { comboSubtotalInclGst: comboSt } : {}),

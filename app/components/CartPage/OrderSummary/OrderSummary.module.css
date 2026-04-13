@@ -173,7 +173,7 @@
 .couponSection {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 0.4rem;
   margin-bottom: 0.35rem;
 }
 
@@ -203,6 +203,87 @@
   font-size: 0.78rem;
   color: #64748b;
   margin: 0 0 0.65rem;
+}
+
+/* Auto-applied offer (no Apply button) */
+.offerCard {
+  border: 1px solid #bbf7d0;
+  background: linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 55%, #f8fafc 100%);
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+.offerCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.offerBadge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #047857;
+  background: #d1fae5;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+.offerSaving {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #047857;
+  font-variant-numeric: tabular-nums;
+}
+
+.offerTitle {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.35rem;
+  line-height: 1.3;
+}
+
+.offerDesc {
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: #475569;
+  margin: 0 0 0.5rem;
+}
+
+.offerCodeLine {
+  font-size: 0.72rem;
+  color: #64748b;
+  margin: 0 0 0.55rem;
+}
+
+.removeOfferBtn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.removeOfferBtn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #334155;
+}
+
+.offerMuted {
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: #64748b;
+  margin: 0 0 0.35rem;
 }
 
 .availableOffers {

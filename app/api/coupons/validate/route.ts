@@ -83,12 +83,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       valid: true,
       discountAmount: result.discountAmount,
-      freeDispatch: result.freeDispatch,
-      freeShipping: result.freeShipping,
       eligibleSubtotal: result.eligibleSubtotal,
       eligibleQuantity: result.eligibleQuantity,
       eligibleLineCount: result.eligibleLineCount,
       cartSubtotalInclGst: result.cartSubtotalInclGst,
+      eligiblePacketCount: result.eligiblePacketCount,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Server error";

@@ -1,152 +1,58 @@
 /**
- * Inserts 5 sample coupons tied to your catalog (products + categories).
+ * Upserts 2 storewide coupons (empty product/category lists = entire catalog).
  *
  * Usage (from project root):
- *   node --env-file=.env.local scripts/seed-sample-coupons.cjs
+ *   npm run seed:coupons
  * Or:
- *   set MONGODB_URI=... && node scripts/seed-sample-coupons.cjs
- *
- * Safe to run once; duplicate codes will fail with E11000 (skip or delete old coupons first).
+ *   node --env-file=.env.local scripts/seed-sample-coupons.cjs
  */
 
 const mongoose = require("mongoose");
 
 const MONGODB_URI = process.env.MONGODB_URI;
 if (!MONGODB_URI) {
-  console.error("Missing MONGODB_URI. Use: node --env-file=.env.local scripts/seed-sample-coupons.cjs");
+  console.error("Missing MONGODB_URI. Use: npm run seed:coupons (loads .env.local)");
   process.exit(1);
-}
-
-/** Your shared IDs */
-const IDS = {
-  productCableNailClips: "69d5597e987bfbfd3f2038cc",
-  productDoubleNailClamp: "69d5597e987bfbfd3f2038cd",
-  categoryCableNailClips: "69d5597c987bfbfd3f2038b2",
-  categoryDoubleClamp: "69d5597c987bfbfd3f2038b3",
-  catCrystalTaps: "69d5597d987bfbfd3f2038c7",
-  catUpvcPpBallValve: "69d5597e987bfbfd3f2038c8",
-  catPpSolidBallValve: "69d5597e987bfbfd3f2038c9",
-  catUpvcCpvcBallValve: "69d5597e987bfbfd3f2038ca",
-};
-
-function oid(hex) {
-  return new mongoose.Types.ObjectId(hex);
 }
 
 const now = new Date();
 
 const coupons = [
   {
-    code: "NAILCLIP7",
-    name: "Cable nail clips — 7% off",
+    code: "RPT-VOLUME-PCT",
+    name: "Volume discount — all products",
+    description:
+      "Stepped percentage off the couponable cart subtotal (GST-inclusive, non-combo lines only). " +
+      "Discount unlocks by total eligible packet count across the cart — e.g. 7% from 15 packets, up to 12% from 85+ packets. " +
+      "Bags and cartons count toward packets per your price list. Applies to every active product unless a narrower coupon is used.",
     discountType: "percentage",
-    discountPercent: 7,
-    displayPrimary: "7%",
-    displaySecondary: "OFF",
-    title: "Single Cable Nail Clips only",
-    description: "Applies to eligible value on cable nail clips (CAT-CABLE-NAIL-CLIPS) in your cart.",
-    themeKey: "green",
-    applicableProductIds: [oid(IDS.productCableNailClips)],
-    applicableCategoryIds: [],
-    minOrderValue: 0,
-    minTotalQuantity: 0,
-    minEligibleLines: 0,
-    isActive: true,
-    displayInBanner: true,
-    showInCart: true,
-    sortOrder: 10,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    code: "DNC500",
-    name: "Double nail clamp — flat ₹500",
-    discountType: "fixed_amount",
-    fixedAmountOff: 500,
-    displayPrimary: "₹500",
-    displaySecondary: "OFF",
-    title: "Double Nail Clamps",
-    description: "Flat ₹500 off eligible subtotal on double nail clamp line(s). Min ₹5,000 eligible.",
-    themeKey: "indigo",
-    applicableProductIds: [oid(IDS.productDoubleNailClamp)],
-    applicableCategoryIds: [],
-    minOrderValue: 5000,
-    minTotalQuantity: 0,
-    minEligibleLines: 0,
-    isActive: true,
-    displayInBanner: true,
-    showInCart: true,
-    sortOrder: 20,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    code: "BALLVALVE5",
-    name: "Ball valve categories — 5%",
-    discountType: "percentage",
-    discountPercent: 5,
-    displayPrimary: "5%",
-    displaySecondary: "OFF",
-    title: "UPVC / PP ball valves",
-    description: "On RPT ball valve categories (UPVC-PP, PP solid, UPVC/CPVC).",
-    themeKey: "blue",
-    applicableProductIds: [],
-    applicableCategoryIds: [
-      oid(IDS.catUpvcPpBallValve),
-      oid(IDS.catPpSolidBallValve),
-      oid(IDS.catUpvcCpvcBallValve),
+    packetTiers: [
+      { minPackets: 15, value: 7 },
+      { minPackets: 30, value: 8 },
+      { minPackets: 50, value: 9 },
+      { minPackets: 85, value: 12 },
     ],
-    minOrderValue: 0,
-    minTotalQuantity: 0,
-    minEligibleLines: 0,
+    applicableProductIds: [],
+    applicableCategoryIds: [],
     isActive: true,
-    displayInBanner: true,
-    showInCart: true,
-    sortOrder: 30,
-    createdAt: now,
     updatedAt: now,
   },
   {
-    code: "CRYSTALSHIP",
-    name: "Crystal taps — free shipping",
-    discountType: "free_shipping",
-    displayPrimary: "FREE",
-    displaySecondary: "SHIP",
-    title: "Crystal / PVC platinum series taps",
-    description: "Free shipping on eligible crystal/PVC platinum taps category orders.",
-    themeKey: "amber",
+    code: "RPT-ORDER-FLAT",
+    name: "Large order — flat ₹ off (all products)",
+    description:
+      "Flat INR off the eligible subtotal when packet thresholds are met (same packet rules as list pricing). " +
+      "Designed for heavier single orders across the full catalogue. " +
+      "Not combinable with other percentage coupons on the same lines; pick the offer that gives the lower net total.",
+    discountType: "flat",
+    packetTiers: [
+      { minPackets: 25, value: 400 },
+      { minPackets: 50, value: 900 },
+      { minPackets: 100, value: 2000 },
+    ],
     applicableProductIds: [],
-    applicableCategoryIds: [oid(IDS.catCrystalTaps)],
-    minOrderValue: 15000,
-    minTotalQuantity: 0,
-    minEligibleLines: 1,
+    applicableCategoryIds: [],
     isActive: true,
-    displayInBanner: true,
-    showInCart: true,
-    sortOrder: 40,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    code: "CABLECAT3",
-    name: "Cable clips category — 3%",
-    discountType: "percentage",
-    discountPercent: 3,
-    displayPrimary: "3%",
-    displaySecondary: "OFF",
-    title: "Cable clips category",
-    description: "All products under the cable nail clips category (min 2 eligible lines).",
-    themeKey: "brown",
-    applicableProductIds: [],
-    applicableCategoryIds: [oid(IDS.categoryCableNailClips)],
-    minOrderValue: 0,
-    minTotalQuantity: 0,
-    minEligibleLines: 2,
-    isActive: true,
-    displayInBanner: true,
-    showInCart: true,
-    sortOrder: 50,
-    createdAt: now,
     updatedAt: now,
   },
 ];
@@ -154,18 +60,27 @@ const coupons = [
 async function main() {
   await mongoose.connect(MONGODB_URI);
   const col = mongoose.connection.collection("coupons");
-  const result = await col.insertMany(coupons, { ordered: false });
-  console.log("Inserted coupons:", result.insertedCount);
+
   for (const c of coupons) {
-    console.log(`  - ${c.code} (${c.discountType})`);
+    const { updatedAt, ...rest } = c;
+    const res = await col.updateOne(
+      { code: rest.code },
+      {
+        $set: { ...rest, updatedAt },
+        $setOnInsert: { createdAt: now },
+      },
+      { upsert: true }
+    );
+    const action =
+      res.upsertedCount > 0 ? "inserted" : res.modifiedCount > 0 ? "updated" : "unchanged";
+    console.log(`${action}: ${rest.code} (${rest.discountType}, ${rest.packetTiers.length} tiers)`);
   }
+
+  console.log("Done. Both coupons apply to all products (no category/product restrictions).");
   await mongoose.disconnect();
 }
 
 main().catch((e) => {
-  if (e?.code === 11000 || e?.writeErrors?.some((w) => w.code === 11000)) {
-    console.error("Duplicate coupon code(s). Remove existing coupons with these codes or rename them.");
-  }
   console.error(e);
   process.exit(1);
 });

@@ -368,6 +368,84 @@ textarea.admin-input {
   border: 0;
 }
 
+/* Coupon / picker: scrollable checkbox lists */
+.admin-multiselect {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.admin-multiselect-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+
+.admin-multiselect-toolbar input[type="search"] {
+  flex: 1;
+  min-width: 140px;
+  margin: 0;
+}
+
+.admin-multiselect-list {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 0.35rem 0;
+}
+
+.admin-multiselect-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: #1e293b;
+}
+
+.admin-multiselect-row:hover {
+  background: #f8fafc;
+}
+
+.admin-multiselect-row input {
+  margin-top: 0.15rem;
+  accent-color: #2563eb;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.admin-multiselect-row label {
+  margin: 0;
+  font-weight: 400;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-multiselect-meta {
+  display: block;
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 0.15rem;
+}
+
+.admin-multiselect-empty {
+  padding: 0.75rem 0.65rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.admin-multiselect-hint {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 0.25rem 0 0.5rem;
+}
+
 .admin-media-field .admin-media-label {
   display: block;
   font-size: 0.8rem;
