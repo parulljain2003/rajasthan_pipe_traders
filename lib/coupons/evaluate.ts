@@ -1,51 +1,55 @@
-import type { CouponThemeKey } from "@/lib/db/models/Coupon";
-
 function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+export type PacketTier = { minPackets: number; value: number };
+
+export type CouponTierUnit = "packets" | "outer";
+
 export type CouponLean = {
   code: string;
-  discountType: "percentage" | "fixed_amount" | "free_dispatch" | "free_shipping";
-  discountPercent?: number;
-  fixedAmountOff?: number;
+  name?: string;
+  description?: string;
+  discountType: "percentage" | "flat";
+  packetTiers: PacketTier[];
+  /** How `minPackets` thresholds are counted: packets vs outer cartons/bags (see Coupon model). */
+  tierUnit?: CouponTierUnit;
   applicableProductIds?: { toString(): string }[];
   applicableCategoryIds?: { toString(): string }[];
-  minOrderValue?: number;
-  minTotalQuantity?: number;
-  minEligibleLines?: number;
-  startAt?: Date | null;
-  endAt?: Date | null;
   isActive?: boolean;
 };
 
 /**
  * Cart line for coupon math. `lineSubtotal` is always GST-inclusive (matches storefront cart totals).
- * `lineBasicSubtotal` is optional ex-GST; used for reporting only when present.
+ * `quantity` is priced packet count (see `pricedPacketCount`).
  */
 export type CartLineInput = {
   productMongoId?: string;
   categoryMongoId?: string;
+  /**
+   * Priced packet count (bags→packets) — used for combo / couponable packet split with lineSubtotal.
+   */
   quantity: number;
+  /**
+   * When set (from Mongo packaging + pricingUnit), used only for packet-tier thresholds (minPackets).
+   * Falls back to `quantity` when omitted.
+   */
+  tierPacketQuantity?: number;
+  /**
+   * When set (from Mongo packaging + order mode), used for `tierUnit === "outer"` thresholds.
+   * Falls back to `quantity` when omitted (legacy lines without packaging).
+   */
+  tierOuterUnitQuantity?: number;
   /** GST-inclusive line total (₹) */
   lineSubtotal: number;
   /** Ex-GST line total when known (₹) */
   lineBasicSubtotal?: number;
   /**
    * GST-inclusive value of combo net-priced packets on this line.
-   * Coupon percentage / fixed discounts apply only to (lineSubtotal − comboSubtotalInclGst).
+   * Coupon discounts apply only to (lineSubtotal − comboSubtotalInclGst).
    */
   comboSubtotalInclGst?: number;
 };
-
-export function isCouponInSchedule(
-  coupon: Pick<CouponLean, "startAt" | "endAt">,
-  now: Date = new Date()
-): boolean {
-  if (coupon.startAt && now < new Date(coupon.startAt)) return false;
-  if (coupon.endAt && now > new Date(coupon.endAt)) return false;
-  return true;
-}
 
 function idSet(ids: unknown[] | undefined): Set<string> {
   const s = new Set<string>();
@@ -114,7 +118,19 @@ export function eligibleTotalsForCoupon(coupon: CouponLean, lines: CartLineInput
   return { eligibleSubtotal, eligibleQuantity, eligibleLineCount };
 }
 
-/** Full GST subtotals on scope-matched lines (includes combo net value) — for min order / min qty gates. */
+function effectiveTierUnit(coupon: CouponLean): CouponTierUnit {
+  return coupon.tierUnit === "outer" ? "outer" : "packets";
+}
+
+function tierThresholdQuantity(line: CartLineInput, coupon: CouponLean): number {
+  const u = effectiveTierUnit(coupon);
+  if (u === "outer") {
+    return Math.max(0, line.tierOuterUnitQuantity ?? line.quantity);
+  }
+  return Math.max(0, line.tierPacketQuantity ?? line.quantity);
+}
+
+/** Full GST subtotals on scope-matched lines (includes combo net value) — used for tier thresholds. */
 export function grossEligibleTotalsForCoupon(
   coupon: CouponLean,
   lines: CartLineInput[]
@@ -128,7 +144,7 @@ export function grossEligibleTotalsForCoupon(
     if (line.quantity <= 0) continue;
     if (!lineMatchesScope(line, productIds, categoryIds)) continue;
     grossSubtotal += Math.max(0, line.lineSubtotal);
-    grossQuantity += line.quantity;
+    grossQuantity += tierThresholdQuantity(line, coupon);
     grossLineCount += 1;
   }
   return {
@@ -138,51 +154,51 @@ export function grossEligibleTotalsForCoupon(
   };
 }
 
+/**
+ * Pick the best unlocked tier: highest `minPackets` such that `packetCount >= minPackets`.
+ * For duplicate `minPackets`, the larger `value` wins.
+ */
+export function selectPacketTier(tiers: PacketTier[], packetCount: number): PacketTier | null {
+  let best: PacketTier | null = null;
+  for (const t of tiers) {
+    if (packetCount < t.minPackets) continue;
+    if (!best || t.minPackets > best.minPackets) {
+      best = t;
+    } else if (t.minPackets === best.minPackets && t.value > best.value) {
+      best = t;
+    }
+  }
+  return best;
+}
+
 export type DiscountResult = {
   discountAmount: number;
-  freeDispatch: boolean;
-  freeShipping: boolean;
 };
 
-export function computeDiscountAmount(coupon: CouponLean, eligibleSubtotal: number): DiscountResult {
+export function computeDiscountAmount(
+  coupon: CouponLean,
+  eligibleSubtotal: number,
+  tier: PacketTier
+): DiscountResult {
   const sub = Math.max(0, eligibleSubtotal);
-  if (coupon.discountType === "free_dispatch") {
-    return { discountAmount: 0, freeDispatch: true, freeShipping: false };
+  if (coupon.discountType === "flat") {
+    const off = Math.max(0, Number(tier.value) || 0);
+    return { discountAmount: Math.min(sub, off) };
   }
-  if (coupon.discountType === "free_shipping") {
-    return { discountAmount: 0, freeDispatch: false, freeShipping: true };
-  }
-  if (coupon.discountType === "fixed_amount") {
-    const off = Math.max(0, Number(coupon.fixedAmountOff) || 0);
-    return {
-      discountAmount: Math.min(sub, off),
-      freeDispatch: false,
-      freeShipping: false,
-    };
-  }
-  if (coupon.discountType !== "percentage") {
-    return { discountAmount: 0, freeDispatch: false, freeShipping: false };
-  }
-  const pct = Math.max(0, Math.min(100, Number(coupon.discountPercent) || 0));
-  return {
-    discountAmount: Math.round((sub * pct) / 100),
-    freeDispatch: false,
-    freeShipping: false,
-  };
+  const pct = Math.max(0, Math.min(100, Number(tier.value) || 0));
+  return { discountAmount: Math.round((sub * pct) / 100) };
 }
 
 export type ValidateCouponResult =
   | {
       ok: true;
       discountAmount: number;
-      freeDispatch: boolean;
-      freeShipping: boolean;
-      /** Sum of GST-inclusive subtotals for lines that count toward this coupon */
       eligibleSubtotal: number;
       eligibleQuantity: number;
       eligibleLineCount: number;
-      /** Full cart GST-inclusive subtotal (all lines), for reconciliation */
       cartSubtotalInclGst: number;
+      /** Total packets on eligible lines (tier threshold basis). */
+      eligiblePacketCount: number;
     }
   | { ok: false; reason: string };
 
@@ -195,14 +211,7 @@ function sumCartSubtotal(lines: CartLineInput[]): number {
   return roundMoney(t);
 }
 
-/**
- * `minOrderValue` applies to the GST-inclusive eligible subtotal (same basis as cart “Grand Total”).
- */
-export function validateCouponAgainstCart(
-  coupon: CouponLean | null,
-  lines: CartLineInput[],
-  now: Date = new Date()
-): ValidateCouponResult {
+export function validateCouponAgainstCart(coupon: CouponLean | null, lines: CartLineInput[]): ValidateCouponResult {
   const activeLines = lines.filter((l) => l.quantity > 0 && Number.isFinite(l.lineSubtotal));
   if (activeLines.length === 0) {
     return { ok: false, reason: "Cart is empty" };
@@ -214,9 +223,11 @@ export function validateCouponAgainstCart(
   if (!coupon.isActive) {
     return { ok: false, reason: "Coupon is not active" };
   }
-  if (!isCouponInSchedule(coupon, now)) {
-    return { ok: false, reason: "Coupon is not valid at this time" };
+  const tiers = Array.isArray(coupon.packetTiers) ? coupon.packetTiers : [];
+  if (tiers.length === 0) {
+    return { ok: false, reason: "Coupon is not configured" };
   }
+
   const cartSubtotalInclGst = sumCartSubtotal(activeLines);
   const cartCouponableSubtotalInclGst = roundMoney(
     activeLines.reduce((s, l) => s + couponableLineSubtotalInclGst(l), 0)
@@ -229,30 +240,21 @@ export function validateCouponAgainstCart(
   if (restricted && grossLineCount === 0) {
     return { ok: false, reason: "No items in your cart match this coupon" };
   }
-  const minOrder = Number(coupon.minOrderValue) || 0;
-  const minOrderBasis = restricted ? grossSubtotal : cartSubtotalInclGst;
-  if (minOrder > 0 && minOrderBasis < minOrder) {
+
+  const tier = selectPacketTier(tiers, grossQuantity);
+  if (!tier) {
+    const lowest = Math.min(...tiers.map((t) => t.minPackets));
+    const outer = effectiveTierUnit(coupon) === "outer";
     return {
       ok: false,
-      reason: `Minimum order value ₹${minOrder.toLocaleString("en-IN")} on eligible items not met`,
+      reason: outer
+        ? `At least ${lowest} eligible outer units required (cartons and master bags; thresholds use carton/bag counts from your catalog)`
+        : `At least ${lowest} eligible packets required (cartons/bags count toward packet totals per product)`,
     };
   }
-  const minQty = Number(coupon.minTotalQuantity) || 0;
-  if (minQty > 0 && grossQuantity < minQty) {
-    return {
-      ok: false,
-      reason: `Minimum quantity ${minQty} on eligible items not met`,
-    };
-  }
-  const minLines = Number(coupon.minEligibleLines) || 0;
-  if (minLines > 0 && grossLineCount < minLines) {
-    return {
-      ok: false,
-      reason: `At least ${minLines} eligible product line(s) required`,
-    };
-  }
+
   if (
-    (coupon.discountType === "percentage" || coupon.discountType === "fixed_amount") &&
+    (coupon.discountType === "percentage" || coupon.discountType === "flat") &&
     eligibleSubtotal <= 0 &&
     grossSubtotal > 0
   ) {
@@ -262,7 +264,8 @@ export function validateCouponAgainstCart(
         "Combo-priced items are excluded from this coupon. Add regular-priced items, or turn off combo pricing for 20/25MM clips in the cart.",
     };
   }
-  let { discountAmount, freeDispatch, freeShipping } = computeDiscountAmount(coupon, eligibleSubtotal);
+
+  let { discountAmount } = computeDiscountAmount(coupon, eligibleSubtotal, tier);
   discountAmount = roundMoney(discountAmount);
   if (discountAmount > cartCouponableSubtotalInclGst) {
     discountAmount = cartCouponableSubtotalInclGst;
@@ -270,33 +273,45 @@ export function validateCouponAgainstCart(
   return {
     ok: true,
     discountAmount,
-    freeDispatch,
-    freeShipping,
     eligibleSubtotal: roundMoney(eligibleSubtotal),
     eligibleQuantity,
     eligibleLineCount,
     cartSubtotalInclGst,
+    eligiblePacketCount: grossQuantity,
   };
 }
 
-export function themeKeyOrDefault(key: string | undefined): CouponThemeKey {
-  const allowed: CouponThemeKey[] = ["blue", "indigo", "green", "amber", "brown"];
-  if (key && allowed.includes(key as CouponThemeKey)) return key as CouponThemeKey;
-  return "blue";
+const BANNER_THEMES = ["blue", "indigo", "green", "amber", "brown"] as const;
+export type CouponBannerThemeKey = (typeof BANNER_THEMES)[number];
+
+export function themeKeyOrDefault(key: string | undefined, index = 0): CouponBannerThemeKey {
+  if (key && (BANNER_THEMES as readonly string[]).includes(key)) {
+    return key as CouponBannerThemeKey;
+  }
+  return BANNER_THEMES[index % BANNER_THEMES.length]!;
 }
 
-export function toPublicCouponBanner(doc: Record<string, unknown>): Record<string, unknown> {
-  const offerRaw = doc.offerAppliesTo;
-  const offerAppliesTo =
-    typeof offerRaw === "string" && offerRaw.trim() !== "" ? offerRaw.trim() : undefined;
-  const out: Record<string, unknown> = {
+export function toPublicCouponBanner(doc: Record<string, unknown>, index = 0): Record<string, unknown> {
+  const tiers = doc.packetTiers as PacketTier[] | undefined;
+  const dt = doc.discountType;
+  const name = String(doc.name ?? doc.code ?? "");
+  const desc = typeof doc.description === "string" ? doc.description : "";
+  let discountStub = "";
+  if (Array.isArray(tiers) && tiers.length > 0) {
+    const maxVal = Math.max(...tiers.map((t) => t.value));
+    discountStub =
+      dt === "percentage"
+        ? `Up to ${maxVal}%`
+        : `Up to ₹${maxVal.toLocaleString("en-IN")}`;
+  }
+  const tierUnit = doc.tierUnit === "outer" ? "outer" : "packets";
+  return {
     code: doc.code,
-    discount: doc.displayPrimary,
-    label: doc.displaySecondary ?? "",
-    condition: doc.title,
-    desc: doc.description ?? "",
-    theme: themeKeyOrDefault(String(doc.themeKey ?? "blue")),
+    discount: discountStub,
+    label: "OFF",
+    condition: name,
+    desc,
+    theme: themeKeyOrDefault(undefined, index),
+    tierUnit,
   };
-  if (offerAppliesTo) out.offerAppliesTo = offerAppliesTo;
-  return out;
 }

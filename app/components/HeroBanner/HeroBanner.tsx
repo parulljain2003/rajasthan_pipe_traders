@@ -20,54 +20,37 @@ type BannerCoupon = {
   condition: string;
   desc: string;
   theme: string;
-  /** Price list wording (cartons, bags, …) */
-  offerAppliesTo?: string;
 };
 
 const FALLBACK_COUPONS: BannerCoupon[] = [
   {
     code: "BULK7",
-    discount: "7%",
+    discount: "Up to 12%",
     label: "OFF",
-    condition: "On 15+ Cartons / Bags",
-    desc: "Mix items · complete price list",
+    condition: "Bulk packet tiers",
+    desc: "7%–12% by quantity — see description on live coupons",
     theme: "blue",
-    offerAppliesTo: "Cartons & bags (per price list)",
   },
   {
     code: "BULK9",
-    discount: "9%",
+    discount: "Up to 12%",
     label: "OFF",
-    condition: "On 50+ Cartons / Bags",
-    desc: "Mix items · complete price list",
+    condition: "Mix cart lines",
+    desc: "Thresholds use priced packet totals",
     theme: "indigo",
-    offerAppliesTo: "Cartons & bags (per price list)",
   },
   {
     code: "BULK12",
-    discount: "12%",
+    discount: "Up to 12%",
     label: "OFF",
-    condition: "On 85+ Cartons / Bags",
-    desc: "Maximum bulk discount",
+    condition: "Eligible catalogue lines",
+    desc: "Configure in admin",
     theme: "green",
-    offerAppliesTo: "Cartons & bags (per price list)",
-  },
-  {
-    code: "MIN25K",
-    discount: "FREE",
-    label: "DISPATCH",
-    condition: "Min. Order ₹25,000",
-    desc: "100% advance · TO PAY freight",
-    theme: "amber",
-    offerAppliesTo: "All lines as per price list",
   },
 ];
 
 function normalizeBannerCoupon(raw: Record<string, unknown>): BannerCoupon {
   const theme = typeof raw.theme === "string" && COUPON_THEMES.has(raw.theme) ? raw.theme : "blue";
-  const offerRaw = raw.offerAppliesTo;
-  const offerAppliesTo =
-    typeof offerRaw === "string" && offerRaw.trim() !== "" ? offerRaw.trim() : undefined;
   return {
     code: String(raw.code ?? ""),
     discount: String(raw.discount ?? ""),
@@ -75,7 +58,6 @@ function normalizeBannerCoupon(raw: Record<string, unknown>): BannerCoupon {
     condition: String(raw.condition ?? ""),
     desc: String(raw.desc ?? ""),
     theme,
-    offerAppliesTo,
   };
 }
 
@@ -155,9 +137,6 @@ function CouponCard({ c }: { c: BannerCoupon }) {
       {/* body */}
       <div className={styles.couponBody}>
         <p className={styles.couponCond}>{c.condition}</p>
-        {c.offerAppliesTo ? (
-          <p className={styles.couponOfferScope}>{c.offerAppliesTo}</p>
-        ) : null}
         <p className={styles.couponDescTxt}>{c.desc}</p>
         <button
           type="button"

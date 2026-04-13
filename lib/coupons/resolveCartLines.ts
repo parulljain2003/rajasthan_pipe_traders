@@ -1,5 +1,14 @@
 import mongoose from "mongoose";
 import { ProductModel } from "@/lib/db/models/Product";
+import {
+  buildPackagingContextFromProduct,
+  cartHasMixedPacketAndOuterFamilies,
+  computeCouponTierOuterUnitCount,
+  computeCouponTierPacketCount,
+  computeCouponTierPacketCountMixedCartLine,
+  type ProductPackagingForCoupon,
+} from "@/lib/coupons/couponTierQuantity";
+import type { CartOrderMode } from "@/lib/cart/packetLine";
 import type { CartLineInput } from "./evaluate";
 
 export type IncomingCouponLine = {
@@ -15,6 +24,13 @@ export type IncomingCouponLine = {
   lineBasicSubtotal?: number;
   /** GST-inclusive combo net portion — excluded from coupon discount */
   comboSubtotalInclGst?: number;
+  /** Matches cart line — used with `rawQuantity` for outer-unit tier math */
+  orderMode?: CartOrderMode;
+  /**
+   * Cart `quantity` before priced-packet expansion: packet count in `packets` mode, bag count in
+   * `master_bag` mode. When omitted, outer tiers infer bags from packets ÷ qtyPerBag when possible.
+   */
+  rawQuantity?: number;
 };
 
 function roundMoney(n: number): number {
@@ -35,6 +51,7 @@ type LeanProduct = {
   _id: unknown;
   isActive?: boolean;
   category?: unknown;
+  packaging?: Record<string, unknown>;
   sellers?: Array<{
     sellerId: string;
     sizes?: Array<{ size: string; basicPrice: number; priceWithGst: number }>;
@@ -70,6 +87,18 @@ function pickUnitPrice(
 
   return null;
 }
+
+type MongoLineWork = {
+  pid: string;
+  row: IncomingCouponLine;
+  q: number;
+  lineSubtotal: number;
+  lineBasicSubtotal: number;
+  categoryMongoId?: string;
+  comboSt?: number;
+  pkgCtx: ProductPackagingForCoupon;
+  unit: { basicPrice: number; priceWithGst: number };
+};
 
 /**
  * Builds canonical cart lines: when `productMongoId` is present, GST-inclusive totals come from
@@ -116,12 +145,12 @@ export async function resolveCartLinesForCoupon(
   const [byOidRows, byLegacyRows] = await Promise.all([
     uniqueIds.length > 0
       ? ProductModel.find({ _id: { $in: uniqueIds.map((id) => new mongoose.Types.ObjectId(id)) } })
-          .select({ sellers: 1, sizes: 1, pricing: 1, category: 1, isActive: 1, legacyId: 1 })
+          .select({ sellers: 1, sizes: 1, pricing: 1, category: 1, isActive: 1, legacyId: 1, packaging: 1 })
           .lean()
       : Promise.resolve([]),
     legacyIds.size > 0
       ? ProductModel.find({ legacyId: { $in: [...legacyIds] } })
-          .select({ sellers: 1, sizes: 1, pricing: 1, category: 1, isActive: 1, legacyId: 1 })
+          .select({ sellers: 1, sizes: 1, pricing: 1, category: 1, isActive: 1, legacyId: 1, packaging: 1 })
           .lean()
       : Promise.resolve([]),
   ]);
@@ -136,7 +165,9 @@ export async function resolveCartLinesForCoupon(
     if (p.legacyId != null) byLegacy.set(Number(p.legacyId), p as LeanProduct);
   }
 
-  const lines: CartLineInput[] = [];
+  type Segment = { kind: "mongo"; work: MongoLineWork } | { kind: "legacy"; line: CartLineInput };
+
+  const segments: Segment[] = [];
   let cartSubtotalInclGst = 0;
 
   for (const row of prepared) {
@@ -187,14 +218,21 @@ export async function resolveCartLinesForCoupon(
         row.comboSubtotalInclGst != null && Number.isFinite(Number(row.comboSubtotalInclGst))
           ? roundMoney(Math.max(0, Number(row.comboSubtotalInclGst)))
           : undefined;
+      const pkgCtx = buildPackagingContextFromProduct(prod as Parameters<typeof buildPackagingContextFromProduct>[0], row.sellerId, row.size);
       cartSubtotalInclGst += lineSubtotal;
-      lines.push({
-        productMongoId: pid,
-        categoryMongoId,
-        quantity: q,
-        lineSubtotal,
-        lineBasicSubtotal,
-        ...(comboSt !== undefined && comboSt > 0 ? { comboSubtotalInclGst: comboSt } : {}),
+      segments.push({
+        kind: "mongo",
+        work: {
+          pid,
+          row,
+          q,
+          lineSubtotal,
+          lineBasicSubtotal,
+          categoryMongoId,
+          comboSt,
+          pkgCtx,
+          unit,
+        },
       });
     } else {
       const st = row.lineSubtotal != null ? Number(row.lineSubtotal) : NaN;
@@ -210,15 +248,66 @@ export async function resolveCartLinesForCoupon(
           ? roundMoney(Math.max(0, Number(row.comboSubtotalInclGst)))
           : undefined;
       cartSubtotalInclGst += st;
-      lines.push({
+      const line: CartLineInput = {
         productMongoId: undefined,
         categoryMongoId: row.categoryMongoId?.trim(),
         quantity: q,
         lineSubtotal: st,
         lineBasicSubtotal: basic,
         ...(comboSt !== undefined && comboSt > 0 ? { comboSubtotalInclGst: comboSt } : {}),
-      });
+      };
+      segments.push({ kind: "legacy", line });
     }
+  }
+
+  const mongoWorks = segments.filter((s): s is { kind: "mongo"; work: MongoLineWork } => s.kind === "mongo").map(
+    (s) => s.work
+  );
+  const mixedPacketTier =
+    mongoWorks.length >= 2 &&
+    cartHasMixedPacketAndOuterFamilies(
+      mongoWorks.map((m) => ({ product: m.pkgCtx, orderMode: m.row.orderMode }))
+    );
+
+  const lines: CartLineInput[] = [];
+  for (const seg of segments) {
+    if (seg.kind === "legacy") {
+      lines.push(seg.line);
+      continue;
+    }
+    const m = seg.work;
+    const tierPackets = mixedPacketTier
+      ? computeCouponTierPacketCountMixedCartLine({
+          lineSubtotalInclGst: m.lineSubtotal,
+          unitPriceWithGst: m.unit.priceWithGst,
+          product: m.pkgCtx,
+          clientPacketQuantity: m.q,
+          orderMode: m.row.orderMode,
+        })
+      : computeCouponTierPacketCount({
+          lineSubtotalInclGst: m.lineSubtotal,
+          unitPriceWithGst: m.unit.priceWithGst,
+          product: m.pkgCtx,
+          clientPacketQuantity: m.q,
+        });
+    const tierOuter = computeCouponTierOuterUnitCount({
+      lineSubtotalInclGst: m.lineSubtotal,
+      unitPriceWithGst: m.unit.priceWithGst,
+      product: m.pkgCtx,
+      clientPacketQuantity: m.q,
+      orderMode: m.row.orderMode,
+      rawLineQuantity: m.row.rawQuantity,
+    });
+    lines.push({
+      productMongoId: m.pid,
+      categoryMongoId: m.categoryMongoId,
+      quantity: m.q,
+      tierPacketQuantity: tierPackets,
+      tierOuterUnitQuantity: tierOuter,
+      lineSubtotal: m.lineSubtotal,
+      lineBasicSubtotal: m.lineBasicSubtotal,
+      ...(m.comboSt !== undefined && m.comboSt > 0 ? { comboSubtotalInclGst: m.comboSt } : {}),
+    });
   }
 
   cartSubtotalInclGst = roundMoney(cartSubtotalInclGst);

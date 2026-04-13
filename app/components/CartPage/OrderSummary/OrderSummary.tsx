@@ -13,6 +13,12 @@ function formatPieces(n: number) {
   return n.toLocaleString("en-IN");
 }
 
+function truncateOfferText(text: string, maxChars: number): string {
+  const t = text.trim();
+  if (t.length <= maxChars) return t;
+  return `${t.slice(0, maxChars - 1).trim()}…`;
+}
+
 interface OrderSummaryProps {
   basicTotal: number;
   gstTotal: number;
@@ -24,11 +30,13 @@ interface OrderSummaryProps {
   cartCoupons: CartCouponOption[];
   /** False until first fetch to `/api/coupons?cart=1` completes */
   couponsLoaded: boolean;
+  /** Best-offer validation in progress */
+  autoCouponBusy: boolean;
+  /** User removed auto-applied offer; stays until cart lines change */
+  userOptedOutCoupon: boolean;
   appliedCoupon: string | null;
   couponDiscount: number;
   finalTotal: number;
-  freeDispatch: boolean;
-  freeShipping: boolean;
   /** Shown when cart changed and the previously applied coupon was cleared */
   couponBannerError: string | null;
   onCouponChange: (code: string | null) => Promise<CouponApplyResult>;
@@ -49,11 +57,11 @@ export default function OrderSummary({
   items,
   cartCoupons,
   couponsLoaded,
+  autoCouponBusy,
+  userOptedOutCoupon,
   appliedCoupon,
   couponDiscount,
   finalTotal,
-  freeDispatch,
-  freeShipping,
   couponBannerError,
   onCouponChange,
   onPlaceOrder,
@@ -62,10 +70,6 @@ export default function OrderSummary({
   couponPricingMode,
   onCouponPricingModeChange,
 }: OrderSummaryProps) {
-  const [applyError, setApplyError] = useState<string | null>(null);
-  const [manualCode, setManualCode] = useState("");
-  const [applyingCode, setApplyingCode] = useState<string | null>(null);
-
   const couponMeta = appliedCoupon ? cartCoupons.find((c) => c.code === appliedCoupon) ?? null : null;
 
   const minOrderMet = finalTotal >= minimumOrderInclGst;
@@ -97,41 +101,34 @@ export default function OrderSummary({
             {couponBannerError}
           </div>
         )}
-        {appliedCoupon ? (
-          <div className={styles.appliedCoupon}>
-            <div className={styles.appliedLeft}>
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <div>
-                <span className={styles.appliedCode}>{appliedCoupon}</span>
-                <span className={styles.appliedDesc}>
-                  {couponMeta
-                    ? `${couponMeta.discount}${couponMeta.label ? ` ${couponMeta.label}` : ""} · ${couponMeta.condition}${
-                        couponMeta.offerAppliesTo ? ` · ${couponMeta.offerAppliesTo}` : ""
-                      }`
-                    : "Benefit applied to this order"}
-                </span>
-              </div>
+
+        {autoCouponBusy && !appliedCoupon ? (
+          <p className={styles.couponsLoading} role="status">
+            Checking offers…
+          </p>
+        ) : null}
+
+        {appliedCoupon && couponMeta && couponDiscount > 0 ? (
+          <div className={styles.offerCard} role="status">
+            <div className={styles.offerCardHeader}>
+              <span className={styles.offerBadge}>Offer applied</span>
+              <span className={styles.offerSaving}>−₹{couponDiscount.toFixed(0)}</span>
             </div>
+            <p className={styles.offerTitle}>{couponMeta.condition}</p>
+            <p className={styles.offerDesc}>
+              {truncateOfferText(couponMeta.desc || `${couponMeta.discount} ${couponMeta.label}`.trim(), 220)}
+            </p>
+            <p className={styles.offerCodeLine}>
+              Code <strong>{appliedCoupon}</strong>
+            </p>
             <button
-              className={styles.removeBtn}
+              type="button"
+              className={styles.removeOfferBtn}
               onClick={() => {
                 void onCouponChange(null);
-                setApplyError(null);
               }}
-              aria-label="Remove coupon"
             >
-              Remove
+              Remove offer
             </button>
           </div>
         ) : null}
@@ -158,136 +155,17 @@ export default function OrderSummary({
           </label>
         ) : null}
 
-        {!appliedCoupon && (
-          <>
-            {!couponsLoaded ? (
-              <p className={styles.couponsLoading}>Loading available offers…</p>
-            ) : cartCoupons.length > 0 ? (
-              <div className={styles.availableOffers}>
-                <h4 className={styles.availableOffersTitle}>Available coupons</h4>
-                <p className={styles.availableOffersHint}>Tap Apply — we&apos;ll check it against your cart.</p>
-                <ul className={styles.availableOffersList} role="list">
-                  {cartCoupons.map((c) => (
-                    <li key={c.code} className={styles.couponCardRowWrap}>
-                      <div
-                        className={styles.couponCardRow}
-                        style={{ "--coupon-color": c.color } as React.CSSProperties}
-                      >
-                        <div className={styles.couponCardStrip} aria-hidden />
-                        <div className={styles.couponCardBody}>
-                          <div className={styles.couponCardTop}>
-                            <span className={styles.couponCardCode}>{c.code}</span>
-                            <span className={styles.couponCardDiscount}>
-                              {c.discount}
-                              {c.label ? <span className={styles.couponCardLabel}>{c.label}</span> : null}
-                            </span>
-                          </div>
-                          <span className={styles.couponCardCondition}>{c.condition}</span>
-                          {c.offerAppliesTo ? (
-                            <span className={styles.couponCardOfferScope}>{c.offerAppliesTo}</span>
-                          ) : null}
-                          {c.desc ? <span className={styles.couponCardDesc}>{c.desc}</span> : null}
-                        </div>
-                        <button
-                          type="button"
-                          className={styles.couponCardApplyBtn}
-                          disabled={applyingCode !== null}
-                          onClick={() => {
-                            void (async () => {
-                              setApplyError(null);
-                              setApplyingCode(c.code);
-                              try {
-                                const res = await onCouponChange(c.code);
-                                if (res.ok) setManualCode("");
-                                else setApplyError(res.message);
-                              } finally {
-                                setApplyingCode(null);
-                              }
-                            })();
-                          }}
-                        >
-                          {applyingCode === c.code ? "Applying…" : "Apply"}
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <p className={styles.couponListEmpty}>No featured coupons right now — enter a code below if you have one.</p>
-            )}
+        {!appliedCoupon && userOptedOutCoupon && couponsLoaded && !autoCouponBusy ? (
+          <p className={styles.offerMuted} role="note">
+            Offer removed. Change quantities or items to refresh offers.
+          </p>
+        ) : null}
 
-            <div className={styles.manualCodeBlock}>
-              <span className={styles.manualCodeLabel}>Have a coupon code?</span>
-              <div className={styles.couponManualRow}>
-                <input
-                  type="text"
-                  className={styles.couponManualInput}
-                  placeholder="Enter code"
-                  value={manualCode}
-                  onChange={(e) => setManualCode(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      const code = manualCode.trim().toUpperCase();
-                      if (!code) return;
-                      void (async () => {
-                        setApplyError(null);
-                        setApplyingCode(code);
-                        try {
-                          const res = await onCouponChange(code);
-                          if (res.ok) setManualCode("");
-                          else setApplyError(res.message);
-                        } finally {
-                          setApplyingCode(null);
-                        }
-                      })();
-                    }
-                  }}
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  spellCheck={false}
-                  aria-label="Coupon code"
-                />
-                <button
-                  type="button"
-                  className={styles.couponManualApply}
-                  disabled={applyingCode !== null}
-                  onClick={() => {
-                    const code = manualCode.trim().toUpperCase();
-                    if (!code) {
-                      setApplyError("Enter a coupon code");
-                      return;
-                    }
-                    void (async () => {
-                      setApplyError(null);
-                      setApplyingCode(code);
-                      try {
-                        const res = await onCouponChange(code);
-                        if (res.ok) setManualCode("");
-                        else setApplyError(res.message);
-                      } finally {
-                        setApplyingCode(null);
-                      }
-                    })();
-                  }}
-                >
-                  {applyingCode !== null &&
-                  manualCode.trim().toUpperCase() !== "" &&
-                  manualCode.trim().toUpperCase() === applyingCode
-                    ? "Applying…"
-                    : "Apply"}
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {applyError && (
-          <div className={styles.couponApplyErr} role="alert">
-            {applyError}
-          </div>
-        )}
+        {!appliedCoupon && !userOptedOutCoupon && couponsLoaded && cartCoupons.length > 0 && !autoCouponBusy ? (
+          <p className={styles.offerMuted} role="note">
+            No volume offer applies to this cart yet — add more packets to unlock discounts.
+          </p>
+        ) : null}
       </div>
 
       {items.length > 0 && (
@@ -358,19 +236,6 @@ export default function OrderSummary({
           <span className={styles.discountVal}>−₹{couponDiscount.toFixed(0)}</span>
         </div>
       )}
-      {freeDispatch && (
-        <div className={styles.row}>
-          <span className={styles.rowLabel}>Dispatch</span>
-          <span className={styles.freeTag}>FREE</span>
-        </div>
-      )}
-      {freeShipping && (
-        <div className={styles.row}>
-          <span className={styles.rowLabel}>Shipping</span>
-          <span className={styles.freeTag}>FREE</span>
-        </div>
-      )}
-
       <div className={styles.divider} />
 
       <div className={`${styles.row} ${styles.totalRow}`}>

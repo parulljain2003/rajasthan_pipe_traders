@@ -5,10 +5,10 @@ import { CouponModel } from "@/lib/db/models/Coupon";
 import { serializeCouponLean } from "@/lib/db/serialize";
 import {
   isDiscountType,
-  normalizeThemeKey,
   parseObjectIdList,
-  parseOfferAppliesTo,
-  parseOptionalDate,
+  parsePacketTiers,
+  parseTierUnit,
+  validatePacketTiersForDiscountType,
 } from "@/lib/coupons/couponPayload";
 
 function err(message: string, status: number) {
@@ -43,51 +43,62 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     await connectDb();
     const body = (await req.json()) as Record<string, unknown>;
     const $set: Record<string, unknown> = {};
-    const $unset: Record<string, 1> = {};
+
     if (typeof body.code === "string") $set.code = body.code.trim().toUpperCase();
     if (typeof body.name === "string") $set.name = body.name.trim();
+    if (typeof body.description === "string") $set.description = body.description.trim();
+
+    let nextDiscountType: "percentage" | "flat" | undefined;
     if (body.discountType !== undefined) {
       if (!isDiscountType(body.discountType)) {
-        return err("discountType must be percentage, fixed_amount, free_dispatch, or free_shipping", 400);
+        return err("discountType must be percentage or flat", 400);
       }
       $set.discountType = body.discountType;
+      nextDiscountType = body.discountType;
     }
-    if (typeof body.discountPercent === "number") $set.discountPercent = body.discountPercent;
-    if (typeof body.fixedAmountOff === "number") $set.fixedAmountOff = body.fixedAmountOff;
-    if (typeof body.displayPrimary === "string") $set.displayPrimary = body.displayPrimary.trim();
-    if (typeof body.displaySecondary === "string") $set.displaySecondary = body.displaySecondary.trim();
-    if (typeof body.title === "string") $set.title = body.title.trim();
-    if (typeof body.description === "string") $set.description = body.description.trim();
-    if (body.themeKey !== undefined) $set.themeKey = normalizeThemeKey(body.themeKey);
-    if (body.offerAppliesTo !== undefined) $set.offerAppliesTo = parseOfferAppliesTo(body.offerAppliesTo);
+
+    if (body.packetTiers !== undefined) {
+      const discountType =
+        nextDiscountType ??
+        ((await CouponModel.findById(id).select("discountType").lean()) as { discountType?: string } | null)
+          ?.discountType;
+      if (!isDiscountType(discountType)) {
+        return err("Could not resolve discountType for tier validation", 400);
+      }
+      const packetTiers = parsePacketTiers(body.packetTiers);
+      const tierErr = validatePacketTiersForDiscountType(packetTiers, discountType);
+      if (tierErr) return err(tierErr, 400);
+      $set.packetTiers = packetTiers;
+    }
+
     if (body.applicableProductIds !== undefined) {
       $set.applicableProductIds = parseObjectIdList(body.applicableProductIds);
     }
     if (body.applicableCategoryIds !== undefined) {
       $set.applicableCategoryIds = parseObjectIdList(body.applicableCategoryIds);
     }
-    if (typeof body.minOrderValue === "number") $set.minOrderValue = Math.max(0, body.minOrderValue);
-    if (typeof body.minTotalQuantity === "number") $set.minTotalQuantity = Math.max(0, body.minTotalQuantity);
-    if (typeof body.minEligibleLines === "number") $set.minEligibleLines = Math.max(0, body.minEligibleLines);
-    if ("startAt" in body) {
-      const d = parseOptionalDate(body.startAt);
-      $set.startAt = d === undefined ? null : d;
-    }
-    if ("endAt" in body) {
-      const d = parseOptionalDate(body.endAt);
-      $set.endAt = d === undefined ? null : d;
-    }
     if (typeof body.isActive === "boolean") $set.isActive = body.isActive;
-    if (typeof body.displayInBanner === "boolean") $set.displayInBanner = body.displayInBanner;
-    if (typeof body.showInCart === "boolean") $set.showInCart = body.showInCart;
-    if (typeof body.sortOrder === "number") $set.sortOrder = body.sortOrder;
-    if (typeof body.internalNotes === "string") $set.internalNotes = body.internalNotes.trim();
+    if (body.tierUnit !== undefined) {
+      $set.tierUnit = parseTierUnit(body.tierUnit);
+    }
 
-    const mongoUpdate: { $set?: Record<string, unknown>; $unset?: Record<string, 1> } = {};
+    if ($set.discountType !== undefined && body.packetTiers === undefined) {
+      const existing = await CouponModel.findById(id).select("packetTiers discountType").lean();
+      if (!existing) return err("Coupon not found", 404);
+      const tiers = (existing as { packetTiers?: { minPackets: number; value: number }[] }).packetTiers ?? [];
+      const effType = $set.discountType as "percentage" | "flat";
+      const tierErr = validatePacketTiersForDiscountType(
+        tiers.map((t) => ({ minPackets: t.minPackets, value: t.value })),
+        effType
+      );
+      if (tierErr) return err(`${tierErr} (change tiers or keep discount type)`, 400);
+    }
+
+    const mongoUpdate: { $set?: Record<string, unknown> } = {};
     if (Object.keys($set).length) mongoUpdate.$set = $set;
-    if (Object.keys($unset).length) mongoUpdate.$unset = $unset;
+
     let row;
-    if (!mongoUpdate.$set && !mongoUpdate.$unset) {
+    if (!mongoUpdate.$set) {
       row = await CouponModel.findById(id)
         .populate("applicableProductIds", "sku name slug")
         .populate("applicableCategoryIds", "name slug")

@@ -44,6 +44,17 @@ function parseIncomingLines(raw: unknown): IncomingCouponLine[] | null {
       if (Number.isFinite(c) && c >= 0) comboSubtotalInclGst = c;
     }
 
+    let orderMode: IncomingCouponLine["orderMode"];
+    if (o.orderMode === "packets" || o.orderMode === "master_bag") {
+      orderMode = o.orderMode;
+    }
+
+    let rawQuantity: number | undefined;
+    if (o.rawQuantity !== undefined && o.rawQuantity !== null) {
+      const rq = typeof o.rawQuantity === "number" ? o.rawQuantity : Number(o.rawQuantity);
+      if (Number.isFinite(rq) && rq > 0) rawQuantity = rq;
+    }
+
     out.push({
       productMongoId: typeof o.productMongoId === "string" ? o.productMongoId.trim() : undefined,
       legacyProductId,
@@ -54,6 +65,8 @@ function parseIncomingLines(raw: unknown): IncomingCouponLine[] | null {
       lineSubtotal,
       lineBasicSubtotal,
       comboSubtotalInclGst,
+      ...(orderMode ? { orderMode } : {}),
+      ...(rawQuantity !== undefined ? { rawQuantity } : {}),
     });
   }
   return out;
@@ -83,12 +96,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       valid: true,
       discountAmount: result.discountAmount,
-      freeDispatch: result.freeDispatch,
-      freeShipping: result.freeShipping,
       eligibleSubtotal: result.eligibleSubtotal,
       eligibleQuantity: result.eligibleQuantity,
       eligibleLineCount: result.eligibleLineCount,
       cartSubtotalInclGst: result.cartSubtotalInclGst,
+      eligiblePacketCount: result.eligiblePacketCount,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Server error";

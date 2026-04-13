@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import styles from './CartPage.module.css';
@@ -10,11 +10,14 @@ import ComboCartPricingSync from './ComboCartPricingSync';
 import OrderSuccessPopup from './OrderSuccessPopup/OrderSuccessPopup';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import {
+  autoApplyCouponCandidates,
   cartLinesForCouponApi,
+  cartPrefersOuterTierCoupons,
   mapPublicCouponToOption,
   type CartCouponOption,
   type CouponApplyResult,
   type CouponValidateResponseJson,
+  type ProductPackagingForCoupon,
   type PublicCouponBannerJson,
 } from './cartCoupons';
 import { groupCartItemsByProductLine, cartGroupKey } from '@/lib/cart/groupCartLines';
@@ -40,11 +43,15 @@ export default function CartPage() {
   const [orderedTotal, setOrderedTotal] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
-  const [freeDispatch, setFreeDispatch] = useState(false);
-  const [freeShipping, setFreeShipping] = useState(false);
   const [cartCoupons, setCartCoupons] = useState<CartCouponOption[]>([]);
   const [couponsLoaded, setCouponsLoaded] = useState(false);
   const [couponRevalidateError, setCouponRevalidateError] = useState<string | null>(null);
+  const [userOptedOutCoupon, setUserOptedOutCoupon] = useState(false);
+  const [autoCouponBusy, setAutoCouponBusy] = useState(false);
+  /** Per cart line: Mongo packaging context for coupon tier math (carton/box/bag → packets). */
+  const [couponPackagingByLine, setCouponPackagingByLine] = useState<
+    (ProductPackagingForCoupon | null)[] | null
+  >(null);
   const [comboMeta, setComboMeta] = useState({
     suggestion: null as string | null,
     minimumOrderInclGst: 25_000,
@@ -57,12 +64,83 @@ export default function CartPage() {
 
   const cartGroups = useMemo(() => groupCartItemsByProductLine(cartItems), [cartItems]);
 
-  const runCouponValidate = useCallback(
-    async (code: string) => {
+  const cartSignature = useMemo(
+    () =>
+      cartItems
+        .map(
+          (ci) =>
+            `${ci.productId}:${ci.size}:${ci.sellerId}:${ci.quantity}:${ci.orderMode ?? "packets"}`
+        )
+        .join("|"),
+    [cartItems]
+  );
+
+  useEffect(() => {
+    setUserOptedOutCoupon(false);
+  }, [cartSignature]);
+
+  const couponCodesKey = useMemo(() => cartCoupons.map((c) => c.code).join(","), [cartCoupons]);
+
+  const packagingForCouponApi = useMemo(() => {
+    if (
+      couponPackagingByLine &&
+      couponPackagingByLine.length === cartItems.length
+    ) {
+      return couponPackagingByLine;
+    }
+    return undefined;
+  }, [couponPackagingByLine, cartItems.length]);
+
+  useEffect(() => {
+    if (cartItems.length === 0) {
+      setCouponPackagingByLine(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/cart/coupon-packaging", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lines: cartItems.map((ci) => ({
+              productMongoId: ci.mongoProductId,
+              legacyProductId: ci.productId,
+              size: ci.size,
+              sellerId: ci.sellerId,
+            })),
+          }),
+        });
+        const json = (await res.json()) as { data?: (ProductPackagingForCoupon | null)[] };
+        if (cancelled) return;
+        if (res.ok && Array.isArray(json.data) && json.data.length === cartItems.length) {
+          setCouponPackagingByLine(json.data);
+        } else {
+          setCouponPackagingByLine(null);
+        }
+      } catch {
+        if (!cancelled) setCouponPackagingByLine(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cartItems]);
+
+  const validateCouponApi = useCallback(
+    async (
+      code: string
+    ): Promise<
+      | { ok: true; discountAmount: number }
+      | { ok: false; message: string }
+    > => {
       const res = await fetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, lines: cartLinesForCouponApi(cartItems) }),
+        body: JSON.stringify({
+          code,
+          lines: cartLinesForCouponApi(cartItems, packagingForCouponApi),
+        }),
       });
       let j: CouponValidateResponseJson = {};
       try {
@@ -72,23 +150,85 @@ export default function CartPage() {
       }
       if (!res.ok) {
         return {
-          ok: false as const,
+          ok: false,
           message: j.message ?? j.reason ?? "Could not validate coupon",
         };
       }
       if (!j.valid) {
         return {
-          ok: false as const,
+          ok: false,
           message: j.reason ?? j.message ?? "Coupon not applicable",
         };
       }
-      setCouponDiscount(Number(j.discountAmount) || 0);
-      setFreeDispatch(Boolean(j.freeDispatch));
-      setFreeShipping(Boolean(j.freeShipping));
-      return { ok: true as const };
+      return { ok: true, discountAmount: Number(j.discountAmount) || 0 };
     },
-    [cartItems]
+    [cartItems, packagingForCouponApi]
   );
+
+  const autoRunRef = useRef(0);
+
+  useEffect(() => {
+    if (cartItems.length === 0) {
+      setAppliedCoupon(null);
+      setCouponDiscount(0);
+      setAutoCouponBusy(false);
+      setCouponRevalidateError(null);
+      return;
+    }
+    if (!couponsLoaded || cartCoupons.length === 0) return;
+    if (userOptedOutCoupon) return;
+
+    const runId = ++autoRunRef.current;
+    setAutoCouponBusy(true);
+    setCouponRevalidateError(null);
+
+    void (async () => {
+      try {
+        const preferOuter = cartPrefersOuterTierCoupons(
+          cartItems,
+          packagingForCouponApi ?? null
+        );
+        const couponPool = autoApplyCouponCandidates(cartCoupons, preferOuter);
+        const results = await Promise.all(
+          couponPool.map(async (c) => {
+            const r = await validateCouponApi(c.code);
+            return { code: c.code, r };
+          })
+        );
+        if (runId !== autoRunRef.current) return;
+
+        let best: { code: string; discount: number } | null = null;
+        for (const { code, r } of results) {
+          if (r.ok && r.discountAmount > 0) {
+            if (!best || r.discountAmount > best.discount) {
+              best = { code, discount: r.discountAmount };
+            }
+          }
+        }
+
+        if (best) {
+          setAppliedCoupon(best.code);
+          setCouponDiscount(best.discount);
+        } else {
+          setAppliedCoupon(null);
+          setCouponDiscount(0);
+        }
+      } finally {
+        if (runId === autoRunRef.current) {
+          setAutoCouponBusy(false);
+        }
+      }
+    })();
+  }, [
+    cartSignature,
+    couponsLoaded,
+    couponCodesKey,
+    packagingForCouponApi,
+    userOptedOutCoupon,
+    validateCouponApi,
+    cartCoupons,
+    cartItems,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,51 +256,30 @@ export default function CartPage() {
     queueMicrotask(() => {
       setAppliedCoupon(null);
       setCouponDiscount(0);
-      setFreeDispatch(false);
-      setFreeShipping(false);
       setCouponRevalidateError(null);
       setCouponPricingMode("combo_first");
+      setUserOptedOutCoupon(false);
     });
   }, [cartItems.length, setCouponPricingMode]);
-
-  useEffect(() => {
-    if (!appliedCoupon || cartItems.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      const r = await runCouponValidate(appliedCoupon);
-      if (cancelled) return;
-      if (!r.ok) {
-        setAppliedCoupon(null);
-        setCouponDiscount(0);
-        setFreeDispatch(false);
-        setFreeShipping(false);
-        setCouponRevalidateError(r.message);
-      } else {
-        setCouponRevalidateError(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [cartItems, appliedCoupon, runCouponValidate]);
 
   const handleCouponChange = useCallback(
     async (code: string | null): Promise<CouponApplyResult> => {
       setCouponRevalidateError(null);
       if (!code) {
+        setUserOptedOutCoupon(true);
         setAppliedCoupon(null);
         setCouponDiscount(0);
-        setFreeDispatch(false);
-        setFreeShipping(false);
         setCouponPricingMode("combo_first");
         return { ok: true };
       }
-      const r = await runCouponValidate(code);
+      const r = await validateCouponApi(code);
       if (!r.ok) return { ok: false, message: r.message };
       setAppliedCoupon(code);
+      setCouponDiscount(r.discountAmount);
+      setUserOptedOutCoupon(false);
       return { ok: true };
     },
-    [runCouponValidate, setCouponPricingMode]
+    [validateCouponApi, setCouponPricingMode]
   );
 
   const handlePlaceOrder = () => {
@@ -296,11 +415,11 @@ export default function CartPage() {
                 items={cartItems}
                 cartCoupons={cartCoupons}
                 couponsLoaded={couponsLoaded}
+                autoCouponBusy={autoCouponBusy}
+                userOptedOutCoupon={userOptedOutCoupon}
                 appliedCoupon={appliedCoupon}
                 couponDiscount={couponDiscount}
                 finalTotal={finalTotal}
-                freeDispatch={freeDispatch}
-                freeShipping={freeShipping}
                 couponBannerError={couponRevalidateError}
                 onCouponChange={handleCouponChange}
                 onPlaceOrder={handlePlaceOrder}

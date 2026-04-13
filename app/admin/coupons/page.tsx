@@ -1,59 +1,176 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import type { AdminCoupon } from "../types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { AdminCoupon, CouponPacketTier } from "../types";
 
-function toDatetimeLocalValue(iso: string | undefined): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const defaultTiers: CouponPacketTier[] = [
+  { minPackets: 15, value: 7 },
+  { minPackets: 30, value: 8 },
+  { minPackets: 50, value: 9 },
+  { minPackets: 85, value: 12 },
+];
+
+type CategoryOption = { id: string; name: string };
+
+type ProductOption = {
+  id: string;
+  name: string;
+  sku: string;
+  categoryId: string;
+  categoryName: string;
+};
+
+async function fetchCategoryOptions(): Promise<CategoryOption[]> {
+  const res = await fetch("/api/admin/categories?includeInactive=true");
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error(typeof j.message === "string" ? j.message : "Failed to load categories");
+  }
+  const json = (await res.json()) as { data?: { _id: string; name: string }[] };
+  const rows = json.data ?? [];
+  return rows.map((c) => ({ id: String(c._id), name: c.name }));
 }
 
-/**
- * datetime-local often stores "end" as midnight start of that day, which makes the coupon
- * expire immediately for the rest of the day. Treat midnight as "through end of that local day".
- */
-function endAtToIso(formEnd: string): string {
-  const d = new Date(formEnd);
-  if (
-    !Number.isNaN(d.getTime()) &&
-    d.getHours() === 0 &&
-    d.getMinutes() === 0 &&
-    d.getSeconds() === 0 &&
-    d.getMilliseconds() === 0
-  ) {
-    d.setHours(23, 59, 59, 999);
-  }
-  return d.toISOString();
+async function fetchAllProductOptions(): Promise<ProductOption[]> {
+  const out: ProductOption[] = [];
+  const limit = 500;
+  let skip = 0;
+  let total = 0;
+  do {
+    const res = await fetch(`/api/admin/products?limit=${limit}&skip=${skip}`);
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error(typeof j.message === "string" ? j.message : "Failed to load products");
+    }
+    const json = (await res.json()) as {
+      data?: Array<{
+        _id: string;
+        name: string;
+        sku: string;
+        category?: { _id?: string; name?: string };
+      }>;
+      meta?: { total?: number };
+    };
+    const rows = json.data ?? [];
+    total = typeof json.meta?.total === "number" ? json.meta.total : skip + rows.length;
+    for (const p of rows) {
+      const catObj = p.category && typeof p.category === "object" ? p.category : null;
+      const categoryId =
+        catObj && "_id" in catObj && catObj._id != null ? String(catObj._id) : "";
+      const categoryName = typeof catObj?.name === "string" ? catObj.name : "";
+      out.push({
+        id: String(p._id),
+        name: p.name,
+        sku: p.sku,
+        categoryId,
+        categoryName,
+      });
+    }
+    skip += rows.length;
+    if (rows.length === 0) break;
+  } while (skip < total);
+  return out;
+}
+
+function toggleId(ids: string[], id: string, on: boolean): string[] {
+  const set = new Set(ids);
+  if (on) set.add(id);
+  else set.delete(id);
+  return [...set];
 }
 
 const emptyForm = {
   code: "",
   name: "",
-  discountType: "percentage" as AdminCoupon["discountType"],
-  discountPercent: 7,
-  fixedAmountOff: 0,
-  displayPrimary: "",
-  displaySecondary: "OFF",
-  title: "",
   description: "",
-  themeKey: "blue",
-  offerAppliesTo: "",
-  applicableProductIds: "",
-  applicableCategoryIds: "",
-  minOrderValue: 0,
-  minTotalQuantity: 0,
-  minEligibleLines: 0,
-  startAt: "",
-  endAt: "",
+  discountType: "percentage" as AdminCoupon["discountType"],
+  tierUnit: "packets" as AdminCoupon["tierUnit"],
+  packetTiers: defaultTiers.map((t) => ({ ...t })),
+  applicableProductIds: [] as string[],
+  applicableCategoryIds: [] as string[],
   isActive: true,
-  displayInBanner: true,
-  showInCart: true,
-  sortOrder: 0,
-  internalNotes: "",
 };
+
+function MultiCheckboxBlock({
+  title,
+  hint,
+  idPrefix,
+  search,
+  onSearchChange,
+  loading,
+  emptyMessage,
+  options,
+  selectedIds,
+  onToggle,
+  onClear,
+}: {
+  title: string;
+  hint: string;
+  idPrefix: string;
+  search: string;
+  onSearchChange: (v: string) => void;
+  loading: boolean;
+  emptyMessage: string;
+  options: { id: string; primary: string; secondary?: string }[];
+  selectedIds: string[];
+  onToggle: (id: string, checked: boolean) => void;
+  onClear: () => void;
+}) {
+  const n = selectedIds.length;
+  return (
+    <div className="admin-field">
+      <label>{title}</label>
+      <p className="admin-multiselect-hint">{hint}</p>
+      <div className="admin-multiselect" aria-busy={loading}>
+        <div className="admin-multiselect-toolbar">
+          <input
+            type="search"
+            placeholder="Filter…"
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            disabled={loading}
+            autoComplete="off"
+            aria-label={`Filter ${title}`}
+          />
+          <button
+            type="button"
+            className="admin-btn admin-btn-ghost"
+            onClick={onClear}
+            disabled={loading || n === 0}
+          >
+            Clear ({n})
+          </button>
+        </div>
+        {loading ? (
+          <div className="admin-multiselect-empty">Loading…</div>
+        ) : options.length === 0 ? (
+          <div className="admin-multiselect-empty">{emptyMessage}</div>
+        ) : (
+          <div className="admin-multiselect-list" role="group">
+            {options.map((o) => {
+              const checked = selectedIds.includes(o.id);
+              const domId = `${idPrefix}-${o.id}`;
+              return (
+                <div className="admin-multiselect-row" key={o.id}>
+                  <input
+                    type="checkbox"
+                    id={domId}
+                    checked={checked}
+                    onChange={(e) => onToggle(o.id, e.target.checked)}
+                  />
+                  <label htmlFor={domId}>
+                    {o.primary}
+                    {o.secondary ? <span className="admin-multiselect-meta">{o.secondary}</span> : null}
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminCouponsPage() {
   const [list, setList] = useState<AdminCoupon[]>([]);
@@ -63,6 +180,13 @@ export default function AdminCouponsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+  const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
+  const [optionsLoading, setOptionsLoading] = useState(false);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
+  const [categorySearch, setCategorySearch] = useState("");
+  const [productSearch, setProductSearch] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,6 +208,75 @@ export default function AdminCouponsPage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!modalOpen) return;
+    let cancelled = false;
+    setOptionsError(null);
+    setOptionsLoading(true);
+    setCategorySearch("");
+    setProductSearch("");
+    void (async () => {
+      try {
+        const [cats, prods] = await Promise.all([fetchCategoryOptions(), fetchAllProductOptions()]);
+        if (cancelled) return;
+        setCategoryOptions(cats);
+        setProductOptions(prods);
+      } catch (e) {
+        if (!cancelled) {
+          setOptionsError(e instanceof Error ? e.message : "Could not load lists");
+          setCategoryOptions([]);
+          setProductOptions([]);
+        }
+      } finally {
+        if (!cancelled) setOptionsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [modalOpen]);
+
+  /** When categories are selected, the product picker only lists products in those categories. */
+  const productsForPicker = useMemo(() => {
+    const catIds = form.applicableCategoryIds;
+    if (catIds.length === 0) return productOptions;
+    const set = new Set(catIds);
+    return productOptions.filter((p) => p.categoryId && set.has(p.categoryId));
+  }, [productOptions, form.applicableCategoryIds]);
+
+  useEffect(() => {
+    if (productOptions.length === 0) return;
+    const catIds = form.applicableCategoryIds;
+    if (catIds.length === 0) return;
+    const catSet = new Set(catIds);
+    const allowed = new Set(
+      productOptions.filter((p) => p.categoryId && catSet.has(p.categoryId)).map((p) => p.id)
+    );
+    setForm((f) => {
+      const next = f.applicableProductIds.filter((id) => allowed.has(id));
+      if (next.length === f.applicableProductIds.length) return f;
+      return { ...f, applicableProductIds: next };
+    });
+  }, [form.applicableCategoryIds, productOptions]);
+
+  const filteredCategories = useMemo(() => {
+    const q = categorySearch.trim().toLowerCase();
+    if (!q) return categoryOptions;
+    return categoryOptions.filter((c) => c.name.toLowerCase().includes(q));
+  }, [categoryOptions, categorySearch]);
+
+  const filteredProducts = useMemo(() => {
+    const q = productSearch.trim().toLowerCase();
+    if (!q) return productsForPicker;
+    return productsForPicker.filter((p) => {
+      return (
+        p.name.toLowerCase().includes(q) ||
+        p.sku.toLowerCase().includes(q) ||
+        p.categoryName.toLowerCase().includes(q)
+      );
+    });
+  }, [productsForPicker, productSearch]);
+
   function openCreate() {
     setEditingId(null);
     setForm(emptyForm);
@@ -94,28 +287,17 @@ export default function AdminCouponsPage() {
     setEditingId(c._id);
     setForm({
       code: c.code,
-      name: c.name ?? "",
-      discountType: c.discountType,
-      discountPercent: c.discountPercent ?? 0,
-      fixedAmountOff: c.fixedAmountOff ?? 0,
-      displayPrimary: c.displayPrimary,
-      displaySecondary: c.displaySecondary ?? "",
-      title: c.title,
+      name: c.name,
       description: c.description ?? "",
-      themeKey: c.themeKey ?? "blue",
-      offerAppliesTo: c.offerAppliesTo ?? "",
-      applicableProductIds: (c.applicableProductIds ?? []).join(", "),
-      applicableCategoryIds: (c.applicableCategoryIds ?? []).join(", "),
-      minOrderValue: c.minOrderValue ?? 0,
-      minTotalQuantity: c.minTotalQuantity ?? 0,
-      minEligibleLines: c.minEligibleLines ?? 0,
-      startAt: toDatetimeLocalValue(c.startAt),
-      endAt: toDatetimeLocalValue(c.endAt),
+      discountType: c.discountType,
+      tierUnit: c.tierUnit === "outer" ? "outer" : "packets",
+      packetTiers:
+        c.packetTiers?.length > 0
+          ? c.packetTiers.map((t) => ({ minPackets: t.minPackets, value: t.value }))
+          : defaultTiers.map((t) => ({ ...t })),
+      applicableProductIds: [...(c.applicableProductIds ?? [])],
+      applicableCategoryIds: [...(c.applicableCategoryIds ?? [])],
       isActive: c.isActive,
-      displayInBanner: c.displayInBanner,
-      showInCart: c.showInCart,
-      sortOrder: c.sortOrder ?? 0,
-      internalNotes: c.internalNotes ?? "",
     });
     setModalOpen(true);
   }
@@ -123,28 +305,14 @@ export default function AdminCouponsPage() {
   function buildBody(): Record<string, unknown> {
     return {
       code: form.code.trim().toUpperCase(),
-      name: form.name.trim() || undefined,
-      discountType: form.discountType,
-      discountPercent: form.discountType === "percentage" ? Number(form.discountPercent) : undefined,
-      fixedAmountOff: form.discountType === "fixed_amount" ? Number(form.fixedAmountOff) : undefined,
-      displayPrimary: form.displayPrimary.trim(),
-      displaySecondary: form.displaySecondary.trim(),
-      title: form.title.trim(),
+      name: form.name.trim(),
       description: form.description.trim(),
-      themeKey: form.themeKey,
-      offerAppliesTo: form.offerAppliesTo.trim(),
+      discountType: form.discountType,
+      tierUnit: form.tierUnit,
+      packetTiers: form.packetTiers,
       applicableProductIds: form.applicableProductIds,
       applicableCategoryIds: form.applicableCategoryIds,
-      minOrderValue: Number(form.minOrderValue) || 0,
-      minTotalQuantity: Number(form.minTotalQuantity) || 0,
-      minEligibleLines: Number(form.minEligibleLines) || 0,
-      startAt: form.startAt ? new Date(form.startAt).toISOString() : null,
-      endAt: form.endAt ? endAtToIso(form.endAt) : null,
       isActive: form.isActive,
-      displayInBanner: form.displayInBanner,
-      showInCart: form.showInCart,
-      sortOrder: Number(form.sortOrder) || 0,
-      internalNotes: form.internalNotes.trim() || undefined,
     };
   }
 
@@ -184,6 +352,42 @@ export default function AdminCouponsPage() {
     }
   }
 
+  function updateTier(i: number, patch: Partial<CouponPacketTier>) {
+    setForm((f) => {
+      const next = f.packetTiers.map((row, j) => (j === i ? { ...row, ...patch } : row));
+      return { ...f, packetTiers: next };
+    });
+  }
+
+  function addTier() {
+    setForm((f) => ({
+      ...f,
+      packetTiers: [...f.packetTiers, { minPackets: 0, value: f.discountType === "percentage" ? 0 : 0 }],
+    }));
+  }
+
+  function removeTier(i: number) {
+    setForm((f) => ({
+      ...f,
+      packetTiers: f.packetTiers.filter((_, j) => j !== i),
+    }));
+  }
+
+  const categoryRows = useMemo(
+    () => filteredCategories.map((c) => ({ id: c.id, primary: c.name })),
+    [filteredCategories]
+  );
+
+  const productRows = useMemo(
+    () =>
+      filteredProducts.map((p) => ({
+        id: p.id,
+        primary: `${p.sku} — ${p.name}`,
+        secondary: p.categoryName || undefined,
+      })),
+    [filteredProducts]
+  );
+
   return (
     <div>
       {error ? (
@@ -207,9 +411,10 @@ export default function AdminCouponsPage() {
       </div>
 
       <p className="muted" style={{ maxWidth: "48rem", marginBottom: "1rem" }}>
-        Coupons can target specific products or categories (comma-separated MongoDB ObjectIds). Leave those lists empty
-        to allow all catalog items. Minimum order and quantity apply only to eligible lines. Set dates to limit the
-        campaign window.
+        Tier basis: <strong>packets</strong> uses total eligible packets (carton/bag list units convert to packets).{" "}
+        <strong>Outer (cartons & bags)</strong> counts master bags as bags and packet lines as cartons (or
+        master-bag equivalents from packaging). Limit scope with categories and/or products; leave both empty for all
+        products.
       </p>
 
       {loading ? (
@@ -220,12 +425,11 @@ export default function AdminCouponsPage() {
             <thead>
               <tr>
                 <th>Code</th>
-                <th>Title</th>
+                <th>Name</th>
                 <th>Type</th>
-                <th>Banner</th>
-                <th>Cart</th>
+                <th>Tiers</th>
+                <th>Unit</th>
                 <th>Active</th>
-                <th>Order</th>
                 <th />
               </tr>
             </thead>
@@ -235,14 +439,13 @@ export default function AdminCouponsPage() {
                   <td>
                     <strong>{c.code}</strong>
                   </td>
-                  <td>{c.title}</td>
+                  <td>{c.name}</td>
                   <td>
                     <span className="muted">{c.discountType}</span>
                   </td>
-                  <td>{c.displayInBanner ? "Yes" : "No"}</td>
-                  <td>{c.showInCart ? "Yes" : "No"}</td>
+                  <td>{c.packetTiers?.length ?? 0}</td>
+                  <td>{c.tierUnit === "outer" ? "outer" : "packets"}</td>
                   <td>{c.isActive ? "Yes" : "No"}</td>
-                  <td>{c.sortOrder}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
                     <button
                       type="button"
@@ -279,6 +482,12 @@ export default function AdminCouponsPage() {
           <div className="admin-modal wide" role="dialog" aria-labelledby="coupon-modal-title">
             <h2 id="coupon-modal-title">{editingId ? "Edit coupon" : "New coupon"}</h2>
             <form onSubmit={(e) => void handleSubmit(e)}>
+              {optionsError ? (
+                <div className="admin-banner err" role="alert" style={{ marginBottom: "0.75rem" }}>
+                  {optionsError}
+                </div>
+              ) : null}
+
               <div className="admin-field-row">
                 <div className="admin-field">
                   <label htmlFor="cp-code">Code *</label>
@@ -291,13 +500,25 @@ export default function AdminCouponsPage() {
                   />
                 </div>
                 <div className="admin-field">
-                  <label htmlFor="cp-name">Internal name</label>
+                  <label htmlFor="cp-name">Name *</label>
                   <input
                     id="cp-name"
                     value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    required
                   />
                 </div>
+              </div>
+
+              <div className="admin-field">
+                <label htmlFor="cp-desc">Description</label>
+                <textarea
+                  id="cp-desc"
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  rows={2}
+                  placeholder="e.g. 7% – 15 cartons & bags (explain in plain language)"
+                />
               </div>
 
               <div className="admin-field-row">
@@ -311,198 +532,131 @@ export default function AdminCouponsPage() {
                     }
                   >
                     <option value="percentage">Percentage off eligible subtotal</option>
-                    <option value="fixed_amount">Fixed INR off eligible subtotal</option>
-                    <option value="free_dispatch">Free dispatch (display / policy)</option>
-                    <option value="free_shipping">Free shipping (display / policy)</option>
+                    <option value="flat">Flat INR off eligible subtotal</option>
                   </select>
                 </div>
-                {form.discountType === "percentage" ? (
-                  <div className="admin-field">
-                    <label htmlFor="cp-pct">Discount %</label>
-                    <input
-                      id="cp-pct"
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={0.01}
-                      value={form.discountPercent}
-                      onChange={(e) => setForm((f) => ({ ...f, discountPercent: Number(e.target.value) }))}
-                    />
-                  </div>
-                ) : null}
-                {form.discountType === "fixed_amount" ? (
-                  <div className="admin-field">
-                    <label htmlFor="cp-fixed">Amount off (INR)</label>
-                    <input
-                      id="cp-fixed"
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={form.fixedAmountOff}
-                      onChange={(e) => setForm((f) => ({ ...f, fixedAmountOff: Number(e.target.value) }))}
-                    />
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="admin-field-row">
                 <div className="admin-field">
-                  <label htmlFor="cp-d1">Display primary (stub) *</label>
-                  <input
-                    id="cp-d1"
-                    value={form.displayPrimary}
-                    onChange={(e) => setForm((f) => ({ ...f, displayPrimary: e.target.value }))}
-                    placeholder="e.g. 7%"
-                    required
-                  />
-                </div>
-                <div className="admin-field">
-                  <label htmlFor="cp-d2">Display secondary (stub)</label>
-                  <input
-                    id="cp-d2"
-                    value={form.displaySecondary}
-                    onChange={(e) => setForm((f) => ({ ...f, displaySecondary: e.target.value }))}
-                    placeholder="e.g. OFF"
-                  />
-                </div>
-              </div>
-
-              <div className="admin-field">
-                <label htmlFor="cp-title">Title (condition line) *</label>
-                <input
-                  id="cp-title"
-                  value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  required
-                />
-              </div>
-              <div className="admin-field">
-                <label htmlFor="cp-desc">Description</label>
-                <textarea
-                  id="cp-desc"
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  rows={2}
-                />
-              </div>
-
-              <div className="admin-field-row">
-                <div className="admin-field">
-                  <label htmlFor="cp-theme">Theme preset</label>
+                  <label htmlFor="cp-tier-unit">Tier unit *</label>
                   <select
-                    id="cp-theme"
-                    value={form.themeKey}
-                    onChange={(e) => setForm((f) => ({ ...f, themeKey: e.target.value }))}
+                    id="cp-tier-unit"
+                    value={form.tierUnit ?? "packets"}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        tierUnit: e.target.value as AdminCoupon["tierUnit"],
+                      }))
+                    }
                   >
-                    <option value="blue">Blue</option>
-                    <option value="indigo">Indigo</option>
-                    <option value="green">Green</option>
-                    <option value="amber">Amber</option>
-                    <option value="brown">Brown / gold</option>
+                    <option value="packets">Packets (converted from cartons/bags via packaging)</option>
+                    <option value="outer">Outer — cartons & master bags</option>
                   </select>
                 </div>
-                <div className="admin-field">
-                  <label htmlFor="cp-sort">Sort order</label>
-                  <input
-                    id="cp-sort"
-                    type="number"
-                    value={form.sortOrder}
-                    onChange={(e) => setForm((f) => ({ ...f, sortOrder: Number(e.target.value) }))}
-                  />
-                </div>
               </div>
 
               <div className="admin-field">
-                <label htmlFor="cp-offer">Offer applies to (price list)</label>
-                <input
-                  id="cp-offer"
-                  value={form.offerAppliesTo}
-                  onChange={(e) => setForm((f) => ({ ...f, offerAppliesTo: e.target.value }))}
-                  placeholder="e.g. Cartons & bags — as per current price list"
-                />
-              </div>
-              <p className="muted" style={{ margin: "0 0 0.75rem", fontSize: "0.85rem" }}>
-                Shown on the storefront coupon card. Use the same wording as your PDF (cartons, bags, etc.). This is
-                display-only; targeting still uses product/category IDs and minimums below.
-              </p>
-
-              <div className="admin-field">
-                <label htmlFor="cp-prod">Applicable product IDs (comma or whitespace)</label>
-                <textarea
-                  id="cp-prod"
-                  value={form.applicableProductIds}
-                  onChange={(e) => setForm((f) => ({ ...f, applicableProductIds: e.target.value }))}
-                  rows={2}
-                  placeholder="Empty = all products"
-                />
-              </div>
-              <div className="admin-field">
-                <label htmlFor="cp-cat">Applicable category IDs (comma or whitespace)</label>
-                <textarea
-                  id="cp-cat"
-                  value={form.applicableCategoryIds}
-                  onChange={(e) => setForm((f) => ({ ...f, applicableCategoryIds: e.target.value }))}
-                  rows={2}
-                  placeholder="Empty = all categories"
-                />
+                <label>{form.tierUnit === "outer" ? "Tier thresholds *" : "Packet tiers *"}</label>
+                <p className="muted" style={{ margin: "0 0 0.5rem", fontSize: "0.85rem" }}>
+                  {form.tierUnit === "outer"
+                    ? "For each row: minimum total outer units (cartons + master bags on eligible lines), then discount value (% or ₹). Column is still named minPackets in the API."
+                    : "For each row: minimum eligible packets in the cart, then discount value (% or ₹)."}
+                </p>
+                <table className="admin-table" style={{ marginBottom: 8 }}>
+                  <thead>
+                    <tr>
+                      <th>{form.tierUnit === "outer" ? "Min outer units" : "Min packets"}</th>
+                      <th>{form.discountType === "percentage" ? "Percent off" : "INR off"}</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {form.packetTiers.map((row, i) => (
+                      <tr key={i}>
+                        <td>
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={row.minPackets}
+                            onChange={(e) => updateTier(i, { minPackets: Number(e.target.value) })}
+                            required
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min={0}
+                            max={form.discountType === "percentage" ? 100 : undefined}
+                            step={form.discountType === "percentage" ? 0.01 : 1}
+                            value={row.value}
+                            onChange={(e) => updateTier(i, { value: Number(e.target.value) })}
+                            required
+                          />
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-ghost"
+                            onClick={() => removeTier(i)}
+                            disabled={form.packetTiers.length <= 1}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <button type="button" className="admin-btn admin-btn-ghost" onClick={addTier}>
+                  Add tier
+                </button>
               </div>
 
               <div className="admin-field-row">
-                <div className="admin-field">
-                  <label htmlFor="cp-mino">Min order (₹) on eligible lines</label>
-                  <input
-                    id="cp-mino"
-                    type="number"
-                    min={0}
-                    value={form.minOrderValue}
-                    onChange={(e) => setForm((f) => ({ ...f, minOrderValue: Number(e.target.value) }))}
-                  />
-                </div>
-                <div className="admin-field">
-                  <label htmlFor="cp-minq">Min total qty (eligible lines)</label>
-                  <input
-                    id="cp-minq"
-                    type="number"
-                    min={0}
-                    value={form.minTotalQuantity}
-                    onChange={(e) => setForm((f) => ({ ...f, minTotalQuantity: Number(e.target.value) }))}
-                  />
-                </div>
-                <div className="admin-field">
-                  <label htmlFor="cp-minl">Min eligible line items</label>
-                  <input
-                    id="cp-minl"
-                    type="number"
-                    min={0}
-                    value={form.minEligibleLines}
-                    onChange={(e) => setForm((f) => ({ ...f, minEligibleLines: Number(e.target.value) }))}
-                  />
-                </div>
+                <MultiCheckboxBlock
+                  title="Applicable categories"
+                  idPrefix="cp-cat"
+                  hint="Leave empty for no category restriction. When you select one or more categories, the product list below is limited to products in those categories only."
+                  search={categorySearch}
+                  onSearchChange={setCategorySearch}
+                  loading={optionsLoading}
+                  emptyMessage="No categories match the filter."
+                  options={categoryRows}
+                  selectedIds={form.applicableCategoryIds}
+                  onToggle={(id, checked) =>
+                    setForm((f) => ({ ...f, applicableCategoryIds: toggleId(f.applicableCategoryIds, id, checked) }))
+                  }
+                  onClear={() => setForm((f) => ({ ...f, applicableCategoryIds: [] }))}
+                />
+                <MultiCheckboxBlock
+                  title="Applicable products"
+                  idPrefix="cp-prod"
+                  hint={
+                    form.applicableCategoryIds.length > 0
+                      ? "Only products belonging to the categories selected above are listed. Leave none checked to apply the coupon to all products in those categories, or pick specific SKUs."
+                      : "Select categories above to narrow this list. With no categories selected, all products are shown. A cart line matches if it belongs to a selected category or a selected product (OR)."
+                  }
+                  search={productSearch}
+                  onSearchChange={setProductSearch}
+                  loading={optionsLoading}
+                  emptyMessage={
+                    form.applicableCategoryIds.length > 0
+                      ? "No products in the selected categories match the filter."
+                      : "No products match the filter."
+                  }
+                  options={productRows}
+                  selectedIds={form.applicableProductIds}
+                  onToggle={(id, checked) =>
+                    setForm((f) => ({ ...f, applicableProductIds: toggleId(f.applicableProductIds, id, checked) }))
+                  }
+                  onClear={() => setForm((f) => ({ ...f, applicableProductIds: [] }))}
+                />
               </div>
 
-              <div className="admin-field-row">
-                <div className="admin-field">
-                  <label htmlFor="cp-start">Start (local)</label>
-                  <input
-                    id="cp-start"
-                    type="datetime-local"
-                    value={form.startAt}
-                    onChange={(e) => setForm((f) => ({ ...f, startAt: e.target.value }))}
-                  />
-                </div>
-                <div className="admin-field">
-                  <label htmlFor="cp-end">End (local)</label>
-                  <input
-                    id="cp-end"
-                    type="datetime-local"
-                    value={form.endAt}
-                    onChange={(e) => setForm((f) => ({ ...f, endAt: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <p className="muted" style={{ margin: "0 0 0.75rem", fontSize: "0.85rem" }}>
-                Leave start/end empty for no date limit. If the coupon never appears on the site, check that today is
-                not after the end date — end time 00:00 is treated as the end of that calendar day.
+              <p className="muted" style={{ margin: "0 0 0.75rem", fontSize: "0.8rem" }}>
+                Coupon scope: if both lists are empty, all products qualify. The product picker is filtered by the
+                categories you tick above. If you select categories only, every product in those categories qualifies. If
+                you also select specific products, a line matches if it is in a selected category or in the product list
+                (OR).
               </p>
 
               <div className="admin-field-row">
@@ -514,32 +668,6 @@ export default function AdminCouponsPage() {
                   />
                   Active
                 </label>
-                <label className="admin-check">
-                  <input
-                    type="checkbox"
-                    checked={form.displayInBanner}
-                    onChange={(e) => setForm((f) => ({ ...f, displayInBanner: e.target.checked }))}
-                  />
-                  Show in hero banner
-                </label>
-                <label className="admin-check">
-                  <input
-                    type="checkbox"
-                    checked={form.showInCart}
-                    onChange={(e) => setForm((f) => ({ ...f, showInCart: e.target.checked }))}
-                  />
-                  Show in cart
-                </label>
-              </div>
-
-              <div className="admin-field">
-                <label htmlFor="cp-notes">Internal notes</label>
-                <textarea
-                  id="cp-notes"
-                  value={form.internalNotes}
-                  onChange={(e) => setForm((f) => ({ ...f, internalNotes: e.target.value }))}
-                  rows={2}
-                />
               </div>
 
               <div className="admin-modal-actions">

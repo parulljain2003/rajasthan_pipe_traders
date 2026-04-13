@@ -16,34 +16,24 @@ export type AdminCategory = {
 
 export type PopulatedCategory = { _id: string; name: string; slug: string };
 
+export type CouponPacketTier = { minPackets: number; value: number };
+
+export type CouponTierUnit = "packets" | "outer";
+
 export type AdminCoupon = {
   _id: string;
   code: string;
-  name?: string;
-  discountType: "percentage" | "fixed_amount" | "free_dispatch" | "free_shipping";
-  discountPercent?: number;
-  fixedAmountOff?: number;
-  displayPrimary: string;
-  displaySecondary?: string;
-  title: string;
+  name: string;
   description?: string;
-  themeKey: string;
-  /** Shown on storefront cards; e.g. cartons/bags per price list */
-  offerAppliesTo?: string;
+  discountType: "percentage" | "flat";
+  /** Tier thresholds: packet totals vs outer cartons/master bags */
+  tierUnit?: CouponTierUnit;
+  packetTiers: CouponPacketTier[];
   applicableProductIds: string[];
   applicableCategoryIds: string[];
   applicableProducts?: Array<{ _id: string; sku?: string; name?: string; slug?: string }>;
   applicableCategories?: Array<{ _id: string; name?: string; slug?: string }>;
-  minOrderValue?: number;
-  minTotalQuantity?: number;
-  minEligibleLines?: number;
-  startAt?: string;
-  endAt?: string;
   isActive: boolean;
-  displayInBanner: boolean;
-  showInCart: boolean;
-  sortOrder: number;
-  internalNotes?: string;
   createdAt?: string;
   updatedAt?: string;
 };

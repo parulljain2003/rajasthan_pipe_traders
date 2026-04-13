@@ -1,9 +1,25 @@
 import mongoose, { Schema, models, model } from "mongoose";
 
-const THEME_KEYS = ["blue", "indigo", "green", "amber", "brown"] as const;
-export type CouponThemeKey = (typeof THEME_KEYS)[number];
+const DISCOUNT_TYPES = ["percentage", "flat"] as const;
 
-const DISCOUNT_TYPES = ["percentage", "fixed_amount", "free_dispatch", "free_shipping"] as const;
+/** How `packetTiers[].minPackets` is interpreted for tier unlock (discount still applies to eligible ₹). */
+const TIER_UNITS = ["packets", "outer"] as const;
+
+/**
+ * Discount steps: each row has `minPackets` (minimum tier count) and `value` (% or flat ₹).
+ * When `tierUnit` is `packets`, thresholds use total eligible **packets** (carton/bag list units
+ * convert to packets via packaging). When `tierUnit` is `outer`, thresholds use **outer shipping
+ * units**: master bags count as bags; packet lines convert to cartons when carton size is known,
+ * else to master-bag equivalents; per-carton / per-bag Mongo pricing counts priced outers.
+ */
+const packetTierSchema = new Schema(
+  {
+    minPackets: { type: Number, required: true, min: 0 },
+    /** Percent (0–100) when discountType is `percentage`; INR off when `flat`. */
+    value: { type: Number, required: true, min: 0 },
+  },
+  { _id: false }
+);
 
 const couponSchema = new Schema(
   {
@@ -14,54 +30,35 @@ const couponSchema = new Schema(
       trim: true,
       uppercase: true,
     },
-    /** Admin-only label */
-    name: { type: String, trim: true },
+    name: { type: String, required: true, trim: true },
+    description: { type: String, trim: true, default: "" },
     discountType: {
       type: String,
       enum: DISCOUNT_TYPES,
       required: true,
     },
-    discountPercent: { type: Number, min: 0, max: 100 },
-    /** INR off eligible subtotal */
-    fixedAmountOff: { type: Number, min: 0 },
-    /** Left stub — main line (e.g. 7%, FREE) */
-    displayPrimary: { type: String, required: true, trim: true },
-    /** Left stub — secondary (e.g. OFF, DISPATCH) */
-    displaySecondary: { type: String, trim: true, default: "" },
-    title: { type: String, required: true, trim: true },
-    description: { type: String, trim: true, default: "" },
-    themeKey: {
-      type: String,
-      enum: THEME_KEYS,
-      default: "blue",
+    packetTiers: {
+      type: [packetTierSchema],
+      required: true,
+      validate: {
+        validator: (v: unknown[]) => Array.isArray(v) && v.length > 0,
+        message: "At least one packet tier is required",
+      },
     },
-    /**
-     * What this offer applies to (e.g. cartons, bags) — matches wording on the price list PDF.
-     * Shown on hero and cart coupon cards; informational only (discount rules use product/category IDs + minimums).
-     */
-    offerAppliesTo: { type: String, trim: true, default: "" },
-    /** Empty arrays = all products / categories allowed */
+    tierUnit: {
+      type: String,
+      enum: TIER_UNITS,
+      default: "packets",
+    },
+    /** Empty = coupon applies to all products */
     applicableProductIds: [{ type: Schema.Types.ObjectId, ref: "Product" }],
+    /** Empty = all categories (when product lists also empty, entire catalog) */
     applicableCategoryIds: [{ type: Schema.Types.ObjectId, ref: "Category" }],
-    /** Minimum GST-inclusive subtotal on eligible lines (same basis as cart grand total) */
-    minOrderValue: { type: Number, min: 0, default: 0 },
-    /** Sum of quantities on eligible lines (e.g. total cartons) */
-    minTotalQuantity: { type: Number, min: 0, default: 0 },
-    /** Minimum number of eligible line items with quantity > 0 */
-    minEligibleLines: { type: Number, min: 0, default: 0 },
-    startAt: { type: Date },
-    endAt: { type: Date },
     isActive: { type: Boolean, default: true },
-    displayInBanner: { type: Boolean, default: true },
-    /** Shown in cart coupon picker when true */
-    showInCart: { type: Boolean, default: true },
-    sortOrder: { type: Number, default: 0 },
-    internalNotes: { type: String, trim: true },
   },
   { timestamps: true }
 );
 
-couponSchema.index({ isActive: 1, displayInBanner: 1, sortOrder: 1 });
-couponSchema.index({ isActive: 1, showInCart: 1, sortOrder: 1 });
+couponSchema.index({ isActive: 1, code: 1 });
 
 export const CouponModel = models.Coupon ?? model("Coupon", couponSchema);
