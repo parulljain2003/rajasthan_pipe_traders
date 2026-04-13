@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import styles from "./OrderSummary.module.css";
-import { CartItem } from "../../../context/CartWishlistContext";
+import { CartItem, type CartCouponPricingMode } from "../../../context/CartWishlistContext";
 import { normalizeOrderMode, pricedPacketCount, totalPiecesForLine } from "@/lib/cart/packetLine";
 import { groupCartItemsByProductLine, cartGroupKey } from "@/lib/cart/groupCartLines";
 import { resolvePackingLabelsForCartLine } from "@/lib/packingLabels";
@@ -17,6 +17,8 @@ interface OrderSummaryProps {
   basicTotal: number;
   gstTotal: number;
   grandTotal: number;
+  /** Minimum order including GST (from admin / app settings) */
+  minimumOrderInclGst: number;
   itemCount: number;
   items: CartItem[];
   cartCoupons: CartCouponOption[];
@@ -31,11 +33,18 @@ interface OrderSummaryProps {
   couponBannerError: string | null;
   onCouponChange: (code: string | null) => Promise<CouponApplyResult>;
   onPlaceOrder: () => void;
+  /** RPT combo hint from pricing engine */
+  comboSuggestion: string | null;
+  /** Estimated savings from RPT combo net rates vs list (incl. GST) */
+  comboSavingsInclGst: number;
+  couponPricingMode: CartCouponPricingMode;
+  onCouponPricingModeChange: (mode: CartCouponPricingMode) => void;
 }
 
 export default function OrderSummary({
   basicTotal,
   gstTotal,
+  minimumOrderInclGst,
   itemCount,
   items,
   cartCoupons,
@@ -48,6 +57,10 @@ export default function OrderSummary({
   couponBannerError,
   onCouponChange,
   onPlaceOrder,
+  comboSuggestion,
+  comboSavingsInclGst,
+  couponPricingMode,
+  onCouponPricingModeChange,
 }: OrderSummaryProps) {
   const [applyError, setApplyError] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState("");
@@ -55,7 +68,7 @@ export default function OrderSummary({
 
   const couponMeta = appliedCoupon ? cartCoupons.find((c) => c.code === appliedCoupon) ?? null : null;
 
-  const minOrderMet = finalTotal >= 25000;
+  const minOrderMet = finalTotal >= minimumOrderInclGst;
   const [showMinError, setShowMinError] = useState(false);
 
   const handlePlaceOrder = () => {
@@ -71,6 +84,12 @@ export default function OrderSummary({
   return (
     <div className={styles.summary}>
       <h3 className={styles.title}>Order Summary</h3>
+
+      {comboSuggestion ? (
+        <div className={styles.comboHint} role="status">
+          {comboSuggestion}
+        </div>
+      ) : null}
 
       <div className={styles.couponSection}>
         {couponBannerError && (
@@ -115,7 +134,31 @@ export default function OrderSummary({
               Remove
             </button>
           </div>
-        ) : (
+        ) : null}
+
+        {appliedCoupon && comboSavingsInclGst > 0 && couponPricingMode === "combo_first" ? (
+          <p className={styles.couponComboDisclaimer} role="note">
+            Note: Coupon discounts apply only to non-combo items. Combo-priced lines stay at net list rates.
+          </p>
+        ) : null}
+
+        {appliedCoupon && (comboSavingsInclGst > 0 || couponPricingMode === "list_for_full_coupon") ? (
+          <label className={styles.pricingModeToggle}>
+            <input
+              type="checkbox"
+              checked={couponPricingMode === "list_for_full_coupon"}
+              onChange={(e) =>
+                onCouponPricingModeChange(e.target.checked ? "list_for_full_coupon" : "combo_first")
+              }
+            />
+            <span>
+              Use list prices on combo clips (20/25MM) so the coupon can apply to those lines too. You can’t
+              combine net combo rates and a coupon on the same items — pick the option that totals lower.
+            </span>
+          </label>
+        ) : null}
+
+        {!appliedCoupon && (
           <>
             {!couponsLoaded ? (
               <p className={styles.couponsLoading}>Loading available offers…</p>
@@ -302,9 +345,16 @@ export default function OrderSummary({
         <span className={styles.rowVal}>₹{gstTotal.toFixed(2)}</span>
       </div>
 
+      {comboSavingsInclGst > 0 && couponPricingMode === "combo_first" ? (
+        <div className={styles.row}>
+          <span className={styles.rowLabel}>Combo savings (est. vs list)</span>
+          <span className={styles.savingsHighlight}>−₹{comboSavingsInclGst.toFixed(0)}</span>
+        </div>
+      ) : null}
+
       {couponDiscount > 0 && (
         <div className={styles.row}>
-          <span className={styles.rowLabel}>Coupon Discount ({couponMeta?.code ?? appliedCoupon})</span>
+          <span className={styles.rowLabel}>Coupon discount (non-combo items only)</span>
           <span className={styles.discountVal}>−₹{couponDiscount.toFixed(0)}</span>
         </div>
       )}
@@ -335,7 +385,8 @@ export default function OrderSummary({
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          Order total must be ₹25,000 or more. Add ₹{(25000 - finalTotal).toFixed(0)} more to place order.
+          Order total must be ₹{minimumOrderInclGst.toLocaleString("en-IN")} or more. Add ₹
+          {(minimumOrderInclGst - finalTotal).toFixed(0)} more to place order.
         </div>
       )}
 

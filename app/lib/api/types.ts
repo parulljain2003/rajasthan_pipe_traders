@@ -29,6 +29,14 @@ export interface ApiProductSize {
   size: string;
   basicPrice: number;
   priceWithGst: number;
+  /** Net combo (ex-GST) — no slab discount when combo applies */
+  comboBasicPrice?: number;
+  /** Net combo (incl. GST) — no slab discount when combo applies */
+  comboPriceWithGst?: number;
+  /** 20 / 25 MM core clip row for combo engine */
+  coreComboVariant?: "20" | "25";
+  /** Per-size eligible pool (overrides product-level when set) */
+  countsTowardComboEligible?: boolean;
   qtyPerBag?: number;
   pcsPerPacket?: number;
   note?: string;
@@ -89,6 +97,8 @@ export interface ApiProduct {
   sizes?: ApiProductSize[];
   sellers?: ApiProductSellerOffer[];
   pricing: ApiPricing;
+  /** Counts toward eligible packet pool for 20/25MM combo pricing */
+  isEligibleForCombo?: boolean;
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;

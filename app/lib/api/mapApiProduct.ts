@@ -17,7 +17,7 @@ function stableNumericId(mongoId: string): number {
 }
 
 function mapApiSize(s: ApiProductSize): ProductSize {
-  return {
+  const row: ProductSize = {
     size: s.size,
     basicPrice: s.basicPrice,
     withGST: s.priceWithGst,
@@ -26,6 +26,13 @@ function mapApiSize(s: ApiProductSize): ProductSize {
     note: s.note,
     packingLabels: s.packingLabels,
   };
+  if (s.comboBasicPrice != null) row.comboBasicPrice = s.comboBasicPrice;
+  if (s.comboPriceWithGst != null) row.comboPriceWithGst = s.comboPriceWithGst;
+  if (s.coreComboVariant === "20" || s.coreComboVariant === "25") row.coreComboVariant = s.coreComboVariant;
+  if (s.countsTowardComboEligible === true || s.countsTowardComboEligible === false) {
+    row.countsTowardComboEligible = s.countsTowardComboEligible;
+  }
+  return row;
 }
 
 function mapSellerOffer(s: ApiProductSellerOffer, pricing: ApiPricing): ProductSellerOffer {
@@ -114,6 +121,7 @@ export function apiProductToProduct(p: ApiProduct): Product {
     material: p.material,
     moq: p.moq,
     packingUnitLabels: p.packingUnitLabels,
+    isEligibleForCombo: p.isEligibleForCombo,
   };
 }
 

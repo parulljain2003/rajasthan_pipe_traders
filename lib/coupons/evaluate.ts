@@ -1,5 +1,9 @@
 import type { CouponThemeKey } from "@/lib/db/models/Coupon";
 
+function roundMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 export type CouponLean = {
   code: string;
   discountType: "percentage" | "fixed_amount" | "free_dispatch" | "free_shipping";
@@ -27,6 +31,11 @@ export type CartLineInput = {
   lineSubtotal: number;
   /** Ex-GST line total when known (₹) */
   lineBasicSubtotal?: number;
+  /**
+   * GST-inclusive value of combo net-priced packets on this line.
+   * Coupon percentage / fixed discounts apply only to (lineSubtotal − comboSubtotalInclGst).
+   */
+  comboSubtotalInclGst?: number;
 };
 
 export function isCouponInSchedule(
@@ -68,6 +77,25 @@ export type EligibleTotals = {
   eligibleLineCount: number;
 };
 
+/** Portion of the line that coupons may discount (excludes RPT combo net amounts). */
+export function couponableLineSubtotalInclGst(line: CartLineInput): number {
+  const total = Math.max(0, line.lineSubtotal);
+  const combo =
+    line.comboSubtotalInclGst != null
+      ? Math.min(Math.max(0, line.comboSubtotalInclGst), total)
+      : 0;
+  return roundMoney(Math.max(0, total - combo));
+}
+
+function couponablePacketQuantity(line: CartLineInput): number {
+  const q = Math.max(0, line.quantity);
+  if (q <= 0 || line.lineSubtotal <= 0) return 0;
+  const combo = line.comboSubtotalInclGst != null ? Math.max(0, line.comboSubtotalInclGst) : 0;
+  if (combo <= 0) return Math.floor(q);
+  const comboFrac = Math.min(1, combo / line.lineSubtotal);
+  return Math.max(0, Math.floor(q * (1 - comboFrac) + 1e-9));
+}
+
 export function eligibleTotalsForCoupon(coupon: CouponLean, lines: CartLineInput[]): EligibleTotals {
   const productIds = idSet(coupon.applicableProductIds as unknown[]);
   const categoryIds = idSet(coupon.applicableCategoryIds as unknown[]);
@@ -77,11 +105,37 @@ export function eligibleTotalsForCoupon(coupon: CouponLean, lines: CartLineInput
   for (const line of lines) {
     if (line.quantity <= 0) continue;
     if (!lineMatchesScope(line, productIds, categoryIds)) continue;
-    eligibleSubtotal += Math.max(0, line.lineSubtotal);
-    eligibleQuantity += line.quantity;
-    eligibleLineCount += 1;
+    const couponable = couponableLineSubtotalInclGst(line);
+    const cq = couponablePacketQuantity(line);
+    eligibleSubtotal += couponable;
+    eligibleQuantity += cq;
+    if (couponable > 0) eligibleLineCount += 1;
   }
   return { eligibleSubtotal, eligibleQuantity, eligibleLineCount };
+}
+
+/** Full GST subtotals on scope-matched lines (includes combo net value) — for min order / min qty gates. */
+export function grossEligibleTotalsForCoupon(
+  coupon: CouponLean,
+  lines: CartLineInput[]
+): { grossSubtotal: number; grossQuantity: number; grossLineCount: number } {
+  const productIds = idSet(coupon.applicableProductIds as unknown[]);
+  const categoryIds = idSet(coupon.applicableCategoryIds as unknown[]);
+  let grossSubtotal = 0;
+  let grossQuantity = 0;
+  let grossLineCount = 0;
+  for (const line of lines) {
+    if (line.quantity <= 0) continue;
+    if (!lineMatchesScope(line, productIds, categoryIds)) continue;
+    grossSubtotal += Math.max(0, line.lineSubtotal);
+    grossQuantity += line.quantity;
+    grossLineCount += 1;
+  }
+  return {
+    grossSubtotal: roundMoney(grossSubtotal),
+    grossQuantity,
+    grossLineCount,
+  };
 }
 
 export type DiscountResult = {
@@ -141,10 +195,6 @@ function sumCartSubtotal(lines: CartLineInput[]): number {
   return roundMoney(t);
 }
 
-function roundMoney(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
 /**
  * `minOrderValue` applies to the GST-inclusive eligible subtotal (same basis as cart “Grand Total”).
  */
@@ -168,38 +218,54 @@ export function validateCouponAgainstCart(
     return { ok: false, reason: "Coupon is not valid at this time" };
   }
   const cartSubtotalInclGst = sumCartSubtotal(activeLines);
+  const cartCouponableSubtotalInclGst = roundMoney(
+    activeLines.reduce((s, l) => s + couponableLineSubtotalInclGst(l), 0)
+  );
   const { eligibleSubtotal, eligibleQuantity, eligibleLineCount } = eligibleTotalsForCoupon(coupon, activeLines);
+  const { grossSubtotal, grossQuantity, grossLineCount } = grossEligibleTotalsForCoupon(coupon, activeLines);
   const productIds = idSet(coupon.applicableProductIds as unknown[]);
   const categoryIds = idSet(coupon.applicableCategoryIds as unknown[]);
   const restricted = productIds.size > 0 || categoryIds.size > 0;
-  if (restricted && eligibleLineCount === 0) {
+  if (restricted && grossLineCount === 0) {
     return { ok: false, reason: "No items in your cart match this coupon" };
   }
   const minOrder = Number(coupon.minOrderValue) || 0;
-  if (minOrder > 0 && eligibleSubtotal < minOrder) {
+  const minOrderBasis = restricted ? grossSubtotal : cartSubtotalInclGst;
+  if (minOrder > 0 && minOrderBasis < minOrder) {
     return {
       ok: false,
       reason: `Minimum order value ₹${minOrder.toLocaleString("en-IN")} on eligible items not met`,
     };
   }
   const minQty = Number(coupon.minTotalQuantity) || 0;
-  if (minQty > 0 && eligibleQuantity < minQty) {
+  if (minQty > 0 && grossQuantity < minQty) {
     return {
       ok: false,
       reason: `Minimum quantity ${minQty} on eligible items not met`,
     };
   }
   const minLines = Number(coupon.minEligibleLines) || 0;
-  if (minLines > 0 && eligibleLineCount < minLines) {
+  if (minLines > 0 && grossLineCount < minLines) {
     return {
       ok: false,
       reason: `At least ${minLines} eligible product line(s) required`,
     };
   }
+  if (
+    (coupon.discountType === "percentage" || coupon.discountType === "fixed_amount") &&
+    eligibleSubtotal <= 0 &&
+    grossSubtotal > 0
+  ) {
+    return {
+      ok: false,
+      reason:
+        "Combo-priced items are excluded from this coupon. Add regular-priced items, or turn off combo pricing for 20/25MM clips in the cart.",
+    };
+  }
   let { discountAmount, freeDispatch, freeShipping } = computeDiscountAmount(coupon, eligibleSubtotal);
   discountAmount = roundMoney(discountAmount);
-  if (discountAmount > cartSubtotalInclGst) {
-    discountAmount = cartSubtotalInclGst;
+  if (discountAmount > cartCouponableSubtotalInclGst) {
+    discountAmount = cartCouponableSubtotalInclGst;
   }
   return {
     ok: true,

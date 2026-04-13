@@ -16,6 +16,49 @@
   margin: 0;
 }
 
+.comboHint {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #0f766e;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+}
+
+.couponComboDisclaimer {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #64748b;
+  margin: 0 0 0.5rem;
+  padding: 0.45rem 0.55rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.pricingModeToggle {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: #475569;
+  margin: 0.5rem 0 0.75rem;
+  cursor: pointer;
+}
+
+.pricingModeToggle input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.savingsHighlight {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #047857;
+}
+
 .divider {
   height: 1px;
   background: #f1f5f9;

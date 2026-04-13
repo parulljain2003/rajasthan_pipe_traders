@@ -10,9 +10,11 @@ export type IncomingCouponLine = {
   sellerId?: string;
   size?: string;
   quantity: number;
-  /** Client-computed GST-inclusive line total; ignored when productMongoId resolves from DB */
+  /** Client-computed GST-inclusive line total (authoritative when present) */
   lineSubtotal?: number;
   lineBasicSubtotal?: number;
+  /** GST-inclusive combo net portion — excluded from coupon discount */
+  comboSubtotalInclGst?: number;
 };
 
 function roundMoney(n: number): number {
@@ -169,10 +171,22 @@ export async function resolveCartLinesForCoupon(
           reason: "Could not resolve price for a cart item — try refreshing the page",
         };
       }
-      const lineSubtotal = roundMoney(unit.priceWithGst * q);
-      const lineBasicSubtotal = roundMoney(unit.basicPrice * q);
+      const clientSt =
+        row.lineSubtotal != null && Number.isFinite(Number(row.lineSubtotal))
+          ? roundMoney(Number(row.lineSubtotal))
+          : null;
+      const lineSubtotal =
+        clientSt != null && clientSt >= 0 ? clientSt : roundMoney(unit.priceWithGst * q);
+      const lineBasicSubtotal =
+        row.lineBasicSubtotal != null && Number.isFinite(Number(row.lineBasicSubtotal))
+          ? roundMoney(Number(row.lineBasicSubtotal))
+          : roundMoney(unit.basicPrice * q);
       const categoryMongoId =
         prod.category != null ? String(prod.category) : row.categoryMongoId?.trim();
+      const comboSt =
+        row.comboSubtotalInclGst != null && Number.isFinite(Number(row.comboSubtotalInclGst))
+          ? roundMoney(Math.max(0, Number(row.comboSubtotalInclGst)))
+          : undefined;
       cartSubtotalInclGst += lineSubtotal;
       lines.push({
         productMongoId: pid,
@@ -180,6 +194,7 @@ export async function resolveCartLinesForCoupon(
         quantity: q,
         lineSubtotal,
         lineBasicSubtotal,
+        ...(comboSt !== undefined && comboSt > 0 ? { comboSubtotalInclGst: comboSt } : {}),
       });
     } else {
       const st = row.lineSubtotal != null ? Number(row.lineSubtotal) : NaN;
@@ -190,6 +205,10 @@ export async function resolveCartLinesForCoupon(
         row.lineBasicSubtotal != null && Number.isFinite(Number(row.lineBasicSubtotal))
           ? roundMoney(Number(row.lineBasicSubtotal))
           : undefined;
+      const comboSt =
+        row.comboSubtotalInclGst != null && Number.isFinite(Number(row.comboSubtotalInclGst))
+          ? roundMoney(Math.max(0, Number(row.comboSubtotalInclGst)))
+          : undefined;
       cartSubtotalInclGst += st;
       lines.push({
         productMongoId: undefined,
@@ -197,6 +216,7 @@ export async function resolveCartLinesForCoupon(
         quantity: q,
         lineSubtotal: st,
         lineBasicSubtotal: basic,
+        ...(comboSt !== undefined && comboSt > 0 ? { comboSubtotalInclGst: comboSt } : {}),
       });
     }
   }

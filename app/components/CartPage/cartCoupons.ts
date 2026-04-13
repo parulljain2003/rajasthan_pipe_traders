@@ -55,6 +55,14 @@ export function mapPublicCouponToOption(c: PublicCouponBannerJson): CartCouponOp
 export function cartLinesForCouponApi(items: CartItem[]) {
   return items.map((ci) => {
     const pk = pricedPacketCount(ci);
+    const lineSubtotal = ci.pricePerUnit * pk;
+    const comboPk = ci.comboPricedPackets ?? 0;
+    const comboSubtotalInclGst =
+      ci.comboSubtotalInclGst != null && ci.comboSubtotalInclGst > 0
+        ? ci.comboSubtotalInclGst
+        : comboPk > 0 && pk > 0
+          ? (lineSubtotal * comboPk) / pk
+          : 0;
     return {
       productMongoId: ci.mongoProductId,
       /** Matches MongoDB Product.legacyId — lets coupons work when mongo ids were not stored on cart add */
@@ -64,8 +72,9 @@ export function cartLinesForCouponApi(items: CartItem[]) {
       size: ci.size,
       /** Priced packet count (bags expand to packets) — matches coupon quantity rules */
       quantity: pk,
-      lineSubtotal: ci.pricePerUnit * pk,
+      lineSubtotal,
       lineBasicSubtotal: ci.basicPricePerUnit * pk,
+      ...(comboSubtotalInclGst > 0 ? { comboSubtotalInclGst } : {}),
     };
   });
 }

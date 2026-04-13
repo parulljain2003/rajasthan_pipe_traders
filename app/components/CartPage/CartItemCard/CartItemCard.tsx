@@ -46,6 +46,7 @@ function lineToPayload(line: CartItem, orderMode: CartOrderMode): AddCartItemInp
     qtyPerBag: line.qtyPerBag,
     pcsPerPacket: line.pcsPerPacket,
     orderMode,
+    ...(line.comboPricedPackets != null ? { comboPricedPackets: line.comboPricedPackets } : {}),
   };
 }
 
@@ -76,6 +77,8 @@ export default function CartItemCard({
 
   const combinedPacketCount = lines.reduce((sum, l) => sum + pricedPacketCount(l), 0);
   const combinedPieces = lines.reduce((sum, l) => sum + totalPiecesForLine(l), 0);
+  const comboPacketsOnCard = lines.reduce((sum, l) => sum + (l.comboPricedPackets ?? 0), 0);
+  const showComboBadge = comboPacketsOnCard > 0;
 
   const mrpUnit = safePrice * 1.15;
   const mrpTotal = mrpUnit * combinedPacketCount;
@@ -177,9 +180,16 @@ export default function CartItemCard({
                 {base.brand}
               </span>
             )}
-            <Link href={`/products/${base.productSlug}`} className={styles.name}>
-              {productHeading(base.productName, base.size)}
-            </Link>
+            <div className={styles.nameRow}>
+              <Link href={`/products/${base.productSlug}`} className={styles.name}>
+                {productHeading(base.productName, base.size)}
+              </Link>
+              {showComboBadge ? (
+                <span className={styles.comboBadge} title="Part or all of this line is at RPT combo net rate">
+                  Combo applied
+                </span>
+              ) : null}
+            </div>
             <span className={styles.category}>{base.category}</span>
             {base.sellerId !== "default" && <span className={styles.sellerLine}>Seller: {base.sellerName}</span>}
           </div>
