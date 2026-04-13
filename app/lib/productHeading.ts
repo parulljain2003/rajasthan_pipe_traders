@@ -8,12 +8,6 @@ export function productHeading(name: string, size: string): string {
   return `${name} ${formatSizeForHeading(size)}`.trim();
 }
 
-const BRANDS_HIDDEN_FROM_BADGE = new Set<string>([]);
-
-export function shouldShowBrandBadge(brand: string): boolean {
-  return !BRANDS_HIDDEN_FROM_BADGE.has(brand);
-}
-
 export type ListingBrandPill = "HiTech" | "Tejas" | "N-Star";
 
 /** Card / hero pill — matches sidebar filters (HiTech, Tejas Craft). N-Star for sanitary range. */
