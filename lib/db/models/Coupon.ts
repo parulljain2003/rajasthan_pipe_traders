@@ -2,10 +2,15 @@ import mongoose, { Schema, models, model } from "mongoose";
 
 const DISCOUNT_TYPES = ["percentage", "flat"] as const;
 
+/** How `packetTiers[].minPackets` is interpreted for tier unlock (discount still applies to eligible ₹). */
+const TIER_UNITS = ["packets", "outer"] as const;
+
 /**
- * Discount steps by total eligible packet count (same unit as cart `quantity` from
- * `pricedPacketCount` — bags are expanded to packets). Example rows:
- * 7% from 15 packets, 8% from 30, … (you can still describe these as cartons/bags in `description`).
+ * Discount steps: each row has `minPackets` (minimum tier count) and `value` (% or flat ₹).
+ * When `tierUnit` is `packets`, thresholds use total eligible **packets** (carton/bag list units
+ * convert to packets via packaging). When `tierUnit` is `outer`, thresholds use **outer shipping
+ * units**: master bags count as bags; packet lines convert to cartons when carton size is known,
+ * else to master-bag equivalents; per-carton / per-bag Mongo pricing counts priced outers.
  */
 const packetTierSchema = new Schema(
   {
@@ -39,6 +44,11 @@ const couponSchema = new Schema(
         validator: (v: unknown[]) => Array.isArray(v) && v.length > 0,
         message: "At least one packet tier is required",
       },
+    },
+    tierUnit: {
+      type: String,
+      enum: TIER_UNITS,
+      default: "packets",
     },
     /** Empty = coupon applies to all products */
     applicableProductIds: [{ type: Schema.Types.ObjectId, ref: "Product" }],

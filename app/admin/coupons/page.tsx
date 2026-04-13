@@ -84,6 +84,7 @@ const emptyForm = {
   name: "",
   description: "",
   discountType: "percentage" as AdminCoupon["discountType"],
+  tierUnit: "packets" as AdminCoupon["tierUnit"],
   packetTiers: defaultTiers.map((t) => ({ ...t })),
   applicableProductIds: [] as string[],
   applicableCategoryIds: [] as string[],
@@ -289,6 +290,7 @@ export default function AdminCouponsPage() {
       name: c.name,
       description: c.description ?? "",
       discountType: c.discountType,
+      tierUnit: c.tierUnit === "outer" ? "outer" : "packets",
       packetTiers:
         c.packetTiers?.length > 0
           ? c.packetTiers.map((t) => ({ minPackets: t.minPackets, value: t.value }))
@@ -306,6 +308,7 @@ export default function AdminCouponsPage() {
       name: form.name.trim(),
       description: form.description.trim(),
       discountType: form.discountType,
+      tierUnit: form.tierUnit,
       packetTiers: form.packetTiers,
       applicableProductIds: form.applicableProductIds,
       applicableCategoryIds: form.applicableCategoryIds,
@@ -408,9 +411,10 @@ export default function AdminCouponsPage() {
       </div>
 
       <p className="muted" style={{ maxWidth: "48rem", marginBottom: "1rem" }}>
-        Each row is a packet threshold and discount. Cart quantity is priced packets (bags count as packets). Limit
-        scope with categories and/or products below; leave both empty for all products. Describe cartons/bags in the
-        description field if helpful.
+        Tier basis: <strong>packets</strong> uses total eligible packets (carton/bag list units convert to packets).{" "}
+        <strong>Outer (cartons & bags)</strong> counts master bags as bags and packet lines as cartons (or
+        master-bag equivalents from packaging). Limit scope with categories and/or products; leave both empty for all
+        products.
       </p>
 
       {loading ? (
@@ -424,6 +428,7 @@ export default function AdminCouponsPage() {
                 <th>Name</th>
                 <th>Type</th>
                 <th>Tiers</th>
+                <th>Unit</th>
                 <th>Active</th>
                 <th />
               </tr>
@@ -439,6 +444,7 @@ export default function AdminCouponsPage() {
                     <span className="muted">{c.discountType}</span>
                   </td>
                   <td>{c.packetTiers?.length ?? 0}</td>
+                  <td>{c.tierUnit === "outer" ? "outer" : "packets"}</td>
                   <td>{c.isActive ? "Yes" : "No"}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
                     <button
@@ -529,17 +535,35 @@ export default function AdminCouponsPage() {
                     <option value="flat">Flat INR off eligible subtotal</option>
                   </select>
                 </div>
+                <div className="admin-field">
+                  <label htmlFor="cp-tier-unit">Tier unit *</label>
+                  <select
+                    id="cp-tier-unit"
+                    value={form.tierUnit ?? "packets"}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        tierUnit: e.target.value as AdminCoupon["tierUnit"],
+                      }))
+                    }
+                  >
+                    <option value="packets">Packets (converted from cartons/bags via packaging)</option>
+                    <option value="outer">Outer — cartons & master bags</option>
+                  </select>
+                </div>
               </div>
 
               <div className="admin-field">
-                <label>Packet tiers *</label>
+                <label>{form.tierUnit === "outer" ? "Tier thresholds *" : "Packet tiers *"}</label>
                 <p className="muted" style={{ margin: "0 0 0.5rem", fontSize: "0.85rem" }}>
-                  For each row: minimum eligible packets in the cart, then discount value (% or ₹).
+                  {form.tierUnit === "outer"
+                    ? "For each row: minimum total outer units (cartons + master bags on eligible lines), then discount value (% or ₹). Column is still named minPackets in the API."
+                    : "For each row: minimum eligible packets in the cart, then discount value (% or ₹)."}
                 </p>
                 <table className="admin-table" style={{ marginBottom: 8 }}>
                   <thead>
                     <tr>
-                      <th>Min packets</th>
+                      <th>{form.tierUnit === "outer" ? "Min outer units" : "Min packets"}</th>
                       <th>{form.discountType === "percentage" ? "Percent off" : "INR off"}</th>
                       <th />
                     </tr>

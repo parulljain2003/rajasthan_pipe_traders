@@ -18,12 +18,16 @@ export type PopulatedCategory = { _id: string; name: string; slug: string };
 
 export type CouponPacketTier = { minPackets: number; value: number };
 
+export type CouponTierUnit = "packets" | "outer";
+
 export type AdminCoupon = {
   _id: string;
   code: string;
   name: string;
   description?: string;
   discountType: "percentage" | "flat";
+  /** Tier thresholds: packet totals vs outer cartons/master bags */
+  tierUnit?: CouponTierUnit;
   packetTiers: CouponPacketTier[];
   applicableProductIds: string[];
   applicableCategoryIds: string[];

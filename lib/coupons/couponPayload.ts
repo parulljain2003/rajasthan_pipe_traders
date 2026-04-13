@@ -24,9 +24,14 @@ export function parseObjectIdList(v: unknown): mongoose.Types.ObjectId[] {
 }
 
 const DISCOUNT_TYPES = new Set(["percentage", "flat"]);
+const TIER_UNITS = new Set(["packets", "outer"]);
 
 export function isDiscountType(v: unknown): v is "percentage" | "flat" {
   return typeof v === "string" && DISCOUNT_TYPES.has(v);
+}
+
+export function parseTierUnit(v: unknown): "packets" | "outer" {
+  return typeof v === "string" && TIER_UNITS.has(v) ? (v as "packets" | "outer") : "packets";
 }
 
 export type PacketTierInput = { minPackets: number; value: number };

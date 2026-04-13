@@ -4,12 +4,16 @@ function roundMoney(n: number): number {
 
 export type PacketTier = { minPackets: number; value: number };
 
+export type CouponTierUnit = "packets" | "outer";
+
 export type CouponLean = {
   code: string;
   name?: string;
   description?: string;
   discountType: "percentage" | "flat";
   packetTiers: PacketTier[];
+  /** How `minPackets` thresholds are counted: packets vs outer cartons/bags (see Coupon model). */
+  tierUnit?: CouponTierUnit;
   applicableProductIds?: { toString(): string }[];
   applicableCategoryIds?: { toString(): string }[];
   isActive?: boolean;
@@ -31,6 +35,11 @@ export type CartLineInput = {
    * Falls back to `quantity` when omitted.
    */
   tierPacketQuantity?: number;
+  /**
+   * When set (from Mongo packaging + order mode), used for `tierUnit === "outer"` thresholds.
+   * Falls back to `quantity` when omitted (legacy lines without packaging).
+   */
+  tierOuterUnitQuantity?: number;
   /** GST-inclusive line total (₹) */
   lineSubtotal: number;
   /** Ex-GST line total when known (₹) */
@@ -109,7 +118,19 @@ export function eligibleTotalsForCoupon(coupon: CouponLean, lines: CartLineInput
   return { eligibleSubtotal, eligibleQuantity, eligibleLineCount };
 }
 
-/** Full GST subtotals on scope-matched lines (includes combo net value) — used for packet tier thresholds. */
+function effectiveTierUnit(coupon: CouponLean): CouponTierUnit {
+  return coupon.tierUnit === "outer" ? "outer" : "packets";
+}
+
+function tierThresholdQuantity(line: CartLineInput, coupon: CouponLean): number {
+  const u = effectiveTierUnit(coupon);
+  if (u === "outer") {
+    return Math.max(0, line.tierOuterUnitQuantity ?? line.quantity);
+  }
+  return Math.max(0, line.tierPacketQuantity ?? line.quantity);
+}
+
+/** Full GST subtotals on scope-matched lines (includes combo net value) — used for tier thresholds. */
 export function grossEligibleTotalsForCoupon(
   coupon: CouponLean,
   lines: CartLineInput[]
@@ -123,7 +144,7 @@ export function grossEligibleTotalsForCoupon(
     if (line.quantity <= 0) continue;
     if (!lineMatchesScope(line, productIds, categoryIds)) continue;
     grossSubtotal += Math.max(0, line.lineSubtotal);
-    grossQuantity += line.tierPacketQuantity ?? line.quantity;
+    grossQuantity += tierThresholdQuantity(line, coupon);
     grossLineCount += 1;
   }
   return {
@@ -223,9 +244,12 @@ export function validateCouponAgainstCart(coupon: CouponLean | null, lines: Cart
   const tier = selectPacketTier(tiers, grossQuantity);
   if (!tier) {
     const lowest = Math.min(...tiers.map((t) => t.minPackets));
+    const outer = effectiveTierUnit(coupon) === "outer";
     return {
       ok: false,
-      reason: `At least ${lowest} eligible packets required (cartons/bags count toward packet totals per product)`,
+      reason: outer
+        ? `At least ${lowest} eligible outer units required (cartons and master bags; thresholds use carton/bag counts from your catalog)`
+        : `At least ${lowest} eligible packets required (cartons/bags count toward packet totals per product)`,
     };
   }
 
@@ -280,6 +304,7 @@ export function toPublicCouponBanner(doc: Record<string, unknown>, index = 0): R
         ? `Up to ${maxVal}%`
         : `Up to ₹${maxVal.toLocaleString("en-IN")}`;
   }
+  const tierUnit = doc.tierUnit === "outer" ? "outer" : "packets";
   return {
     code: doc.code,
     discount: discountStub,
@@ -287,5 +312,6 @@ export function toPublicCouponBanner(doc: Record<string, unknown>, index = 0): R
     condition: name,
     desc,
     theme: themeKeyOrDefault(undefined, index),
+    tierUnit,
   };
 }

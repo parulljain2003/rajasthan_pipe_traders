@@ -1,13 +1,18 @@
 /**
- * Coupon tier thresholds are stored as `minPackets`. This module converts cart lines to a
- * consistent packet count using MongoDB `packaging` + `pricingUnit` and list price math.
+ * Coupon tier thresholds use `minPackets` on each tier row. This module converts cart lines to a
+ * consistent packet count and (when `tierUnit === "outer"`) to outer units (cartons / master bags /
+ * priced cartons from Mongo) using `packaging` + `pricingUnit` and list price math.
  */
+
+import { normalizeOrderMode, type CartOrderMode } from "@/lib/cart/packetLine";
 
 export type PackagingFields = {
   pricingUnit?: string;
   pcsPerPacket?: number;
   pcsInCartoon?: number;
   pcsPerBox?: number;
+  /** When set, boxes per master carton (catalog field). */
+  boxesInMasterCartoon?: number;
   packetsInMasterBag?: number;
   pktInMasterBag?: number;
 };
@@ -85,6 +90,7 @@ export function buildPackagingContextFromProduct(
       pcsPerPacket: num(pack.pcsPerPacket),
       pcsInCartoon: num(pack.pcsInCartoon),
       pcsPerBox: num(pack.pcsPerBox),
+      boxesInMasterCartoon: num(pack.boxesInMasterCartoon),
       packetsInMasterBag: num(pack.packetsInMasterBag),
       pktInMasterBag: num(pack.pktInMasterBag),
     },
@@ -158,4 +164,206 @@ export function computeCouponTierPacketCount(args: {
   }
 
   return fallback;
+}
+
+/** Boxes inside one carton — used when mixed carts count boxes like packets for packet-tier coupons. */
+export function boxesPerCartonFromPackaging(pack: PackagingFields, pcsPerPacketForPkt: number): number {
+  const boxed = num(pack.boxesInMasterCartoon);
+  if (boxed != null && boxed > 0) return Math.max(1, Math.floor(boxed + 1e-9));
+  const pcsCart = num(pack.pcsInCartoon);
+  const pcsBox = num(pack.pcsPerBox);
+  if (pcsCart && pcsCart > 0 && pcsBox && pcsBox > 0) {
+    return Math.max(1, Math.ceil(pcsCart / pcsBox));
+  }
+  const ppp = num(pack.pcsPerPacket) ?? pcsPerPacketForPkt;
+  const pktPerCarton = pcsToPackets(num(pack.pcsInCartoon), ppp);
+  return Math.max(1, pktPerCarton);
+}
+
+export type LinePricingFamily = "packet" | "outerish" | "unknown";
+
+/** Classify a line for mixed-cart detection (packet-priced vs carton/bag/box pricing). */
+export function linePricingFamilyFromPackaging(
+  product: ProductPackagingForCoupon | null,
+  orderMode?: CartOrderMode
+): LinePricingFamily {
+  if (normalizeOrderMode(orderMode) === "master_bag") return "outerish";
+  if (!product) return "unknown";
+  const pu = String(product.pricingUnit ?? "per_packet")
+    .trim()
+    .toLowerCase();
+  if (pu === "per_packet" || pu === "per_piece" || pu === "per_dozen") return "packet";
+  if (
+    pu === "per_cartoon" ||
+    pu === "per_box" ||
+    pu === "per_bag" ||
+    pu === "per_master_bag"
+  ) {
+    return "outerish";
+  }
+  return "unknown";
+}
+
+/**
+ * True when the cart mixes packet-style lines with carton/bag/box-style lines — packet-tier thresholds
+ * then use packets + boxes as one pool (bags still expand to inner packets).
+ */
+export function cartHasMixedPacketAndOuterFamilies(
+  lines: Array<{ product: ProductPackagingForCoupon | null; orderMode?: CartOrderMode }>
+): boolean {
+  let hasPacket = false;
+  let hasOuter = false;
+  for (const l of lines) {
+    const f = linePricingFamilyFromPackaging(l.product, l.orderMode);
+    if (f === "packet") hasPacket = true;
+    if (f === "outerish") hasOuter = true;
+  }
+  return hasPacket && hasOuter;
+}
+
+/**
+ * Packet-tier `minPackets` count when the cart is mixed: actual packets on packet lines; on carton
+ * lines total **boxes** (cartons × boxes/carton), counting each box like one packet; bags use inner packets.
+ */
+export function computeCouponTierPacketCountMixedCartLine(args: {
+  lineSubtotalInclGst: number;
+  unitPriceWithGst: number;
+  product: ProductPackagingForCoupon | null;
+  clientPacketQuantity: number;
+  orderMode?: CartOrderMode;
+}): number {
+  const { lineSubtotalInclGst, unitPriceWithGst, product, clientPacketQuantity, orderMode } = args;
+  if (normalizeOrderMode(orderMode) === "master_bag") {
+    return computeCouponTierPacketCount({
+      lineSubtotalInclGst,
+      unitPriceWithGst,
+      product,
+      clientPacketQuantity,
+    });
+  }
+  const fallback = Math.max(0, Math.floor(clientPacketQuantity + 1e-9));
+  if (!product || lineSubtotalInclGst <= 0 || unitPriceWithGst <= 0) return fallback;
+
+  const pack = product.packaging ?? {};
+  const sr = product.sizeRow ?? {};
+  const ppp = num(sr.pcsPerPacket) ?? num(pack.pcsPerPacket) ?? 0;
+  const pu = (product.pricingUnit ?? "per_packet") as string;
+  const unitsPurchased = lineSubtotalInclGst / unitPriceWithGst;
+
+  if (pu === "per_packet" || pu === "per_piece") {
+    return Math.max(0, Math.floor(unitsPurchased + 1e-9));
+  }
+
+  if (pu === "per_box") {
+    return Math.max(0, Math.floor(unitsPurchased + 1e-9));
+  }
+
+  if (pu === "per_cartoon") {
+    const cartons = Math.max(0, Math.floor(unitsPurchased + 1e-9));
+    const bpc = boxesPerCartonFromPackaging(pack, ppp);
+    return cartons * bpc;
+  }
+
+  if (pu === "per_bag" || pu === "per_master_bag") {
+    return computeCouponTierPacketCount({
+      lineSubtotalInclGst,
+      unitPriceWithGst,
+      product,
+      clientPacketQuantity,
+    });
+  }
+
+  if (pu === "per_dozen") {
+    const dozens = Math.max(0, Math.floor(unitsPurchased + 1e-9));
+    if (ppp > 0) {
+      return Math.max(0, Math.floor((dozens * 12) / ppp + 1e-9));
+    }
+    return Math.max(0, dozens * 12);
+  }
+
+  return fallback;
+}
+
+function outerUnitsFromPacketCount(pkt: number, product: ProductPackagingForCoupon | null): number {
+  const p = Math.max(0, Math.floor(pkt + 1e-9));
+  if (!product) return p;
+  const pack = product.packaging ?? {};
+  const sr = product.sizeRow ?? {};
+  const ppp = num(sr.pcsPerPacket) ?? num(pack.pcsPerPacket) ?? 0;
+  const pcsInCartoon = num(pack.pcsInCartoon);
+  if (pcsInCartoon && pcsInCartoon > 0 && ppp > 0) {
+    const pktPerCarton = Math.max(1, Math.ceil(pcsInCartoon / ppp));
+    return Math.max(0, Math.floor(p / pktPerCarton + 1e-9));
+  }
+  const qtyPerBag = num(sr.qtyPerBag) ?? num(pack.packetsInMasterBag) ?? num(pack.pktInMasterBag) ?? 0;
+  if (qtyPerBag > 0) {
+    return Math.max(0, Math.floor(p / qtyPerBag + 1e-9));
+  }
+  return p;
+}
+
+/**
+ * Outer units for tier thresholds: one master bag = 1; packet lines → cartons when carton size is
+ * known, else master-bag equivalents; Mongo `per_cartoon` / `per_bag` pricing uses priced units
+ * from line subtotal / unit price.
+ */
+export function computeCouponTierOuterUnitCount(args: {
+  lineSubtotalInclGst: number;
+  unitPriceWithGst: number;
+  product: ProductPackagingForCoupon | null;
+  /** Priced packet equivalent (bags × qtyPerBag in packet mode). */
+  clientPacketQuantity: number;
+  orderMode?: CartOrderMode;
+  /** Cart `quantity`: packets when `orderMode` is packets, bag count when `master_bag`. */
+  rawLineQuantity?: number;
+}): number {
+  const {
+    lineSubtotalInclGst,
+    unitPriceWithGst,
+    product,
+    clientPacketQuantity,
+    orderMode,
+    rawLineQuantity,
+  } = args;
+  const mode = normalizeOrderMode(orderMode);
+
+  if (mode === "master_bag") {
+    const pktPerBag =
+      num(product?.sizeRow?.qtyPerBag) ??
+      num(product?.packaging?.packetsInMasterBag) ??
+      num(product?.packaging?.pktInMasterBag) ??
+      0;
+    if (rawLineQuantity != null && Number.isFinite(Number(rawLineQuantity))) {
+      return Math.max(0, Math.floor(Number(rawLineQuantity) + 1e-9));
+    }
+    if (pktPerBag > 0) {
+      const pk = Math.max(0, Math.floor(clientPacketQuantity + 1e-9));
+      return Math.max(0, Math.floor(pk / pktPerBag + 1e-9));
+    }
+    return Math.max(0, Math.floor(clientPacketQuantity + 1e-9));
+  }
+
+  const pk = Math.max(0, Math.floor(clientPacketQuantity + 1e-9));
+  if (lineSubtotalInclGst <= 0 || unitPriceWithGst <= 0) {
+    return outerUnitsFromPacketCount(pk, product);
+  }
+
+  const pu = (product?.pricingUnit ?? "per_packet") as string;
+  const unitsPurchased = lineSubtotalInclGst / unitPriceWithGst;
+
+  if (pu === "per_cartoon" || pu === "per_box") {
+    return Math.max(0, Math.floor(unitsPurchased + 1e-9));
+  }
+  if (pu === "per_bag" || pu === "per_master_bag") {
+    return Math.max(0, Math.floor(unitsPurchased + 1e-9));
+  }
+  if (pu === "per_dozen") {
+    return Math.max(0, Math.floor(unitsPurchased + 1e-9));
+  }
+
+  if (pu === "per_packet" || pu === "per_piece") {
+    return outerUnitsFromPacketCount(pk, product);
+  }
+
+  return outerUnitsFromPacketCount(pk, product);
 }

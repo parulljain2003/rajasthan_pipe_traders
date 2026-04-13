@@ -10,7 +10,9 @@ import ComboCartPricingSync from './ComboCartPricingSync';
 import OrderSuccessPopup from './OrderSuccessPopup/OrderSuccessPopup';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import {
+  autoApplyCouponCandidates,
   cartLinesForCouponApi,
+  cartPrefersOuterTierCoupons,
   mapPublicCouponToOption,
   type CartCouponOption,
   type CouponApplyResult,
@@ -182,8 +184,13 @@ export default function CartPage() {
 
     void (async () => {
       try {
+        const preferOuter = cartPrefersOuterTierCoupons(
+          cartItems,
+          packagingForCouponApi ?? null
+        );
+        const couponPool = autoApplyCouponCandidates(cartCoupons, preferOuter);
         const results = await Promise.all(
-          cartCoupons.map(async (c) => {
+          couponPool.map(async (c) => {
             const r = await validateCouponApi(c.code);
             return { code: c.code, r };
           })
@@ -213,7 +220,6 @@ export default function CartPage() {
       }
     })();
   }, [
-    cartItems.length,
     cartSignature,
     couponsLoaded,
     couponCodesKey,
@@ -221,6 +227,7 @@ export default function CartPage() {
     userOptedOutCoupon,
     validateCouponApi,
     cartCoupons,
+    cartItems,
   ]);
 
   useEffect(() => {

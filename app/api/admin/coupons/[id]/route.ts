@@ -7,6 +7,7 @@ import {
   isDiscountType,
   parseObjectIdList,
   parsePacketTiers,
+  parseTierUnit,
   validatePacketTiersForDiscountType,
 } from "@/lib/coupons/couponPayload";
 
@@ -77,6 +78,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       $set.applicableCategoryIds = parseObjectIdList(body.applicableCategoryIds);
     }
     if (typeof body.isActive === "boolean") $set.isActive = body.isActive;
+    if (body.tierUnit !== undefined) {
+      $set.tierUnit = parseTierUnit(body.tierUnit);
+    }
 
     if ($set.discountType !== undefined && body.packetTiers === undefined) {
       const existing = await CouponModel.findById(id).select("packetTiers discountType").lean();

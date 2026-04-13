@@ -7,6 +7,7 @@ import {
   isDiscountType,
   parseObjectIdList,
   parsePacketTiers,
+  parseTierUnit,
   validatePacketTiersForDiscountType,
 } from "@/lib/coupons/couponPayload";
 
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
       description: typeof body.description === "string" ? body.description.trim() : "",
       discountType,
       packetTiers,
+      tierUnit: parseTierUnit(body.tierUnit),
       applicableProductIds: parseObjectIdList(body.applicableProductIds),
       applicableCategoryIds: parseObjectIdList(body.applicableCategoryIds),
       isActive: typeof body.isActive === "boolean" ? body.isActive : true,
