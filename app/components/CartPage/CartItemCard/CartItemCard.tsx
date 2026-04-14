@@ -61,17 +61,33 @@ export default function CartItemCard({
   const pktQty = packetLine ? Number(packetLine.quantity) || 0 : 0;
   const bagQty = bagLine ? Number(bagLine.quantity) || 0 : 0;
 
-  const safePrice = Number(base.pricePerUnit) || 0;
-  const safeBasic = Number(base.basicPricePerUnit) || 0;
+  /** Unit row for display: bag line when user has bags (carries combo-updated price); else first line. */
+  const unitDisplayLine = bagLine && bagQty > 0 ? bagLine : base;
+  const safePrice = Number(unitDisplayLine.pricePerUnit) || 0;
+  const safeBasic = Number(unitDisplayLine.basicPricePerUnit) || 0;
 
-  const combinedLineTotal = lines.reduce((sum, l) => sum + safePrice * pricedPacketCount(l), 0);
-  const combinedBasic = lines.reduce((sum, l) => sum + safeBasic * pricedPacketCount(l), 0);
+  const combinedLineTotal = lines.reduce(
+    (sum, l) => sum + (Number(l.pricePerUnit) || 0) * pricedPacketCount(l),
+    0
+  );
+  const combinedBasic = lines.reduce(
+    (sum, l) => sum + (Number(l.basicPricePerUnit) || 0) * pricedPacketCount(l),
+    0
+  );
   const gstAmount = combinedLineTotal - combinedBasic;
 
   const combinedPacketCount = lines.reduce((sum, l) => sum + pricedPacketCount(l), 0);
   const combinedPieces = lines.reduce((sum, l) => sum + totalPiecesForLine(l), 0);
   const comboPacketsOnCard = lines.reduce((sum, l) => sum + (l.comboPricedPackets ?? 0), 0);
-  const showComboBadge = comboPacketsOnCard > 0;
+  const comboGstOnCard = lines.reduce((sum, l) => sum + (l.comboSubtotalInclGst ?? 0), 0);
+  /** Match CartWishlistContext + ComboCartPricingSync: combo can be inferred from packets, GST slice, or flag. */
+  const comboPriceApplied =
+    comboPacketsOnCard > 0 ||
+    comboGstOnCard > 0.005 ||
+    lines.some((l) => Boolean(l.isComboApplied));
+
+  /** Set by `/api/cart/combo-pricing` when this line uses RPT combo net pricing (incl. bag-only lines). */
+  const showComboBadge = comboPriceApplied;
 
   const mrpUnit = safePrice * 1.15;
   const mrpTotal = mrpUnit * combinedPacketCount;
@@ -172,8 +188,8 @@ export default function CartItemCard({
                 {productHeading(base.productName, base.size)}
               </Link>
               {showComboBadge ? (
-                <span className={styles.comboBadge} title="Part or all of this line is at RPT combo net rate">
-                  Combo applied
+                <span className={styles.comboBadge} title="RPT Patti + core combo net rate on this line">
+                  COMBO PRICE APPLIED
                 </span>
               ) : null}
             </div>
@@ -302,7 +318,17 @@ export default function CartItemCard({
           <span className={styles.pricingLabel}>Total</span>
           <div className={styles.pricingValues}>
             <span className={styles.strike}>₹{mrpTotal.toFixed(2)}</span>
-            <span className={styles.totalMain}>₹{combinedLineTotal.toFixed(2)}</span>
+            <span className={styles.totalMain}>
+              ₹{combinedLineTotal.toFixed(2)}
+              {showComboBadge ? (
+                <span
+                  className={styles.comboPriceAppliedBadge}
+                  title="RPT Patti + core combo pricing in the same category (20/25MM clip lines)"
+                >
+                  COMBO PRICE APPLIED
+                </span>
+              ) : null}
+            </span>
             <span className={styles.gstNote}>Total price without GST · ₹{combinedBasic.toFixed(2)}</span>
             <span className={styles.gstNote}>incl. GST · GST ₹{gstAmount.toFixed(2)}</span>
           </div>

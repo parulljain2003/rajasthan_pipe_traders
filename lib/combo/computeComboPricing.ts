@@ -16,6 +16,11 @@ export type ComboPricingInputLine = {
   comboPriceWithGst?: number;
   /** Counts toward eligible pool (same unit as packets) */
   isEligibleForCombo: boolean;
+  /**
+   * Stable combo pool key: category `slug`, or normalized category name, or ObjectId hex.
+   * Eligible packets and core lines match only when this string matches (not raw Mongo id only).
+   */
+  comboPoolCategoryKey?: string | null;
 };
 
 export type ComboPricingResultLine = {
@@ -52,6 +57,24 @@ export type ComputeComboPricingOptions = {
   skipComboAllocation?: boolean;
 };
 
+function comboCategoryKey(line: ComboPricingInputLine): string | null {
+  const raw = line.comboPoolCategoryKey;
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  return s.length > 0 ? s : null;
+}
+
+function hasConfiguredComboRates(line: ComboPricingInputLine): boolean {
+  const cg = line.comboPriceWithGst;
+  const cb = line.comboBasicPrice;
+  return (
+    cg != null &&
+    cb != null &&
+    Number.isFinite(cg) &&
+    Number.isFinite(cb)
+  );
+}
+
 function blendUnitPrice(
   comboPackets: number,
   comboUnit: number,
@@ -84,29 +107,56 @@ export function computeComboPricing(
   }
 
   type CoreRow = ComboPricingInputLine & { coreVariant: "20" | "25" };
-  const coreRows: CoreRow[] = [];
+
+  const categoryKeys = new Set<string>();
+  for (const line of inputLines) {
+    const ck = comboCategoryKey(line);
+    if (!ck) continue;
+    if (line.isEligibleForCombo || (line.coreVariant && hasConfiguredComboRates(line))) {
+      categoryKeys.add(ck);
+    }
+  }
+
+  const coreRowsAll: CoreRow[] = [];
   for (const line of inputLines) {
     if (!line.coreVariant) continue;
-    const cg = line.comboPriceWithGst;
-    const cb = line.comboBasicPrice;
-    if (cg == null || cb == null || !Number.isFinite(cg) || !Number.isFinite(cb)) continue;
-    coreRows.push(line as CoreRow);
+    if (!hasConfiguredComboRates(line)) continue;
+    coreRowsAll.push(line as CoreRow);
   }
 
   let corePacketTotal = 0;
-  for (const r of coreRows) {
+  for (const r of coreRowsAll) {
     corePacketTotal += Math.max(0, r.pricedPacketCount);
   }
 
-  const sortedCore = sortCoreLines(coreRows);
-  let budget = skipComboAllocation ? 0 : Math.min(eligiblePacketTotal, corePacketTotal);
   const comboAlloc = new Map<string, number>();
 
-  for (const row of sortedCore) {
-    const pk = Math.max(0, row.pricedPacketCount);
-    const take = skipComboAllocation ? 0 : Math.min(pk, budget);
-    comboAlloc.set(row.key, take);
-    budget -= take;
+  for (const ck of categoryKeys) {
+    let eligibleInCat = 0;
+    const coreInCat: CoreRow[] = [];
+    for (const line of inputLines) {
+      if (comboCategoryKey(line) !== ck) continue;
+      if (line.isEligibleForCombo) {
+        eligibleInCat += Math.max(0, line.pricedPacketCount);
+      }
+      if (line.coreVariant && hasConfiguredComboRates(line)) {
+        coreInCat.push(line as CoreRow);
+      }
+    }
+
+    const sortedCore = sortCoreLines(coreInCat);
+    let corePkInCat = 0;
+    for (const r of sortedCore) {
+      corePkInCat += Math.max(0, r.pricedPacketCount);
+    }
+
+    let budget = skipComboAllocation ? 0 : Math.min(eligibleInCat, corePkInCat);
+    for (const row of sortedCore) {
+      const pk = Math.max(0, row.pricedPacketCount);
+      const take = skipComboAllocation ? 0 : Math.min(pk, budget);
+      comboAlloc.set(row.key, (comboAlloc.get(row.key) ?? 0) + take);
+      budget -= take;
+    }
   }
 
   const lines: ComboPricingResultLine[] = [];
@@ -182,12 +232,27 @@ export function computeComboPricing(
   }
 
   let smartSuggestion: string | null = null;
-  const surplusCore = Math.max(0, corePacketTotal - eligiblePacketTotal);
+  let surplusAcrossCategories = 0;
+  for (const ck of categoryKeys) {
+    let eligibleInCat = 0;
+    let corePkInCat = 0;
+    for (const line of inputLines) {
+      if (comboCategoryKey(line) !== ck) continue;
+      if (line.isEligibleForCombo) {
+        eligibleInCat += Math.max(0, line.pricedPacketCount);
+      }
+      if (line.coreVariant && hasConfiguredComboRates(line)) {
+        corePkInCat += Math.max(0, line.pricedPacketCount);
+      }
+    }
+    surplusAcrossCategories += Math.max(0, corePkInCat - eligibleInCat);
+  }
+
   if (corePacketTotal > 0 && eligiblePacketTotal === 0) {
     smartSuggestion =
-      "Add eligible products (1.4–18MM clips, clamps, batten, wall plugs, etc.) to unlock combo net rates on 20MM/25MM clips.";
-  } else if (surplusCore > 0) {
-    smartSuggestion = `Add ${surplusCore} more packet(s) of eligible products to price more 20MM/25MM clips at combo net rates (surplus is charged at non-combo list rates).`;
+      "Add eligible products (same category as your 20MM/25MM clips — 1.4–18MM clips, clamps, batten, wall plugs, etc.) to unlock combo net rates.";
+  } else if (surplusAcrossCategories > 0) {
+    smartSuggestion = `Add ${surplusAcrossCategories} more packet(s) of eligible products in the same category to price more 20MM/25MM clips at combo net rates (surplus is charged at non-combo list rates).`;
   }
 
   return {

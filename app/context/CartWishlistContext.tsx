@@ -219,10 +219,15 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
           const hit = map.get(comboCartLineKeyFromCartItem(ci));
           if (!hit) return ci;
           const nextComboGst = hit.comboSubtotalInclGst;
-          const nextIsCombo = Boolean(hit.isComboApplied);
+          const nextIsCombo =
+            (hit.comboPricedPackets ?? 0) > 0 ||
+            (hit.comboSubtotalInclGst ?? 0) > 0.005 ||
+            Boolean(hit.isComboApplied);
+          const priceSame = Math.abs((ci.pricePerUnit ?? 0) - hit.pricePerUnit) < 0.005;
+          const basicSame = Math.abs((ci.basicPricePerUnit ?? 0) - hit.basicPricePerUnit) < 0.005;
           if (
-            ci.pricePerUnit === hit.pricePerUnit &&
-            ci.basicPricePerUnit === hit.basicPricePerUnit &&
+            priceSame &&
+            basicSame &&
             (ci.comboPricedPackets ?? 0) === hit.comboPricedPackets &&
             Math.abs((ci.comboSubtotalInclGst ?? 0) - (nextComboGst ?? 0)) < 0.005 &&
             Boolean(ci.isComboApplied) === nextIsCombo

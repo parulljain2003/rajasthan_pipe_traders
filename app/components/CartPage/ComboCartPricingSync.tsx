@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { CartItem } from "@/app/context/CartWishlistContext";
 import { useCartWishlist } from "@/app/context/CartWishlistContext";
+import { normalizeOrderMode } from "@/lib/cart/packetLine";
 
 type ComboApiLine = {
   key: string;
@@ -27,9 +28,10 @@ function linesPayload(items: CartItem[]) {
   return items.map((ci) => ({
     mongoProductId: ci.mongoProductId,
     productId: ci.productId,
+    productSlug: ci.productSlug,
     size: ci.size,
     sellerId: ci.sellerId,
-    orderMode: ci.orderMode,
+    orderMode: normalizeOrderMode(ci.orderMode),
     quantity: ci.quantity,
     qtyPerBag: ci.qtyPerBag,
     pcsPerPacket: ci.pcsPerPacket,
@@ -84,14 +86,21 @@ export default function ComboCartPricingSync({
         if (!res.ok || !json.data?.lines) return;
 
         applyComboPricingLines(
-          json.data.lines.map((row) => ({
-            key: row.key,
-            pricePerUnit: row.pricePerUnit,
-            basicPricePerUnit: row.basicPricePerUnit,
-            comboPricedPackets: row.comboPricedPackets ?? 0,
-            comboSubtotalInclGst: row.comboSubtotalInclGst,
-            isComboApplied: row.isComboApplied ?? (row.comboPricedPackets ?? 0) > 0,
-          }))
+          json.data.lines.map((row) => {
+            const comboPk = row.comboPricedPackets ?? 0;
+            const comboGst = row.comboSubtotalInclGst ?? 0;
+            /** Prefer packet count / GST slice over `isComboApplied` — `??` would keep literal `false` and skip fallback. */
+            const isComboApplied =
+              Boolean(row.isComboApplied) || comboPk > 0 || comboGst > 0.005;
+            return {
+              key: row.key,
+              pricePerUnit: row.pricePerUnit,
+              basicPricePerUnit: row.basicPricePerUnit,
+              comboPricedPackets: comboPk,
+              comboSubtotalInclGst: row.comboSubtotalInclGst,
+              isComboApplied,
+            };
+          })
         );
 
         onMetaRef.current({

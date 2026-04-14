@@ -163,6 +163,10 @@ export type CouponValidateResponseJson = {
   reason?: string;
   message?: string;
   discountAmount?: number;
+  /** Set when the server picked the best offer (no user code). */
+  autoApplied?: boolean;
+  /** Uppercase coupon code when an offer applies; null when no volume offer. */
+  appliedCode?: string | null;
   /** Server-computed GST-inclusive cart subtotal (authoritative when lines use Mongo product ids) */
   cartSubtotalInclGst?: number;
   eligiblePacketCount?: number;

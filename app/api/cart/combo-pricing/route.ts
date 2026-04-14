@@ -36,6 +36,7 @@ function parseLines(raw: unknown): IncomingCartLineForCombo[] | null {
     out.push({
       mongoProductId,
       productId: Number.isFinite(productId) ? productId : undefined,
+      productSlug: typeof o.productSlug === "string" ? o.productSlug : undefined,
       size,
       sellerId: typeof o.sellerId === "string" ? o.sellerId : undefined,
       orderMode: o.orderMode === "master_bag" ? "master_bag" : "packets",
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
     const products =
       ids.length > 0
         ? await ProductModel.find({ _id: { $in: ids } })
-            .select("isEligibleForCombo sizes sellers pricing sizeOrModel")
+            .select("isEligibleForCombo sizes sellers pricing sizeOrModel slug legacyId category packaging")
             .lean()
         : [];
 

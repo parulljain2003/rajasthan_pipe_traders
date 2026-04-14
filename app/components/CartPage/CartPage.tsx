@@ -10,9 +10,7 @@ import ComboCartPricingSync from './ComboCartPricingSync';
 import OrderSuccessPopup from './OrderSuccessPopup/OrderSuccessPopup';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import {
-  autoApplyCouponCandidates,
   cartLinesForCouponApi,
-  cartPrefersOuterTierCoupons,
   mapPublicCouponToOption,
   type CartCouponOption,
   type CouponApplyResult,
@@ -60,7 +58,18 @@ export default function CartPage() {
   });
 
   const gstTotal = cartTotal - cartBasicTotal;
-  const finalTotal = Math.max(0, cartTotal - couponDiscount);
+
+  const roundMoney = (n: number) => Math.round(n * 100) / 100;
+  const comboSavingsRow =
+    comboMeta.comboSavingsInclGst > 0 && couponPricingMode === "combo_first"
+      ? comboMeta.comboSavingsInclGst
+      : 0;
+  const cartMerchandiseBeforeVolume =
+    comboSavingsRow > 0 ? roundMoney(cartTotal + comboSavingsRow) : cartTotal;
+  const finalTotal = Math.max(
+    0,
+    roundMoney(cartMerchandiseBeforeVolume - comboSavingsRow - couponDiscount)
+  );
 
   const cartGroups = useMemo(() => groupCartItemsByProductLine(cartItems), [cartItems]);
 
@@ -78,8 +87,6 @@ export default function CartPage() {
   useEffect(() => {
     setUserOptedOutCoupon(false);
   }, [cartSignature]);
-
-  const couponCodesKey = useMemo(() => cartCoupons.map((c) => c.code).join(","), [cartCoupons]);
 
   const packagingForCouponApi = useMemo(() => {
     if (
@@ -129,16 +136,17 @@ export default function CartPage() {
 
   const validateCouponApi = useCallback(
     async (
-      code: string
+      code?: string | null
     ): Promise<
-      | { ok: true; discountAmount: number }
+      | { ok: true; discountAmount: number; appliedCode: string | null }
       | { ok: false; message: string }
     > => {
+      const trimmed = typeof code === "string" ? code.trim().toUpperCase() : "";
       const res = await fetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          code,
+          ...(trimmed ? { code: trimmed } : {}),
           lines: cartLinesForCouponApi(cartItems, packagingForCouponApi),
         }),
       });
@@ -160,7 +168,15 @@ export default function CartPage() {
           message: j.reason ?? j.message ?? "Coupon not applicable",
         };
       }
-      return { ok: true, discountAmount: Number(j.discountAmount) || 0 };
+      const applied =
+        j.appliedCode != null && String(j.appliedCode).trim() !== ""
+          ? String(j.appliedCode).trim().toUpperCase()
+          : null;
+      return {
+        ok: true,
+        discountAmount: Number(j.discountAmount) || 0,
+        appliedCode: applied,
+      };
     },
     [cartItems, packagingForCouponApi]
   );
@@ -175,7 +191,6 @@ export default function CartPage() {
       setCouponRevalidateError(null);
       return;
     }
-    if (!couponsLoaded || cartCoupons.length === 0) return;
     if (userOptedOutCoupon) return;
 
     const runId = ++autoRunRef.current;
@@ -184,31 +199,12 @@ export default function CartPage() {
 
     void (async () => {
       try {
-        const preferOuter = cartPrefersOuterTierCoupons(
-          cartItems,
-          packagingForCouponApi ?? null
-        );
-        const couponPool = autoApplyCouponCandidates(cartCoupons, preferOuter);
-        const results = await Promise.all(
-          couponPool.map(async (c) => {
-            const r = await validateCouponApi(c.code);
-            return { code: c.code, r };
-          })
-        );
+        const r = await validateCouponApi();
         if (runId !== autoRunRef.current) return;
 
-        let best: { code: string; discount: number } | null = null;
-        for (const { code, r } of results) {
-          if (r.ok && r.discountAmount > 0) {
-            if (!best || r.discountAmount > best.discount) {
-              best = { code, discount: r.discountAmount };
-            }
-          }
-        }
-
-        if (best) {
-          setAppliedCoupon(best.code);
-          setCouponDiscount(best.discount);
+        if (r.ok) {
+          setAppliedCoupon(r.appliedCode);
+          setCouponDiscount(r.discountAmount);
         } else {
           setAppliedCoupon(null);
           setCouponDiscount(0);
@@ -219,16 +215,7 @@ export default function CartPage() {
         }
       }
     })();
-  }, [
-    cartSignature,
-    couponsLoaded,
-    couponCodesKey,
-    packagingForCouponApi,
-    userOptedOutCoupon,
-    validateCouponApi,
-    cartCoupons,
-    cartItems,
-  ]);
+  }, [cartSignature, packagingForCouponApi, userOptedOutCoupon, validateCouponApi, cartItems]);
 
   useEffect(() => {
     let cancelled = false;
@@ -274,7 +261,7 @@ export default function CartPage() {
       }
       const r = await validateCouponApi(code);
       if (!r.ok) return { ok: false, message: r.message };
-      setAppliedCoupon(code);
+      setAppliedCoupon(r.appliedCode ?? code.trim().toUpperCase());
       setCouponDiscount(r.discountAmount);
       setUserOptedOutCoupon(false);
       return { ok: true };
@@ -409,7 +396,6 @@ export default function CartPage() {
               <OrderSummary
                 basicTotal={cartBasicTotal}
                 gstTotal={gstTotal}
-                grandTotal={cartTotal}
                 minimumOrderInclGst={comboMeta.minimumOrderInclGst}
                 itemCount={cartGroups.length}
                 items={cartItems}
