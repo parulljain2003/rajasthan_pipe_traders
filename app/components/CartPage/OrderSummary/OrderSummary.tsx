@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import styles from "./OrderSummary.module.css";
 import { CartItem, type CartCouponPricingMode } from "../../../context/CartWishlistContext";
 import { normalizeOrderMode, pricedPacketCount, totalPiecesForLine } from "@/lib/cart/packetLine";
@@ -13,11 +14,20 @@ function formatPieces(n: number) {
   return n.toLocaleString("en-IN");
 }
 
-function truncateOfferText(text: string, maxChars: number): string {
-  const t = text.trim();
-  if (t.length <= maxChars) return t;
-  return `${t.slice(0, maxChars - 1).trim()}…`;
+/** Outer-tier % coupons: show a short % title instead of the long admin coupon name. */
+function orderSummaryOfferTitle(meta: CartCouponOption): string {
+  if (meta.tierUnit === "outer") {
+    const m = meta.discount.match(/(\d+(?:\.\d+)?)\s*%/);
+    if (m) return `Flat ${m[1]}% — all products`;
+  }
+  return meta.condition;
 }
+
+function fullOfferDescription(meta: CartCouponOption): string {
+  return (meta.desc || `${meta.discount} ${meta.label}`.trim()).trim();
+}
+
+const OFFER_DESC_PREVIEW_CHARS = 90;
 
 interface OrderSummaryProps {
   basicTotal: number;
@@ -74,6 +84,21 @@ export default function OrderSummary({
 
   const minOrderMet = finalTotal >= minimumOrderInclGst;
   const [showMinError, setShowMinError] = useState(false);
+  const [offerDescOpen, setOfferDescOpen] = useState(false);
+
+  useEffect(() => {
+    if (!offerDescOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOfferDescOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [offerDescOpen]);
 
   const handlePlaceOrder = () => {
     if (!minOrderMet) {
@@ -114,10 +139,28 @@ export default function OrderSummary({
               <span className={styles.offerBadge}>Offer applied</span>
               <span className={styles.offerSaving}>−₹{couponDiscount.toFixed(0)}</span>
             </div>
-            <p className={styles.offerTitle}>{couponMeta.condition}</p>
-            <p className={styles.offerDesc}>
-              {truncateOfferText(couponMeta.desc || `${couponMeta.discount} ${couponMeta.label}`.trim(), 220)}
-            </p>
+            <p className={styles.offerTitle}>{orderSummaryOfferTitle(couponMeta)}</p>
+            {(() => {
+              const full = fullOfferDescription(couponMeta);
+              const needsReadMore = full.length > OFFER_DESC_PREVIEW_CHARS;
+              const preview = needsReadMore
+                ? `${full.slice(0, OFFER_DESC_PREVIEW_CHARS).trim()}…`
+                : full;
+              return (
+                <p className={styles.offerDescOneLine}>
+                  <span className={styles.offerDescTeaser}>{preview}</span>
+                  {needsReadMore ? (
+                    <button
+                      type="button"
+                      className={styles.offerReadMoreBtn}
+                      onClick={() => setOfferDescOpen(true)}
+                    >
+                      Read more
+                    </button>
+                  ) : null}
+                </p>
+              );
+            })()}
             <p className={styles.offerCodeLine}>
               Code <strong>{appliedCoupon}</strong>
             </p>
@@ -232,7 +275,8 @@ export default function OrderSummary({
 
       {couponDiscount > 0 && (
         <div className={styles.row}>
-          <span className={styles.rowLabel}>Coupon discount (non-combo items only)</span>
+          <span className={styles.rowLabel}>Coupon discount </span>  
+          {/* Coupon discount (non-combo items only) */}
           <span className={styles.discountVal}>−₹{couponDiscount.toFixed(0)}</span>
         </div>
       )}
@@ -276,6 +320,33 @@ export default function OrderSummary({
       <p className={styles.terms}>
         100% advance payment · Subject to Ahmedabad jurisdiction · Prices may change without notice
       </p>
+
+      {offerDescOpen && couponMeta
+        ? createPortal(
+            <div
+              className={styles.offerModalOverlay}
+              onClick={() => setOfferDescOpen(false)}
+              role="presentation"
+            >
+              <div
+                className={styles.offerModal}
+                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="offer-desc-modal-title"
+              >
+                <h2 id="offer-desc-modal-title" className={styles.offerModalTitle}>
+                  Offer details
+                </h2>
+                <p className={styles.offerModalBody}>{fullOfferDescription(couponMeta)}</p>
+                <button type="button" className={styles.offerModalClose} onClick={() => setOfferDescOpen(false)}>
+                  Close
+                </button>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
