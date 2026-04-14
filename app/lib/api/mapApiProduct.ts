@@ -4,6 +4,7 @@ import { getApiBaseUrl, resolveAssetUrl } from "./baseUrl";
 import type {
   ApiPricing,
   ApiProduct,
+  ApiProductPackaging,
   ApiProductSize,
   ApiProductSellerOffer,
 } from "./types";
@@ -26,12 +27,6 @@ function mapApiSize(s: ApiProductSize): ProductSize {
     note: s.note,
     packingLabels: s.packingLabels,
   };
-  if (s.comboBasicPrice != null) row.comboBasicPrice = s.comboBasicPrice;
-  if (s.comboPriceWithGst != null) row.comboPriceWithGst = s.comboPriceWithGst;
-  if (s.coreComboVariant === "20" || s.coreComboVariant === "25") row.coreComboVariant = s.coreComboVariant;
-  if (s.countsTowardComboEligible === true || s.countsTowardComboEligible === false) {
-    row.countsTowardComboEligible = s.countsTowardComboEligible;
-  }
   return row;
 }
 
@@ -121,7 +116,21 @@ export function apiProductToProduct(p: ApiProduct): Product {
     material: p.material,
     moq: p.moq,
     packingUnitLabels: p.packingUnitLabels,
-    isEligibleForCombo: p.isEligibleForCombo,
+    packaging: mapPackaging(p.packaging),
+  };
+}
+
+function mapPackaging(p: ApiProductPackaging | undefined): Product["packaging"] {
+  if (!p || typeof p !== "object") return undefined;
+  return {
+    pricingUnit: p.pricingUnit,
+    pcsInCartoon: p.pcsInCartoon,
+    pcsPerPacket: p.pcsPerPacket,
+    packetsInMasterBag: p.packetsInMasterBag,
+    pktInMasterBag: p.pktInMasterBag,
+    pcsPerBox: p.pcsPerBox,
+    boxesInMasterCartoon: p.boxesInMasterCartoon,
+    notes: p.notes,
   };
 }
 

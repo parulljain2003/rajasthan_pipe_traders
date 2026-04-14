@@ -17,11 +17,18 @@ export interface ProductSize {
   note?: string;
   /** Overrides `product.packingUnitLabels` for this row — matches PDF / DB wording */
   packingLabels?: Partial<PackingUnitLabels>;
-  /** Net combo rates (optional — Mongo catalog / admin) */
-  comboBasicPrice?: number;
-  comboPriceWithGst?: number;
-  coreComboVariant?: "20" | "25";
-  countsTowardComboEligible?: boolean;
+}
+
+/** Mongo `packaging` — used for carton vs bag pricing (`pricingUnit`) */
+export interface ProductPackaging {
+  pricingUnit?: string;
+  pcsInCartoon?: number;
+  pcsPerPacket?: number;
+  packetsInMasterBag?: number;
+  pktInMasterBag?: number;
+  pcsPerBox?: number;
+  boxesInMasterCartoon?: number;
+  notes?: string;
 }
 
 export interface DiscountTier {
@@ -70,8 +77,8 @@ export interface Product {
   moq?: number;
   /** Price-list wording for outer/inner pack (defaults by category; see `resolvePackingUnitLabels`) */
   packingUnitLabels?: Partial<PackingUnitLabels>;
-  /** Eligible toward combo pool (Mongo-backed products) */
-  isEligibleForCombo?: boolean;
+  /** From Mongo — outer/inner units and `pricingUnit` (e.g. per_cartoon) */
+  packaging?: ProductPackaging;
 }
 
 export const discountTiers: DiscountTier[] = [

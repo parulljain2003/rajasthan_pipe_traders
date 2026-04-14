@@ -15,11 +15,6 @@ type SizeRow = {
   qtyPerBag: string;
   pcsPerPacket: string;
   note: string;
-  comboBasicPrice: string;
-  comboPriceWithGst: string;
-  coreClipVariant: string;
-  /** "", "yes", "no" — per-size eligible pool (blank = use product-level flag) */
-  eligiblePool: string;
 };
 type SellerRow = {
   sellerId: string;
@@ -39,10 +34,6 @@ const emptySizeRow = (): SizeRow => ({
   qtyPerBag: "",
   pcsPerPacket: "",
   note: "",
-  comboBasicPrice: "",
-  comboPriceWithGst: "",
-  coreClipVariant: "",
-  eligiblePool: "",
 });
 const emptySellerRow = (): SellerRow => ({
   sellerId: "",
@@ -72,22 +63,6 @@ function sizeFromApi(x: unknown): SizeRow {
       : typeof (o as { withGST?: unknown }).withGST === "number"
         ? String((o as { withGST: number }).withGST)
         : "";
-  const core =
-    o.coreComboVariant === "20" || o.coreComboVariant === "25" ? o.coreComboVariant : "";
-  const comboB =
-    typeof o.comboBasicPrice === "number"
-      ? String(o.comboBasicPrice)
-      : typeof (o as { comboBasic?: unknown }).comboBasic === "number"
-        ? String((o as { comboBasic: number }).comboBasic)
-        : "";
-  const comboG =
-    typeof o.comboPriceWithGst === "number"
-      ? String(o.comboPriceWithGst)
-      : "";
-  let eligiblePool = "";
-  if (o.countsTowardComboEligible === true) eligiblePool = "yes";
-  else if (o.countsTowardComboEligible === false) eligiblePool = "no";
-
   return {
     size: typeof o.size === "string" ? o.size : "",
     basicPrice: typeof o.basicPrice === "number" ? String(o.basicPrice) : "",
@@ -95,10 +70,6 @@ function sizeFromApi(x: unknown): SizeRow {
     qtyPerBag: typeof o.qtyPerBag === "number" ? String(o.qtyPerBag) : "",
     pcsPerPacket: typeof o.pcsPerPacket === "number" ? String(o.pcsPerPacket) : "",
     note: typeof o.note === "string" ? o.note : "",
-    comboBasicPrice: comboB,
-    comboPriceWithGst: comboG,
-    coreClipVariant: core,
-    eligiblePool,
   };
 }
 
@@ -135,12 +106,8 @@ function parseSizeRow(r: SizeRow): ApiProductSize | null {
   const qpb = r.qtyPerBag.trim();
   const ppp = r.pcsPerPacket.trim();
   const note = r.note.trim();
-  const cbCombo = r.comboBasicPrice.trim();
-  const cgCombo = r.comboPriceWithGst.trim();
-  const coreV = r.coreClipVariant.trim();
-  const ep = r.eligiblePool.trim().toLowerCase();
 
-  if (!size && !bp && !gst && !qpb && !ppp && !note && !cbCombo && !cgCombo && !coreV && !ep) return null;
+  if (!size && !bp && !gst && !qpb && !ppp && !note) return null;
   if (!size || !bp || !gst) {
     throw new Error("Sizes: each row needs a size label, basic price, and price with GST (or remove the row).");
   }
@@ -161,23 +128,6 @@ function parseSizeRow(r: SizeRow): ApiProductSize | null {
     out.pcsPerPacket = n;
   }
   if (note) out.note = note;
-  if (cbCombo || cgCombo) {
-    if (!cbCombo || !cgCombo) {
-      throw new Error("Sizes: set both combo basic and combo GST, or leave both empty.");
-    }
-    const comboBasicPrice = Number(cbCombo);
-    const comboPriceWithGst = Number(cgCombo);
-    if (Number.isNaN(comboBasicPrice) || Number.isNaN(comboPriceWithGst)) {
-      throw new Error("Sizes: combo prices must be valid numbers.");
-    }
-    out.comboBasicPrice = comboBasicPrice;
-    out.comboPriceWithGst = comboPriceWithGst;
-  }
-  if (coreV === "20" || coreV === "25") {
-    out.coreComboVariant = coreV;
-  }
-  if (ep === "yes") out.countsTowardComboEligible = true;
-  if (ep === "no") out.countsTowardComboEligible = false;
   return out;
 }
 
@@ -367,10 +317,6 @@ function SizesBlock({
                 <th>Size</th>
                 <th>Basic ₹</th>
                 <th>GST ₹</th>
-                <th>Combo ₹ (ex)</th>
-                <th>Combo ₹ (GST)</th>
-                <th>Core</th>
-                <th title="Counts toward eligible pool for combo">Pool</th>
                 <th>Qty / bag</th>
                 <th>Pcs / pkt</th>
                 <th>Note</th>
@@ -405,54 +351,6 @@ function SizesBlock({
                       value={row.priceWithGst}
                       onChange={(e) => update(i, { priceWithGst: e.target.value })}
                     />
-                  </td>
-                  <td>
-                    <input
-                      className="admin-input"
-                      type="number"
-                      step="any"
-                      value={row.comboBasicPrice}
-                      onChange={(e) => update(i, { comboBasicPrice: e.target.value })}
-                      placeholder="—"
-                      title="Net combo basic (20/25MM)"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="admin-input"
-                      type="number"
-                      step="any"
-                      value={row.comboPriceWithGst}
-                      onChange={(e) => update(i, { comboPriceWithGst: e.target.value })}
-                      placeholder="—"
-                      title="Net combo incl. GST"
-                    />
-                  </td>
-                  <td>
-                    <select
-                      className="admin-input admin-select"
-                      value={row.coreClipVariant}
-                      onChange={(e) => update(i, { coreClipVariant: e.target.value })}
-                      title="20/25MM core clip row"
-                      aria-label="Core combo clip variant"
-                    >
-                      <option value="">—</option>
-                      <option value="20">20MM</option>
-                      <option value="25">25MM</option>
-                    </select>
-                  </td>
-                  <td>
-                    <select
-                      className="admin-input admin-select"
-                      value={row.eligiblePool}
-                      onChange={(e) => update(i, { eligiblePool: e.target.value })}
-                      aria-label="Eligible pool override"
-                      title="Whether this size counts toward eligible packets"
-                    >
-                      <option value="">Auto</option>
-                      <option value="yes">Yes</option>
-                      <option value="no">No</option>
-                    </select>
                   </td>
                   <td>
                     <input
@@ -634,7 +532,6 @@ const emptyForm = {
   currency: "INR",
   isActive: true,
   isNew: false,
-  isEligibleForCombo: false,
   discountTiers: [] as TierRow[],
   sizes: [] as SizeRow[],
   sellers: [] as SellerRow[],
@@ -728,7 +625,6 @@ export default function AdminProductsPage() {
         currency: p.pricing?.currency ?? "INR",
         isActive: p.isActive,
         isNew: Boolean(p.isNew),
-        isEligibleForCombo: Boolean((p as { isEligibleForCombo?: boolean }).isEligibleForCombo),
         discountTiers: tiers,
         sizes,
         sellers,
@@ -783,7 +679,6 @@ export default function AdminProductsPage() {
         body.sizes = catalog.sizes;
         body.sellers = catalog.sellers;
         body.images = imagesList;
-        body.isEligibleForCombo = form.isEligibleForCombo;
 
         const res = await fetch(`/api/admin/products/${editingId}`, {
           method: "PATCH",
@@ -815,7 +710,6 @@ export default function AdminProductsPage() {
         if (catalog.sizes.length) body.sizes = catalog.sizes;
         if (catalog.sellers.length) body.sellers = catalog.sellers;
         body.images = imagesList;
-        body.isEligibleForCombo = form.isEligibleForCombo;
 
         const res = await fetch("/api/admin/products", {
           method: "POST",
@@ -1148,18 +1042,6 @@ export default function AdminProductsPage() {
                   lines can stay empty. Reference:{" "}
                   <code style={{ fontSize: "0.78rem" }}>docs/FRONTEND_API_INTEGRATION.md</code>.
                 </p>
-                <label className="admin-check" style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
-                  <input
-                    type="checkbox"
-                    checked={form.isEligibleForCombo}
-                    onChange={(e) => setForm((f) => ({ ...f, isEligibleForCombo: e.target.checked }))}
-                  />
-                  <span>
-                    <strong>Eligible for combo (product)</strong> — when enabled, all sizes on this SKU count toward
-                    the eligible packet pool unless a size row sets Pool to No. For mixed clip lists, leave this off
-                    and set Pool per size (Yes on 1.4–18MM, No on 20/25 core rows).
-                  </span>
-                </label>
                 <DiscountTiersBlock
                   title="Product discount tiers"
                   hint='Volume steps at product level — e.g. quantity label "15 Cartons" and discount "7%".'

@@ -27,17 +27,6 @@ const catalogSizeSchema = new Schema(
     size: { type: String, required: true },
     basicPrice: { type: Number, required: true },
     priceWithGst: { type: Number, required: true },
-    /** Net combo rate (ex-GST) — no slab discounts when applied */
-    comboBasicPrice: { type: Number },
-    /** Net combo rate (incl. GST) — no slab discounts when applied */
-    comboPriceWithGst: { type: Number },
-    /**
-     * Marks this size row as 20MM or 25MM core clip for combo matching.
-     * Non-combo list rates remain `basicPrice` / `priceWithGst`.
-     */
-    coreComboVariant: { type: String, enum: ["20", "25"], default: undefined },
-    /** When true, this size row counts toward the eligible packet pool (overrides product-level when set). */
-    countsTowardComboEligible: { type: Boolean },
     qtyPerBag: Number,
     pcsPerPacket: Number,
     note: { type: String, trim: true },
@@ -150,16 +139,9 @@ const productSchema = new Schema(
     packingUnitLabels: { type: packingLabelsPartialSchema, default: undefined },
     isActive: { type: Boolean, default: true },
     sourceDocument: { type: String, default: "RPT PRICE LIST" },
-    /**
-     * When true, this product’s cart lines count toward the eligible-packet pool
-     * (1.4–18MM clips, clamps, batten, wall plugs, etc.).
-     */
-    isEligibleForCombo: { type: Boolean, default: false },
   },
   { timestamps: true, suppressReservedKeysWarning: true }
 );
-
-productSchema.index({ isEligibleForCombo: 1 });
 
 productSchema.index({ category: 1, sku: 1 });
 productSchema.index({ brand: 1 });

@@ -113,7 +113,6 @@ export async function POST(req: NextRequest) {
       },
       packaging: typeof body.packaging === "object" && body.packaging !== null ? body.packaging : {},
       isActive: typeof body.isActive === "boolean" ? body.isActive : true,
-      isEligibleForCombo: typeof body.isEligibleForCombo === "boolean" ? body.isEligibleForCombo : false,
       sourceDocument:
         typeof body.sourceDocument === "string" ? body.sourceDocument : "RPT PRICE LIST",
       legacyId: typeof body.legacyId === "number" ? body.legacyId : undefined,

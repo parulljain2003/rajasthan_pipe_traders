@@ -38,6 +38,30 @@ export type AdminCoupon = {
   updatedAt?: string;
 };
 
+export type ComboRequirementForm = {
+  productId: string;
+  thresholdKind: "bag" | "carton";
+  minOuterUnits: string;
+};
+
+export type AdminCombo = {
+  _id: string;
+  name: string;
+  priority: number;
+  isActive: boolean;
+  beneficiaryProductId: string;
+  beneficiaryDiscountType: "percentage" | "flat";
+  beneficiaryDiscountValue: number;
+  requirements: Array<{
+    productId: string;
+    thresholdKind: "bag" | "carton";
+    minOuterUnits: number;
+  }>;
+  beneficiaryProduct?: { _id: string; sku?: string; name?: string; slug?: string };
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type AdminProduct = {
   _id: string;
   sku: string;

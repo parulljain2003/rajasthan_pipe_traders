@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import styles from "./CartItemCard.module.css";
 import type { AddCartItemInput, CartItem } from "../../../context/CartWishlistContext";
+import { cartLineSubtotalBasic, cartLineSubtotalInclGst } from "@/lib/cart/cartLineTotals";
 import { normalizeOrderMode, pricedPacketCount, totalPiecesForLine, type CartOrderMode } from "@/lib/cart/packetLine";
 import { resolvePackingLabelsForCartLine } from "@/lib/packingLabels";
 import { productHeading } from "../../../lib/productHeading";
@@ -40,6 +41,9 @@ function lineToPayload(line: CartItem, orderMode: CartOrderMode): AddCartItemInp
     qtyPerBag: line.qtyPerBag,
     pcsPerPacket: line.pcsPerPacket,
     orderMode,
+    ...(orderMode === "carton" && line.packetsPerCarton != null
+      ? { packetsPerCarton: line.packetsPerCarton }
+      : {}),
     ...(line.comboPricedPackets != null ? { comboPricedPackets: line.comboPricedPackets } : {}),
   };
 }
@@ -57,40 +61,40 @@ export default function CartItemCard({
 
   const packetLine = lines.find((l) => normalizeOrderMode(l.orderMode) === "packets");
   const bagLine = lines.find((l) => normalizeOrderMode(l.orderMode) === "master_bag");
+  const cartonLine = lines.find((l) => normalizeOrderMode(l.orderMode) === "carton");
 
   const pktQty = packetLine ? Number(packetLine.quantity) || 0 : 0;
   const bagQty = bagLine ? Number(bagLine.quantity) || 0 : 0;
+  const cartonQty = cartonLine ? Number(cartonLine.quantity) || 0 : 0;
 
   /** Unit row for display: bag line when user has bags (carries combo-updated price); else first line. */
-  const unitDisplayLine = bagLine && bagQty > 0 ? bagLine : base;
+  const unitDisplayLine =
+    cartonLine && cartonQty > 0 ? cartonLine : bagLine && bagQty > 0 ? bagLine : base;
   const safePrice = Number(unitDisplayLine.pricePerUnit) || 0;
   const safeBasic = Number(unitDisplayLine.basicPricePerUnit) || 0;
 
-  const combinedLineTotal = lines.reduce(
-    (sum, l) => sum + (Number(l.pricePerUnit) || 0) * pricedPacketCount(l),
-    0
-  );
-  const combinedBasic = lines.reduce(
-    (sum, l) => sum + (Number(l.basicPricePerUnit) || 0) * pricedPacketCount(l),
-    0
-  );
+  const combinedLineTotal = lines.reduce((sum, l) => sum + cartLineSubtotalInclGst(l), 0);
+  const combinedBasic = lines.reduce((sum, l) => sum + cartLineSubtotalBasic(l), 0);
   const gstAmount = combinedLineTotal - combinedBasic;
 
   const combinedPacketCount = lines.reduce((sum, l) => sum + pricedPacketCount(l), 0);
   const combinedPieces = lines.reduce((sum, l) => sum + totalPiecesForLine(l), 0);
   const comboPacketsOnCard = lines.reduce((sum, l) => sum + (l.comboPricedPackets ?? 0), 0);
   const comboGstOnCard = lines.reduce((sum, l) => sum + (l.comboSubtotalInclGst ?? 0), 0);
-  /** Match CartWishlistContext + ComboCartPricingSync: combo can be inferred from packets, GST slice, or flag. */
+  /** Match CartWishlistContext combo sync: combo can be inferred from packets, GST slice, or flag. */
   const comboPriceApplied =
     comboPacketsOnCard > 0 ||
     comboGstOnCard > 0.005 ||
     lines.some((l) => Boolean(l.isComboApplied));
 
-  /** Set by `/api/cart/combo-pricing` when this line uses RPT combo net pricing (incl. bag-only lines). */
+  /** Set by `/api/cart/combo-pricing` when this line uses combo offer pricing. */
   const showComboBadge = comboPriceApplied;
 
   const mrpUnit = safePrice * 1.15;
-  const mrpTotal = mrpUnit * combinedPacketCount;
+  const mrpTotal =
+    cartonLine && lines.length === 1
+      ? mrpUnit * Math.max(0, cartonQty)
+      : mrpUnit * combinedPacketCount;
   const saving = mrpTotal - combinedLineTotal;
   const savePct = mrpUnit > 0 ? Math.round(((mrpUnit - safePrice) / mrpUnit) * 100) : 0;
 
@@ -120,8 +124,24 @@ export default function CartItemCard({
     }
   };
 
+  const setCartonQty = (next: number) => {
+    if (next < 0) return;
+    if (next === 0) {
+      if (cartonLine) removeFromCart(base.productId, base.size, base.sellerId, "carton");
+      return;
+    }
+    if (!cartonLine) {
+      addToCart(lineToPayload(base, "carton"), next);
+    } else {
+      updateQuantity(base.productId, base.size, next, base.sellerId, "carton");
+    }
+  };
+
+  const cartonOnly = Boolean(cartonLine && lines.length === 1);
+
   const [pktInput, setPktInput] = useState(String(pktQty));
   const [bagInput, setBagInput] = useState(String(bagQty));
+  const [cartonInput, setCartonInput] = useState(String(cartonQty));
 
   useEffect(() => {
     setPktInput(String(pktQty));
@@ -130,6 +150,10 @@ export default function CartItemCard({
   useEffect(() => {
     setBagInput(String(bagQty));
   }, [bagQty]);
+
+  useEffect(() => {
+    setCartonInput(String(cartonQty));
+  }, [cartonQty]);
 
   const commitPkt = (raw: string) => {
     const n = parseInt(raw, 10);
@@ -149,10 +173,22 @@ export default function CartItemCard({
     }
   };
 
+  const commitCarton = (raw: string) => {
+    const n = parseInt(raw, 10);
+    if (!Number.isNaN(n) && n >= 0) {
+      setCartonQty(n);
+    } else {
+      setCartonInput(String(cartonQty));
+    }
+  };
+
   const pkFromBags = bagLine ? pricedPacketCount(bagLine) : 0;
   const pkLoose = packetLine ? pricedPacketCount(packetLine) : 0;
 
   const qtySummaryText = (() => {
+    if (cartonOnly && cartonLine) {
+      return `${cartonQty} carton(s) (${formatPieces(pricedPacketCount(cartonLine))} ${labels.innerPlural} eq.)`;
+    }
     if (hasBulk && bagQty > 0 && pktQty > 0) {
       const outerWord = bagQty === 1 ? labels.outer : labels.outerPlural;
       const looseWord = pktQty === 1 ? labels.inner : labels.innerPlural;
@@ -188,7 +224,7 @@ export default function CartItemCard({
                 {productHeading(base.productName, base.size)}
               </Link>
               {showComboBadge ? (
-                <span className={styles.comboBadge} title="RPT Patti + core combo net rate on this line">
+                <span className={styles.comboBadge} title="Combo offer price on this line">
                   COMBO PRICE APPLIED
                 </span>
               ) : null}
@@ -211,7 +247,51 @@ export default function CartItemCard({
           </button>
         </div>
 
-        <div className={`${styles.stackedQtyBlock} ${hasBulk ? styles.stackedQtyBlockRow : ""}`}>
+        <div className={`${styles.stackedQtyBlock} ${hasBulk && !cartonOnly ? styles.stackedQtyBlockRow : ""}`}>
+          {cartonOnly && cartonLine ? (
+            <div className={styles.qtyRow}>
+              <span className={styles.fieldLabel}>Cartons</span>
+              <div className={styles.qtyControls}>
+                <div className={styles.qtyControlsInner}>
+                  <button
+                    type="button"
+                    className={styles.qtyBtn}
+                    onClick={() => setCartonQty(Math.max(0, cartonQty - 1))}
+                    disabled={cartonQty <= 0}
+                    aria-label="Decrease cartons"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M5 12h14" />
+                    </svg>
+                  </button>
+                  <div className={styles.qtyValueCell}>
+                    <input
+                      type="number"
+                      className={styles.qtyInput}
+                      value={cartonInput}
+                      min={0}
+                      step={1}
+                      onChange={(e) => setCartonInput(e.target.value)}
+                      onBlur={(e) => commitCarton(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      }}
+                      aria-label="Quantity in cartons"
+                    />
+                    <span className={styles.qtyPc} aria-hidden>
+                      ctns
+                    </span>
+                  </div>
+                  <button type="button" className={styles.qtyBtn} onClick={() => setCartonQty(cartonQty + 1)} aria-label="Increase cartons">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
           <div className={styles.qtyRow}>
             <span className={styles.fieldLabel}>Quantity ({labels.innerPlural})</span>
             <div className={styles.qtyControls}>
@@ -297,6 +377,8 @@ export default function CartItemCard({
               </div>
             </div>
           )}
+            </>
+          )}
         </div>
       </div>
 
@@ -323,7 +405,7 @@ export default function CartItemCard({
               {showComboBadge ? (
                 <span
                   className={styles.comboPriceAppliedBadge}
-                  title="RPT Patti + core combo pricing in the same category (20/25MM clip lines)"
+                  title="Combo offer pricing on this line"
                 >
                   COMBO PRICE APPLIED
                 </span>

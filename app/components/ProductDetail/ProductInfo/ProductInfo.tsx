@@ -37,6 +37,14 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const labels = resolvePackingUnitLabels(product, selectedSize);
   const hasBulk = selectedSize.qtyPerBag > 0;
 
+  const pricingUnit = product.packaging?.pricingUnit?.toLowerCase() ?? "";
+  const isPerCarton = pricingUnit === "per_cartoon" || pricingUnit === "per_carton";
+  const pcsInCartoon = product.packaging?.pcsInCartoon ?? 0;
+  const packetsPerCarton =
+    pcsInCartoon > 0 && selectedSize.pcsPerPacket > 0
+      ? Math.max(1, Math.ceil(pcsInCartoon / selectedSize.pcsPerPacket))
+      : Math.max(1, 1);
+
   const resetOrderState = () => {
     setQuantity(0);
     setMasterBags(0);
@@ -44,24 +52,30 @@ export default function ProductInfo({ product }: ProductInfoProps) {
     setShowQtyError(false);
   };
 
-  const cartPayload = (orderMode: "packets" | "master_bag" = "packets") => ({
-    productId: product.id,
-    mongoProductId: product.mongoProductId,
-    categoryMongoId: product.categoryMongoId,
-    productName: product.name,
-    productSlug: product.slug,
-    productImage: product.image,
-    brand: activeOffer.brand,
-    category: product.category,
-    sellerId: activeOffer.sellerId,
-    sellerName: activeOffer.sellerName,
-    size: selectedSize.size,
-    pricePerUnit: selectedSize.withGST,
-    basicPricePerUnit: selectedSize.basicPrice,
-    qtyPerBag: selectedSize.qtyPerBag,
-    pcsPerPacket: selectedSize.pcsPerPacket,
-    orderMode,
-  });
+  const cartPayload = (orderMode: "packets" | "master_bag" | "carton" = "packets") => {
+    const base = {
+      productId: product.id,
+      mongoProductId: product.mongoProductId,
+      categoryMongoId: product.categoryMongoId,
+      productName: product.name,
+      productSlug: product.slug,
+      productImage: product.image,
+      brand: activeOffer.brand,
+      category: product.category,
+      sellerId: activeOffer.sellerId,
+      sellerName: activeOffer.sellerName,
+      size: selectedSize.size,
+      pricePerUnit: selectedSize.withGST,
+      basicPricePerUnit: selectedSize.basicPrice,
+      qtyPerBag: selectedSize.qtyPerBag,
+      pcsPerPacket: selectedSize.pcsPerPacket,
+      orderMode,
+    };
+    if (orderMode === "carton") {
+      return { ...base, orderMode: "carton" as const, packetsPerCarton };
+    }
+    return base;
+  };
 
   const handleAddToCart = () => {
     if (quantity <= 0) {
@@ -69,13 +83,21 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       return;
     }
     setShowQtyError(false);
-    addToCart(cartPayload("packets"), quantity);
+    if (isPerCarton) {
+      addToCart(cartPayload("carton"), quantity);
+    } else {
+      addToCart(cartPayload("packets"), quantity);
+    }
     setAddedToCart(true);
     setPopupOpen(true);
   };
 
   /** One button: syncs carton (master_bag) + box (packets) lines with the cart. */
   const handleBestValueAddToCart = () => {
+    if (isPerCarton) {
+      handleAddToCart();
+      return;
+    }
     if (!hasBulk) {
       handleAddToCart();
       return;
@@ -103,6 +125,113 @@ export default function ProductInfo({ product }: ProductInfoProps) {
     setAddedToCart(true);
     setPopupOpen(true);
   };
+
+  if (isPerCarton) {
+    return (
+      <div className={styles.infoPanel}>
+        <div className={styles.metaRow}>
+          <span
+            className={styles.sellerBrandPill}
+            style={{ "--brand-color": brandPillColor } as React.CSSProperties}
+          >
+            {activeOffer.brand}
+          </span>
+        </div>
+        <h1 className={styles.productName}>{productHeading(product.name, selectedSize.size)}</h1>
+        {product.brandCode && (
+          <p className={styles.productCode}>
+            Product Code: <strong>{product.brandCode}</strong>
+          </p>
+        )}
+        <div className={styles.divider} />
+        <div className={styles.priceCard}>
+          <div className={styles.priceRow}>
+            <div>
+              <p className={styles.priceLabel}>Basic Price (ex-GST, per carton)</p>
+              <p className={styles.basicPrice}>₹{selectedSize.basicPrice.toFixed(2)}</p>
+            </div>
+            <div className={styles.gstPriceBlock}>
+              <p className={styles.priceLabel}>With GST (per carton)</p>
+              <p className={styles.gstPrice}>₹{selectedSize.withGST.toFixed(2)}</p>
+            </div>
+          </div>
+        </div>
+        <div className={styles.premiumBagSection}>
+          <div className={styles.bagTitleBlock}>
+            <span>Order by carton</span>
+          </div>
+          <p className={styles.bagCalc}>
+            {pcsInCartoon > 0
+              ? `1 carton ≈ ${packetsPerCarton} packet(s) (${pcsInCartoon} pcs)`
+              : "Price is per carton"}
+          </p>
+          <div className={styles.bagActionControls}>
+            <div className={styles.qtySection}>
+              <label className={styles.qtyCounterLabel}>Cartons</label>
+              <div className={styles.modernQtyCounter}>
+                <button
+                  type="button"
+                  className={styles.modernQtyBtn}
+                  disabled={quantity <= 0}
+                  onClick={() => {
+                    setQuantity((q) => Math.max(0, q - 1));
+                    setShowQtyError(false);
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+                <div className={styles.modernQtyInputBlock}>
+                  <input
+                    type="number"
+                    className={styles.modernQtyInput}
+                    value={quantity}
+                    min={0}
+                    step={1}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10) || 0;
+                      if (v >= 0) {
+                        setQuantity(v);
+                        setShowQtyError(false);
+                      }
+                    }}
+                  />
+                  <span className={styles.modernQtyUnit}>cartons</span>
+                </div>
+                <button
+                  type="button"
+                  className={styles.modernQtyBtn}
+                  onClick={() => {
+                    setQuantity((q) => q + 1);
+                    setShowQtyError(false);
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={`${styles.bagAddToCartBtn} ${styles.bagAddToCartBtnFull} ${addedToCart ? styles.btnSuccess : ""}`}
+              onClick={handleAddToCart}
+            >
+              {addedToCart ? "Added" : "Add to cart"}
+            </button>
+          </div>
+        </div>
+        {showQtyError && <div className={styles.qtyErrorInline}>Please add quantity first</div>}
+        <WhatsAppPopup
+          isOpen={popupOpen}
+          onClose={() => setPopupOpen(false)}
+          productName={product.name}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.infoPanel}>

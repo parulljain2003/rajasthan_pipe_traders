@@ -10,7 +10,9 @@ function normalizeSellerId(sellerId: string | undefined): string {
 }
 
 function normalizeOrderMode(mode: unknown): CartOrderMode {
-  return mode === "master_bag" ? "master_bag" : "packets";
+  if (mode === "master_bag") return "master_bag";
+  if (mode === "carton") return "carton";
+  return "packets";
 }
 
 /** Restore cart from localStorage with loose validation (survives schema tweaks). */
@@ -48,6 +50,10 @@ export function loadCartFromStorage(): CartItem[] {
         qtyPerBag: Number(r.qtyPerBag) || 0,
         pcsPerPacket: Math.max(1, Number(r.pcsPerPacket) || 1),
         orderMode: normalizeOrderMode(r.orderMode),
+        packetsPerCarton:
+          typeof r.packetsPerCarton === "number" && Number.isFinite(r.packetsPerCarton)
+            ? Math.max(0, r.packetsPerCarton)
+            : undefined,
         comboPricedPackets:
           typeof r.comboPricedPackets === "number" && Number.isFinite(r.comboPricedPackets)
             ? Math.max(0, r.comboPricedPackets)

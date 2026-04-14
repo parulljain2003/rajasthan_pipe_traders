@@ -16,8 +16,10 @@ export function groupCartItemsByProductLine(items: CartItem[]): CartItem[][] {
   }
   return Array.from(map.values()).map((lines) =>
     [...lines].sort((a, b) => {
-      const ao = normalizeOrderMode(a.orderMode) === "master_bag" ? 1 : 0;
-      const bo = normalizeOrderMode(b.orderMode) === "master_bag" ? 1 : 0;
+      const rank = (m: ReturnType<typeof normalizeOrderMode>) =>
+        m === "master_bag" ? 2 : m === "carton" ? 1 : 0;
+      const ao = rank(normalizeOrderMode(a.orderMode));
+      const bo = rank(normalizeOrderMode(b.orderMode));
       return ao - bo;
     })
   );

@@ -1,4 +1,5 @@
 import type { CartItem } from "../../context/CartWishlistContext";
+import { cartLineSubtotalBasic, cartLineSubtotalInclGst } from "@/lib/cart/cartLineTotals";
 import { normalizeOrderMode, pricedPacketCount } from "@/lib/cart/packetLine";
 import {
   computeCouponTierPacketCount,
@@ -73,7 +74,7 @@ export function cartPrefersOuterTierCoupons(
 ): boolean {
   if (!items.length) return false;
   for (let i = 0; i < items.length; i++) {
-    if (normalizeOrderMode(items[i].orderMode) === "master_bag") {
+    if (normalizeOrderMode(items[i].orderMode) === "master_bag" || normalizeOrderMode(items[i].orderMode) === "carton") {
       return true;
     }
     const pkg = packagingPerLine?.[i];
@@ -117,7 +118,7 @@ export function cartLinesForCouponApi(
 ) {
   return items.map((ci, idx) => {
     const pk = pricedPacketCount(ci);
-    const lineSubtotal = ci.pricePerUnit * pk;
+    const lineSubtotal = cartLineSubtotalInclGst(ci);
     const pkg = packagingPerLine?.[idx] ?? null;
     const tierQty =
       pkg != null
@@ -149,7 +150,7 @@ export function cartLinesForCouponApi(
       /** Packaging-aware packet count for tier thresholds (omit when same as quantity) */
       ...(tierQty !== pk ? { tierPacketQuantity: tierQty } : {}),
       lineSubtotal,
-      lineBasicSubtotal: ci.basicPricePerUnit * pk,
+      lineBasicSubtotal: cartLineSubtotalBasic(ci),
       ...(comboSubtotalInclGst > 0 ? { comboSubtotalInclGst } : {}),
     };
   });

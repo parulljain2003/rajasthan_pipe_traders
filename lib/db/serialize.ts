@@ -80,3 +80,43 @@ export function serializeCouponLean(doc: LeanDoc | null): Record<string, unknown
   }
   return out;
 }
+
+/** Combo document for admin JSON */
+export function serializeComboLean(doc: LeanDoc | null): Record<string, unknown> | null {
+  if (!doc) return null;
+  const out: Record<string, unknown> = { ...doc, _id: idString(doc._id) };
+  const ben = doc.beneficiaryProductId as unknown;
+  if (ben && typeof ben === "object" && "_id" in (ben as object)) {
+    const p = ben as LeanDoc;
+    out.beneficiaryProductId = idString(p._id);
+    out.beneficiaryProduct = {
+      _id: idString(p._id),
+      sku: p.sku,
+      name: p.name,
+      slug: p.slug,
+    };
+  }
+  const reqs = doc.requirements as unknown;
+  if (Array.isArray(reqs)) {
+    out.requirements = reqs.map((r) => {
+      if (!r || typeof r !== "object") return r;
+      const row = r as Record<string, unknown> & { productId?: unknown };
+      const pid = row.productId;
+      if (pid && typeof pid === "object" && "_id" in (pid as object)) {
+        const pr = pid as LeanDoc;
+        return {
+          ...row,
+          productId: idString(pr._id),
+          product: {
+            _id: idString(pr._id),
+            sku: pr.sku,
+            name: pr.name,
+            slug: pr.slug,
+          },
+        };
+      }
+      return row;
+    });
+  }
+  return out;
+}

@@ -1,11 +1,16 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react";
-import {
-  normalizeOrderMode,
-  pricedPacketCount,
-  type CartOrderMode,
-} from "@/lib/cart/packetLine";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
+import { normalizeOrderMode, type CartOrderMode } from "@/lib/cart/packetLine";
+import { cartLineSubtotalBasic, cartLineSubtotalInclGst } from "@/lib/cart/cartLineTotals";
 import { loadCartFromStorage, saveCartToStorage } from "@/lib/cart/cartStorage";
 import { comboCartLineKeyFromCartItem } from "@/lib/cart/cartLineKey";
 
@@ -26,8 +31,10 @@ export interface CartItem {
   sellerId: string;
   sellerName: string;
   size: string;
-  /** Packet count when `orderMode` is `packets`; bag count when `orderMode` is `master_bag` */
+  /** Packet count when `orderMode` is `packets`; bag count when `master_bag`; cartons when `carton` */
   quantity: number;
+  /** When `orderMode` is `carton`, packets per carton (for packet-equivalent math) */
+  packetsPerCarton?: number;
   /** With GST, per packet (priced unit) */
   pricePerUnit: number;
   basicPricePerUnit: number;
@@ -38,7 +45,7 @@ export interface CartItem {
    * `master_bag`: `quantity` = number of master bags; line amount = price × (quantity × qtyPerBag) packets.
    */
   orderMode?: CartOrderMode;
-  /** Packets on this line priced at RPT combo net rate (set by combo pricing sync) */
+  /** Priced units at combo rate (set by combo pricing sync; name kept for storage compat) */
   comboPricedPackets?: number;
   /** GST-inclusive value of combo net-priced packets (authoritative for coupon exclusion) */
   comboSubtotalInclGst?: number;
@@ -49,7 +56,22 @@ export interface CartItem {
 /** How to combine combo rates with coupons: combo lines stay net; coupon hits non-combo only, unless user forgoes combo. */
 export type CartCouponPricingMode = "combo_first" | "list_for_full_coupon";
 
+/** Filled by combo-pricing sync (runs app-wide when the cart has lines). */
+export type ComboPricingMeta = {
+  suggestion: string | null;
+  minimumOrderInclGst: number;
+  minimumOrderMet: boolean;
+  comboSavingsInclGst: number;
+};
+
 export type { CartOrderMode };
+
+export const DEFAULT_COMBO_PRICING_META: ComboPricingMeta = {
+  suggestion: null,
+  minimumOrderInclGst: 25_000,
+  minimumOrderMet: true,
+  comboSavingsInclGst: 0,
+};
 
 export type AddCartItemInput = Omit<CartItem, "quantity">;
 
@@ -109,6 +131,8 @@ interface CartWishlistState {
     orderMode?: CartOrderMode
   ) => void;
   clearCart: () => void;
+  /** Combo API suggestion + min-order / savings; updated whenever the cart has lines (app-wide sync). */
+  comboPricingMeta: ComboPricingMeta;
 }
 
 const CartWishlistContext = createContext<CartWishlistState | null>(null);
@@ -118,6 +142,7 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
   /** False until client has read localStorage — avoids overwriting saved cart with [] on first paint */
   const [cartHydrated, setCartHydrated] = useState(false);
   const [couponPricingMode, setCouponPricingMode] = useState<CartCouponPricingMode>("combo_first");
+  const [comboPricingMeta, setComboPricingMeta] = useState<ComboPricingMeta>(DEFAULT_COMBO_PRICING_META);
 
   useEffect(() => {
     /* Persisted cart only exists in the browser — load after mount to match SSR (empty) then fill */
@@ -256,20 +281,12 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
   );
 
   const cartTotal = useMemo(
-    () =>
-      cartItems.reduce(
-        (sum, ci) => sum + ci.pricePerUnit * pricedPacketCount(ci),
-        0
-      ),
+    () => cartItems.reduce((sum, ci) => sum + cartLineSubtotalInclGst(ci), 0),
     [cartItems]
   );
 
   const cartBasicTotal = useMemo(
-    () =>
-      cartItems.reduce(
-        (sum, ci) => sum + ci.basicPricePerUnit * pricedPacketCount(ci),
-        0
-      ),
+    () => cartItems.reduce((sum, ci) => sum + cartLineSubtotalBasic(ci), 0),
     [cartItems]
   );
 
@@ -290,8 +307,10 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
         updateQuantity,
         updateSize,
         clearCart,
+        comboPricingMeta,
       }}
     >
+      <ComboPricingSyncEffects setComboPricingMeta={setComboPricingMeta} />
       {children}
     </CartWishlistContext.Provider>
   );
@@ -301,4 +320,108 @@ export function useCartWishlist() {
   const ctx = useContext(CartWishlistContext);
   if (!ctx) throw new Error("useCartWishlist must be used within CartWishlistProvider");
   return ctx;
+}
+
+type ComboApiLine = {
+  key: string;
+  pricePerUnit: number;
+  basicPricePerUnit: number;
+  comboPricedPackets: number;
+  isComboApplied?: boolean;
+  comboSubtotalInclGst?: number;
+};
+
+type ComboPricingResponse = {
+  data?: {
+    lines: ComboApiLine[];
+    smartSuggestion: string | null;
+    minimumOrderInclGst: number;
+    minimumOrderMet: boolean;
+    comboSavingsInclGst?: number;
+  };
+};
+
+function linesPayloadForCombo(items: CartItem[]) {
+  return items.map((ci) => ({
+    mongoProductId: ci.mongoProductId,
+    productId: ci.productId,
+    productSlug: ci.productSlug,
+    size: ci.size,
+    sellerId: ci.sellerId,
+    orderMode: normalizeOrderMode(ci.orderMode),
+    quantity: ci.quantity,
+    qtyPerBag: ci.qtyPerBag,
+    pcsPerPacket: ci.pcsPerPacket,
+    packetsPerCarton: ci.packetsPerCarton,
+    pricePerUnit: ci.pricePerUnit,
+    basicPricePerUnit: ci.basicPricePerUnit,
+  }));
+}
+
+/** Runs inside the provider; fetches combo pricing whenever the cart changes so totals stay in sync site-wide. */
+function ComboPricingSyncEffects({
+  setComboPricingMeta,
+}: {
+  setComboPricingMeta: React.Dispatch<React.SetStateAction<ComboPricingMeta>>;
+}) {
+  const { cartItems, cartHydrated, applyComboPricingLines, couponPricingMode } = useCartWishlist();
+  const reqId = useRef(0);
+
+  useEffect(() => {
+    if (!cartHydrated || cartItems.length === 0) {
+      setComboPricingMeta(DEFAULT_COMBO_PRICING_META);
+      return;
+    }
+
+    const id = ++reqId.current;
+    const ac = new AbortController();
+
+    void (async () => {
+      try {
+        const preferListOverCombo = couponPricingMode === "list_for_full_coupon";
+        const res = await fetch("/api/cart/combo-pricing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lines: linesPayloadForCombo(cartItems),
+            preferListOverCombo,
+          }),
+          signal: ac.signal,
+        });
+        const json = (await res.json()) as ComboPricingResponse;
+        if (id !== reqId.current) return;
+        if (!res.ok || !json.data?.lines) return;
+
+        applyComboPricingLines(
+          json.data.lines.map((row) => {
+            const comboPk = row.comboPricedPackets ?? 0;
+            const comboGst = row.comboSubtotalInclGst ?? 0;
+            const isComboApplied =
+              Boolean(row.isComboApplied) || comboPk > 0 || comboGst > 0.005;
+            return {
+              key: row.key,
+              pricePerUnit: row.pricePerUnit,
+              basicPricePerUnit: row.basicPricePerUnit,
+              comboPricedPackets: comboPk,
+              comboSubtotalInclGst: row.comboSubtotalInclGst,
+              isComboApplied,
+            };
+          })
+        );
+
+        setComboPricingMeta({
+          suggestion: json.data.smartSuggestion ?? null,
+          minimumOrderInclGst: json.data.minimumOrderInclGst ?? 25_000,
+          minimumOrderMet: Boolean(json.data.minimumOrderMet),
+          comboSavingsInclGst: json.data.comboSavingsInclGst ?? 0,
+        });
+      } catch {
+        if (ac.signal.aborted) return;
+      }
+    })();
+
+    return () => ac.abort();
+  }, [cartItems, cartHydrated, applyComboPricingLines, couponPricingMode, setComboPricingMeta]);
+
+  return null;
 }

@@ -47,7 +47,7 @@ function findSizeRow<T extends { size: string }>(
   return rows.find((s) => s.size.trim().toLowerCase() === tl) ?? rows[0];
 }
 
-type LeanProductForPackaging = {
+export type LeanProductForPackaging = {
   packaging?: PackagingFields;
   sellers?: Array<{ sellerId: string; sizes?: Array<Record<string, unknown>> }>;
   sizes?: Array<Record<string, unknown>>;

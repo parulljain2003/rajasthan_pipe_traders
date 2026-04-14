@@ -45,7 +45,7 @@ function parseIncomingLines(raw: unknown): IncomingCouponLine[] | null {
     }
 
     let orderMode: IncomingCouponLine["orderMode"];
-    if (o.orderMode === "packets" || o.orderMode === "master_bag") {
+    if (o.orderMode === "packets" || o.orderMode === "master_bag" || o.orderMode === "carton") {
       orderMode = o.orderMode;
     }
 

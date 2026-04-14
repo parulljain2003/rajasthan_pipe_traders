@@ -71,7 +71,6 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (typeof body.isNew === "boolean") $set.isNew = body.isNew;
     if (typeof body.isBestseller === "boolean") $set.isBestseller = body.isBestseller;
     if (typeof body.isActive === "boolean") $set.isActive = body.isActive;
-    if (typeof body.isEligibleForCombo === "boolean") $set.isEligibleForCombo = body.isEligibleForCombo;
     if (typeof body.moq === "number") $set.moq = body.moq;
     if (typeof body.legacyId === "number") $set.legacyId = body.legacyId;
     if (Array.isArray(body.features)) $set.features = body.features;

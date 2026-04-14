@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import styles from './CartPage.module.css';
 import CartItemCard from './CartItemCard/CartItemCard';
 import OrderSummary from './OrderSummary/OrderSummary';
-import ComboCartPricingSync from './ComboCartPricingSync';
 import OrderSuccessPopup from './OrderSuccessPopup/OrderSuccessPopup';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import {
@@ -34,6 +33,7 @@ export default function CartPage() {
     clearCart,
     couponPricingMode,
     setCouponPricingMode,
+    comboPricingMeta,
   } = useCartWishlist();
 
   const [successOpen, setSuccessOpen] = useState(false);
@@ -50,19 +50,13 @@ export default function CartPage() {
   const [couponPackagingByLine, setCouponPackagingByLine] = useState<
     (ProductPackagingForCoupon | null)[] | null
   >(null);
-  const [comboMeta, setComboMeta] = useState({
-    suggestion: null as string | null,
-    minimumOrderInclGst: 25_000,
-    minimumOrderMet: true,
-    comboSavingsInclGst: 0,
-  });
 
   const gstTotal = cartTotal - cartBasicTotal;
 
   const roundMoney = (n: number) => Math.round(n * 100) / 100;
   const comboSavingsRow =
-    comboMeta.comboSavingsInclGst > 0 && couponPricingMode === "combo_first"
-      ? comboMeta.comboSavingsInclGst
+    comboPricingMeta.comboSavingsInclGst > 0 && couponPricingMode === "combo_first"
+      ? comboPricingMeta.comboSavingsInclGst
       : 0;
   const cartMerchandiseBeforeVolume =
     comboSavingsRow > 0 ? roundMoney(cartTotal + comboSavingsRow) : cartTotal;
@@ -329,7 +323,6 @@ export default function CartPage() {
         ) : (
           /* ── Cart layout ── */
           <div className={styles.layout}>
-            <ComboCartPricingSync onMeta={setComboMeta} />
             {/* Left: Items list */}
             <div className={styles.itemsCol}>
               <div className={styles.itemsHeader}>
@@ -371,9 +364,9 @@ export default function CartPage() {
                 </div>
 
                 <div
-                  className={`${styles.policyItem} ${cartTotal >= comboMeta.minimumOrderInclGst ? styles.policyItemOk : styles.policyItemWarn}`}
+                  className={`${styles.policyItem} ${cartTotal >= comboPricingMeta.minimumOrderInclGst ? styles.policyItemOk : styles.policyItemWarn}`}
                 >
-                  {cartTotal >= comboMeta.minimumOrderInclGst ? (
+                  {cartTotal >= comboPricingMeta.minimumOrderInclGst ? (
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
@@ -384,9 +377,9 @@ export default function CartPage() {
                       <line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
                   )}
-                  {cartTotal >= comboMeta.minimumOrderInclGst
-                    ? `Minimum order ₹${comboMeta.minimumOrderInclGst.toLocaleString("en-IN")} met`
-                    : `Min. order ₹${comboMeta.minimumOrderInclGst.toLocaleString("en-IN")} · Add ₹${(comboMeta.minimumOrderInclGst - cartTotal).toFixed(0)} more`}
+                  {cartTotal >= comboPricingMeta.minimumOrderInclGst
+                    ? `Minimum order ₹${comboPricingMeta.minimumOrderInclGst.toLocaleString("en-IN")} met`
+                    : `Min. order ₹${comboPricingMeta.minimumOrderInclGst.toLocaleString("en-IN")} · Add ₹${(comboPricingMeta.minimumOrderInclGst - cartTotal).toFixed(0)} more`}
                 </div>
               </div>
             </div>
@@ -396,7 +389,7 @@ export default function CartPage() {
               <OrderSummary
                 basicTotal={cartBasicTotal}
                 gstTotal={gstTotal}
-                minimumOrderInclGst={comboMeta.minimumOrderInclGst}
+                minimumOrderInclGst={comboPricingMeta.minimumOrderInclGst}
                 itemCount={cartGroups.length}
                 items={cartItems}
                 cartCoupons={cartCoupons}
@@ -409,8 +402,8 @@ export default function CartPage() {
                 couponBannerError={couponRevalidateError}
                 onCouponChange={handleCouponChange}
                 onPlaceOrder={handlePlaceOrder}
-                comboSuggestion={comboMeta.suggestion}
-                comboSavingsInclGst={comboMeta.comboSavingsInclGst}
+                comboSuggestion={comboPricingMeta.suggestion}
+                comboSavingsInclGst={comboPricingMeta.comboSavingsInclGst}
                 couponPricingMode={couponPricingMode}
                 onCouponPricingModeChange={setCouponPricingMode}
               />
