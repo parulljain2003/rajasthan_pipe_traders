@@ -4,8 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { MediaImageField } from "../components/MediaImageField";
 import type { AdminCategory } from "../types";
 
-const ADD_NEW_PARENT = "__new__";
-
 const emptyForm = {
   name: "",
   slug: "",
@@ -17,18 +15,6 @@ const emptyForm = {
   isActive: true,
 };
 
-/** URL-safe slug for quick-created parent categories */
-function slugFromCategoryName(name: string): string {
-  const raw = name
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return raw || `category-${Date.now()}`;
-}
-
 export default function AdminCategoriesPage() {
   const [list, setList] = useState<AdminCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +22,6 @@ export default function AdminCategoriesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
-  const [newParentName, setNewParentName] = useState("");
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -62,13 +47,11 @@ export default function AdminCategoriesPage() {
   function openCreate() {
     setEditingId(null);
     setForm(emptyForm);
-    setNewParentName("");
     setModalOpen(true);
   }
 
   function openEdit(c: AdminCategory) {
     setEditingId(c._id);
-    setNewParentName("");
     setForm({
       name: c.name,
       slug: c.slug,
@@ -87,38 +70,7 @@ export default function AdminCategoriesPage() {
     setSaving(true);
     setError(null);
     try {
-      let parentId: string | null = form.parentId.trim() ? form.parentId.trim() : null;
-      if (parentId === ADD_NEW_PARENT) {
-        const nm = newParentName.trim();
-        if (!nm) {
-          throw new Error("Enter a name for the new category, or choose an existing category.");
-        }
-        const slug = slugFromCategoryName(nm);
-        const parentRes = await fetch("/api/admin/categories", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: nm,
-            slug,
-            parent: null,
-            sortOrder: 0,
-            isActive: true,
-          }),
-        });
-        const parentJson = (await parentRes.json()) as { data?: { _id: string }; message?: string };
-        if (!parentRes.ok) {
-          const base = parentJson.message || parentRes.statusText;
-          if (parentRes.status === 409) {
-            throw new Error(
-              `${base} The new parent uses slug "${slug}" from "New category name". Pick a different name or choose an existing category.`
-            );
-          }
-          throw new Error(base);
-        }
-        const createdId = parentJson.data?._id;
-        if (!createdId) throw new Error("Could not create category");
-        parentId = createdId;
-      }
+      const parentId = form.parentId.trim() ? form.parentId.trim() : null;
 
       const body: Record<string, unknown> = {
         name: form.name.trim(),
@@ -142,7 +94,7 @@ export default function AdminCategoriesPage() {
         if (res.status === 409 && String(base).toLowerCase().includes("slug")) {
           const s = form.slug.trim().toLowerCase();
           throw new Error(
-            `${base} The "Slug (lowercase, URL-safe)" field must be unique for every category. It is separate from "New category name". Change this row’s slug (e.g. "${s}-2") if "${s}" is already taken.`
+            `${base} The slug must be unique. Try a different value (e.g. "${s}-2").`
           );
         }
         throw new Error(base);
@@ -168,8 +120,6 @@ export default function AdminCategoriesPage() {
       setError(err instanceof Error ? err.message : "Delete failed");
     }
   }
-
-  const parentOptions = list.filter((c) => c._id !== editingId);
 
   return (
     <div>
@@ -203,8 +153,6 @@ export default function AdminCategoriesPage() {
                 <th>Image</th>
                 <th>Name</th>
                 <th>Slug</th>
-                <th>Category</th>
-                <th>Order</th>
                 <th>Active</th>
                 <th />
               </tr>
@@ -223,8 +171,6 @@ export default function AdminCategoriesPage() {
                   <td>
                     <span className="muted">{c.slug}</span>
                   </td>
-                  <td>{c.parent?.name ?? "—"}</td>
-                  <td>{c.sortOrder}</td>
                   <td>{c.isActive ? "Yes" : "No"}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
                     <button
@@ -296,49 +242,6 @@ export default function AdminCategoriesPage() {
                 onUrlChange={(url) => setForm((f) => ({ ...f, image: url }))}
                 helpText="Uploads to Cloudinary (folder rpt/category/…). Set CLOUDINARY_URL in .env.local."
               />
-              <div className="admin-field-row">
-                <div className="admin-field">
-                  <label htmlFor="cat-parent">Category</label>
-                  <select
-                    id="cat-parent"
-                    value={form.parentId}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setForm((f) => ({ ...f, parentId: v }));
-                      if (v !== ADD_NEW_PARENT) setNewParentName("");
-                    }}
-                  >
-                    <option value="">None</option>
-                    {parentOptions.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.name}
-                      </option>
-                    ))}
-                    <option value={ADD_NEW_PARENT}>Add new category…</option>
-                  </select>
-                  {form.parentId === ADD_NEW_PARENT ? (
-                    <div className="admin-field" style={{ marginTop: "0.75rem" }}>
-                      <label htmlFor="cat-new-parent-name">New category name</label>
-                      <input
-                        id="cat-new-parent-name"
-                        value={newParentName}
-                        onChange={(e) => setNewParentName(e.target.value)}
-                        placeholder="Creates a top-level category, then links this one under it"
-                        autoComplete="off"
-                      />
-                    </div>
-                  ) : null}
-                </div>
-                <div className="admin-field">
-                  <label htmlFor="cat-order">Sort order</label>
-                  <input
-                    id="cat-order"
-                    type="number"
-                    value={form.sortOrder}
-                    onChange={(e) => setForm((f) => ({ ...f, sortOrder: Number(e.target.value) }))}
-                  />
-                </div>
-              </div>
               <div className="admin-field">
                 <label htmlFor="cat-source">Source section label (optional)</label>
                 <input
