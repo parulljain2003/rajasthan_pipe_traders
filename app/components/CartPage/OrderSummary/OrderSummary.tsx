@@ -32,7 +32,6 @@ const OFFER_DESC_PREVIEW_CHARS = 90;
 interface OrderSummaryProps {
   basicTotal: number;
   gstTotal: number;
-  grandTotal: number;
   /** Minimum order including GST (from admin / app settings) */
   minimumOrderInclGst: number;
   itemCount: number;
@@ -127,43 +126,44 @@ export default function OrderSummary({
           </div>
         )}
 
-        {autoCouponBusy && !appliedCoupon ? (
+        {autoCouponBusy ? (
           <p className={styles.couponsLoading} role="status">
             Checking offers…
           </p>
         ) : null}
 
-        {appliedCoupon && couponMeta && couponDiscount > 0 ? (
+        {couponDiscount > 0 ? (
           <div className={styles.offerCard} role="status">
             <div className={styles.offerCardHeader}>
               <span className={styles.offerBadge}>Offer applied</span>
               <span className={styles.offerSaving}>−₹{couponDiscount.toFixed(0)}</span>
             </div>
-            <p className={styles.offerTitle}>{orderSummaryOfferTitle(couponMeta)}</p>
-            {(() => {
-              const full = fullOfferDescription(couponMeta);
-              const needsReadMore = full.length > OFFER_DESC_PREVIEW_CHARS;
-              const preview = needsReadMore
-                ? `${full.slice(0, OFFER_DESC_PREVIEW_CHARS).trim()}…`
-                : full;
-              return (
-                <p className={styles.offerDescOneLine}>
-                  <span className={styles.offerDescTeaser}>{preview}</span>
-                  {needsReadMore ? (
-                    <button
-                      type="button"
-                      className={styles.offerReadMoreBtn}
-                      onClick={() => setOfferDescOpen(true)}
-                    >
-                      Read more
-                    </button>
-                  ) : null}
-                </p>
-              );
-            })()}
-            <p className={styles.offerCodeLine}>
-              Code <strong>{appliedCoupon}</strong>
+            <p className={styles.offerTitle}>
+              {couponMeta ? orderSummaryOfferTitle(couponMeta) : "Volume offer applied"}
             </p>
+            {couponMeta ? (
+              (() => {
+                const full = fullOfferDescription(couponMeta);
+                const needsReadMore = full.length > OFFER_DESC_PREVIEW_CHARS;
+                const preview = needsReadMore
+                  ? `${full.slice(0, OFFER_DESC_PREVIEW_CHARS).trim()}…`
+                  : full;
+                return (
+                  <p className={styles.offerDescOneLine}>
+                    <span className={styles.offerDescTeaser}>{preview}</span>
+                    {needsReadMore ? (
+                      <button
+                        type="button"
+                        className={styles.offerReadMoreBtn}
+                        onClick={() => setOfferDescOpen(true)}
+                      >
+                        Read more
+                      </button>
+                    ) : null}
+                  </p>
+                );
+              })()
+            ) : null}
             <button
               type="button"
               className={styles.removeOfferBtn}
@@ -176,13 +176,13 @@ export default function OrderSummary({
           </div>
         ) : null}
 
-        {appliedCoupon && comboSavingsInclGst > 0 && couponPricingMode === "combo_first" ? (
+        {couponDiscount > 0 && comboSavingsInclGst > 0 && couponPricingMode === "combo_first" ? (
           <p className={styles.couponComboDisclaimer} role="note">
-            Note: Coupon discounts apply only to non-combo items. Combo-priced lines stay at net list rates.
+            Note: Volume offers apply only to non-combo items. Combo-priced lines stay at net list rates.
           </p>
         ) : null}
 
-        {appliedCoupon && (comboSavingsInclGst > 0 || couponPricingMode === "list_for_full_coupon") ? (
+        {couponDiscount > 0 && (comboSavingsInclGst > 0 || couponPricingMode === "list_for_full_coupon") ? (
           <label className={styles.pricingModeToggle}>
             <input
               type="checkbox"
@@ -198,13 +198,13 @@ export default function OrderSummary({
           </label>
         ) : null}
 
-        {!appliedCoupon && userOptedOutCoupon && couponsLoaded && !autoCouponBusy ? (
+        {couponDiscount <= 0 && userOptedOutCoupon && couponsLoaded && !autoCouponBusy ? (
           <p className={styles.offerMuted} role="note">
             Offer removed. Change quantities or items to refresh offers.
           </p>
         ) : null}
 
-        {!appliedCoupon && !userOptedOutCoupon && couponsLoaded && cartCoupons.length > 0 && !autoCouponBusy ? (
+        {couponDiscount <= 0 && !userOptedOutCoupon && couponsLoaded && !autoCouponBusy ? (
           <p className={styles.offerMuted} role="note">
             No volume offer applies to this cart yet — add more packets to unlock discounts.
           </p>
@@ -268,18 +268,17 @@ export default function OrderSummary({
 
       {comboSavingsInclGst > 0 && couponPricingMode === "combo_first" ? (
         <div className={styles.row}>
-          <span className={styles.rowLabel}>Combo savings (est. vs list)</span>
+          <span className={styles.rowLabel}>Combo Savings</span>
           <span className={styles.savingsHighlight}>−₹{comboSavingsInclGst.toFixed(0)}</span>
         </div>
       ) : null}
 
-      {couponDiscount > 0 && (
+      {couponDiscount > 0 ? (
         <div className={styles.row}>
-          <span className={styles.rowLabel}>Coupon discount </span>  
-          {/* Coupon discount (non-combo items only) */}
+          <span className={styles.rowLabel}>Applied Volume Offer</span>
           <span className={styles.discountVal}>−₹{couponDiscount.toFixed(0)}</span>
         </div>
-      )}
+      ) : null}
       <div className={styles.divider} />
 
       <div className={`${styles.row} ${styles.totalRow}`}>

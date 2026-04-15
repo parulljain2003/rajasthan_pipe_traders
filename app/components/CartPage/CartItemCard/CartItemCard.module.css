@@ -211,6 +211,23 @@
   font-size: 1.08rem;
   font-weight: 800;
   color: #0f172a;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.comboPriceAppliedBadge {
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #047857;
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  padding: 0.12rem 0.38rem;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
 .gstNote {

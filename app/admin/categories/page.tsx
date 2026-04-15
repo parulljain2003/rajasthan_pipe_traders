@@ -70,6 +70,8 @@ export default function AdminCategoriesPage() {
     setSaving(true);
     setError(null);
     try {
+      const parentId = form.parentId.trim() ? form.parentId.trim() : null;
+
       const body: Record<string, unknown> = {
         name: form.name.trim(),
         slug: form.slug.trim().toLowerCase(),
@@ -78,7 +80,7 @@ export default function AdminCategoriesPage() {
         sortOrder: Number(form.sortOrder) || 0,
         sourceSectionLabel: form.sourceSectionLabel.trim() || undefined,
         isActive: form.isActive,
-        parent: form.parentId.trim() ? form.parentId.trim() : null,
+        parent: parentId,
       };
       const url = editingId ? `/api/admin/categories/${editingId}` : "/api/admin/categories";
       const res = await fetch(url, {
@@ -86,8 +88,17 @@ export default function AdminCategoriesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || res.statusText);
+      const json = (await res.json()) as { message?: string };
+      if (!res.ok) {
+        const base = json.message || res.statusText;
+        if (res.status === 409 && String(base).toLowerCase().includes("slug")) {
+          const s = form.slug.trim().toLowerCase();
+          throw new Error(
+            `${base} The slug must be unique. Try a different value (e.g. "${s}-2").`
+          );
+        }
+        throw new Error(base);
+      }
       setModalOpen(false);
       await load();
     } catch (err) {
@@ -109,8 +120,6 @@ export default function AdminCategoriesPage() {
       setError(err instanceof Error ? err.message : "Delete failed");
     }
   }
-
-  const parentOptions = list.filter((c) => c._id !== editingId);
 
   return (
     <div>
@@ -144,8 +153,6 @@ export default function AdminCategoriesPage() {
                 <th>Image</th>
                 <th>Name</th>
                 <th>Slug</th>
-                <th>Parent</th>
-                <th>Order</th>
                 <th>Active</th>
                 <th />
               </tr>
@@ -164,8 +171,6 @@ export default function AdminCategoriesPage() {
                   <td>
                     <span className="muted">{c.slug}</span>
                   </td>
-                  <td>{c.parent?.name ?? "—"}</td>
-                  <td>{c.sortOrder}</td>
                   <td>{c.isActive ? "Yes" : "No"}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
                     <button
@@ -237,32 +242,6 @@ export default function AdminCategoriesPage() {
                 onUrlChange={(url) => setForm((f) => ({ ...f, image: url }))}
                 helpText="Uploads to Cloudinary (folder rpt/category/…). Set CLOUDINARY_URL in .env.local."
               />
-              <div className="admin-field-row">
-                <div className="admin-field">
-                  <label htmlFor="cat-parent">Parent category</label>
-                  <select
-                    id="cat-parent"
-                    value={form.parentId}
-                    onChange={(e) => setForm((f) => ({ ...f, parentId: e.target.value }))}
-                  >
-                    <option value="">None</option>
-                    {parentOptions.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="admin-field">
-                  <label htmlFor="cat-order">Sort order</label>
-                  <input
-                    id="cat-order"
-                    type="number"
-                    value={form.sortOrder}
-                    onChange={(e) => setForm((f) => ({ ...f, sortOrder: Number(e.target.value) }))}
-                  />
-                </div>
-              </div>
               <div className="admin-field">
                 <label htmlFor="cat-source">Source section label (optional)</label>
                 <input

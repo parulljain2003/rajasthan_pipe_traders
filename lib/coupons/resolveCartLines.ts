@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { ProductModel } from "@/lib/db/models/Product";
+import { normalizeOrderMode } from "@/lib/cart/packetLine";
 import {
   buildPackagingContextFromProduct,
   cartHasMixedPacketAndOuterFamilies,
@@ -10,6 +11,14 @@ import {
 } from "@/lib/coupons/couponTierQuantity";
 import type { CartOrderMode } from "@/lib/cart/packetLine";
 import type { CartLineInput } from "./evaluate";
+
+/** Matches `cartCoupons.ts` — carton/box/bag list units compete with outer-tier coupons. */
+const OUTER_PRICING_UNITS = new Set([
+  "per_cartoon",
+  "per_box",
+  "per_bag",
+  "per_master_bag",
+]);
 
 export type IncomingCouponLine = {
   productMongoId?: string;
@@ -104,10 +113,24 @@ type MongoLineWork = {
  * Builds canonical cart lines: when `productMongoId` is present, GST-inclusive totals come from
  * the database (authoritative). Otherwise client totals are used (legacy/static catalog).
  */
+function computePreferOuterTierCoupons(
+  prepared: IncomingCouponLine[],
+  mongoWorks: MongoLineWork[]
+): boolean {
+  for (const row of prepared) {
+    if (normalizeOrderMode(row.orderMode) === "master_bag") return true;
+  }
+  for (const m of mongoWorks) {
+    const pu = String(m.pkgCtx.pricingUnit ?? "per_packet").trim().toLowerCase();
+    if (OUTER_PRICING_UNITS.has(pu)) return true;
+  }
+  return false;
+}
+
 export async function resolveCartLinesForCoupon(
   raw: IncomingCouponLine[]
 ): Promise<
-  | { ok: true; lines: CartLineInput[]; cartSubtotalInclGst: number }
+  | { ok: true; lines: CartLineInput[]; cartSubtotalInclGst: number; preferOuterTierCoupons: boolean }
   | { ok: false; reason: string }
 > {
   if (!raw.length) {
@@ -311,5 +334,6 @@ export async function resolveCartLinesForCoupon(
   }
 
   cartSubtotalInclGst = roundMoney(cartSubtotalInclGst);
-  return { ok: true, lines, cartSubtotalInclGst };
+  const preferOuterTierCoupons = computePreferOuterTierCoupons(prepared, mongoWorks);
+  return { ok: true, lines, cartSubtotalInclGst, preferOuterTierCoupons };
 }

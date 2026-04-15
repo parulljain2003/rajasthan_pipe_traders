@@ -216,20 +216,19 @@ function parseSellerRow(s: SellerRow): ApiProductSellerOffer | null {
   return out;
 }
 
-function buildCatalogPayload(form: {
-  discountTiers: TierRow[];
-  sizes: SizeRow[];
-  sellers: SellerRow[];
-}): {
-  discountTiers: ApiDiscountTier[];
+function buildProductDiscountTiers(rows: TierRow[]): ApiDiscountTier[] {
+  const out: ApiDiscountTier[] = [];
+  for (const row of rows) {
+    const p = parseTierRow(row);
+    if (p) out.push(p);
+  }
+  return out;
+}
+
+function buildCatalogPayload(form: { sizes: SizeRow[]; sellers: SellerRow[] }): {
   sizes: ApiProductSize[];
   sellers: ApiProductSellerOffer[];
 } {
-  const discountTiers: ApiDiscountTier[] = [];
-  for (const row of form.discountTiers) {
-    const p = parseTierRow(row);
-    if (p) discountTiers.push(p);
-  }
   const sizes: ApiProductSize[] = [];
   for (const row of form.sizes) {
     const p = parseSizeRow(row);
@@ -240,7 +239,7 @@ function buildCatalogPayload(form: {
     const p = parseSellerRow(row);
     if (p) sellers.push(p);
   }
-  return { discountTiers, sizes, sellers };
+  return { sizes, sellers };
 }
 
 function DiscountTiersBlock({
@@ -751,6 +750,7 @@ export default function AdminProductsPage() {
         throw new Error("Pricing must be valid numbers");
       }
       const catalog = buildCatalogPayload(form);
+      const productDiscountTiers = buildProductDiscountTiers(form.discountTiers);
       let imagesList: string[];
       try {
         const raw = form.imagesJson.trim() || "[]";
@@ -779,7 +779,7 @@ export default function AdminProductsPage() {
             currency: form.currency.trim() || "INR",
           },
         };
-        body.discountTiers = catalog.discountTiers;
+        body.discountTiers = productDiscountTiers;
         body.sizes = catalog.sizes;
         body.sellers = catalog.sellers;
         body.images = imagesList;
@@ -811,7 +811,7 @@ export default function AdminProductsPage() {
             currency: form.currency.trim() || "INR",
           },
         };
-        if (catalog.discountTiers.length) body.discountTiers = catalog.discountTiers;
+        if (productDiscountTiers.length) body.discountTiers = productDiscountTiers;
         if (catalog.sizes.length) body.sizes = catalog.sizes;
         if (catalog.sellers.length) body.sellers = catalog.sellers;
         body.images = imagesList;
@@ -1075,18 +1075,8 @@ export default function AdminProductsPage() {
                     return { ...f, imagesJson: JSON.stringify([...arr, url], null, 2) };
                   })
                 }
-                helpText="Each upload appends a URL to the gallery JSON below. Remove URLs by editing the JSON."
+                helpText="Each upload appends a URL to the product’s image gallery."
               />
-              <div className="admin-field">
-                <label htmlFor="p-images-json">Gallery image URLs (JSON array)</label>
-                <textarea
-                  id="p-images-json"
-                  className="admin-input admin-textarea-code"
-                  value={form.imagesJson}
-                  onChange={(e) => setForm((f) => ({ ...f, imagesJson: e.target.value }))}
-                  placeholder='["https://res.cloudinary.com/..."]'
-                />
-              </div>
               <div className="admin-field">
                 <label htmlFor="p-desc">Description</label>
                 <textarea
@@ -1160,12 +1150,6 @@ export default function AdminProductsPage() {
                     and set Pool per size (Yes on 1.4–18MM, No on 20/25 core rows).
                   </span>
                 </label>
-                <DiscountTiersBlock
-                  title="Product discount tiers"
-                  hint='Volume steps at product level — e.g. quantity label "15 Cartons" and discount "7%".'
-                  rows={form.discountTiers}
-                  onChange={(discountTiers) => setForm((f) => ({ ...f, discountTiers }))}
-                />
                 <SizesBlock
                   title="Product sizes (variants)"
                   hint="One row per buyable size: label, basic price, price with GST. Optional packing columns and note."

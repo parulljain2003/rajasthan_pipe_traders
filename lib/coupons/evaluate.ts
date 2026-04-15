@@ -2,6 +2,12 @@ function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+/**
+ * Volume / tier offers must never wipe the cart: cap at the steepest published RPT tier (12%)
+ * even if a coupon row is mis-keyed (e.g. flat ₹ = subtotal or 100% tier).
+ */
+const MAX_VOLUME_DISCOUNT_PERCENT = 12;
+
 export type PacketTier = { minPackets: number; value: number };
 
 export type CouponTierUnit = "packets" | "outer";
@@ -267,6 +273,10 @@ export function validateCouponAgainstCart(coupon: CouponLean | null, lines: Cart
 
   let { discountAmount } = computeDiscountAmount(coupon, eligibleSubtotal, tier);
   discountAmount = roundMoney(discountAmount);
+  const maxByPublishedTier = roundMoney(
+    Math.max(0, eligibleSubtotal) * (MAX_VOLUME_DISCOUNT_PERCENT / 100)
+  );
+  discountAmount = Math.min(discountAmount, maxByPublishedTier);
   if (discountAmount > cartCouponableSubtotalInclGst) {
     discountAmount = cartCouponableSubtotalInclGst;
   }
