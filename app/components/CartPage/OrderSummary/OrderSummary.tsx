@@ -50,8 +50,6 @@ interface OrderSummaryProps {
   couponBannerError: string | null;
   onCouponChange: (code: string | null) => Promise<CouponApplyResult>;
   onPlaceOrder: () => void;
-  /** RPT combo hint from pricing engine */
-  comboSuggestion: string | null;
   /** Estimated savings from RPT combo net rates vs list (incl. GST) */
   comboSavingsInclGst: number;
   couponPricingMode: CartCouponPricingMode;
@@ -74,7 +72,6 @@ export default function OrderSummary({
   couponBannerError,
   onCouponChange,
   onPlaceOrder,
-  comboSuggestion,
   comboSavingsInclGst,
   couponPricingMode,
   onCouponPricingModeChange,
@@ -112,12 +109,6 @@ export default function OrderSummary({
   return (
     <div className={styles.summary}>
       <h3 className={styles.title}>Order Summary</h3>
-
-      {comboSuggestion ? (
-        <div className={styles.comboHint} role="status">
-          {comboSuggestion}
-        </div>
-      ) : null}
 
       <div className={styles.couponSection}>
         {couponBannerError && (

@@ -15,7 +15,7 @@ interface CartItemCardProps {
   removeFromCart: (productId: number, size: string, sellerId: string, orderMode?: CartItem["orderMode"]) => void;
   removeCartGroup: (productId: number, size: string, sellerId: string) => void;
   updateQuantity: (productId: number, size: string, qty: number, sellerId: string, orderMode?: CartItem["orderMode"]) => void;
-  addToCart: (item: AddCartItemInput, qty?: number) => void;
+  addToCart: (item: AddCartItemInput, qty?: number) => boolean;
 }
 
 function formatPieces(n: number) {

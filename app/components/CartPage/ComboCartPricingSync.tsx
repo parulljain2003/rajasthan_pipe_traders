@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { CartItem } from "@/app/context/CartWishlistContext";
 import { useCartWishlist } from "@/app/context/CartWishlistContext";
 import { normalizeOrderMode } from "@/lib/cart/packetLine";
@@ -53,7 +53,21 @@ export default function ComboCartPricingSync({
   const { cartItems, cartHydrated, applyComboPricingLines, couponPricingMode } = useCartWishlist();
   const reqId = useRef(0);
   const onMetaRef = useRef(onMeta);
+  const applyComboRef = useRef(applyComboPricingLines);
   onMetaRef.current = onMeta;
+  applyComboRef.current = applyComboPricingLines;
+
+  /** Stable key so quantity/order changes always refetch — avoids stale closures on cart identity. */
+  const cartPricingSyncKey = useMemo(
+    () =>
+      cartItems
+        .map(
+          (ci) =>
+            `${ci.mongoProductId ?? ci.productId}|${ci.size}|${ci.sellerId}|${normalizeOrderMode(ci.orderMode)}|${ci.quantity}`
+        )
+        .join("§"),
+    [cartItems]
+  );
 
   useEffect(() => {
     if (!cartHydrated || cartItems.length === 0) {
@@ -83,31 +97,40 @@ export default function ComboCartPricingSync({
         });
         const json = (await res.json()) as ComboPricingResponse;
         if (id !== reqId.current) return;
-        if (!res.ok || !json.data?.lines) return;
 
-        applyComboPricingLines(
-          json.data.lines.map((row) => {
-            const comboPk = row.comboPricedPackets ?? 0;
-            const comboGst = row.comboSubtotalInclGst ?? 0;
-            /** Prefer packet count / GST slice over `isComboApplied` — `??` would keep literal `false` and skip fallback. */
-            const isComboApplied =
-              Boolean(row.isComboApplied) || comboPk > 0 || comboGst > 0.005;
-            return {
-              key: row.key,
-              pricePerUnit: row.pricePerUnit,
-              basicPricePerUnit: row.basicPricePerUnit,
-              comboPricedPackets: comboPk,
-              comboSubtotalInclGst: row.comboSubtotalInclGst,
-              isComboApplied,
-            };
-          })
-        );
+        if (!res.ok || !json.data) {
+          return;
+        }
+
+        const data = json.data;
+        if (Array.isArray(data.lines)) {
+          applyComboRef.current(
+            data.lines.map((row) => {
+              const comboPk = row.comboPricedPackets ?? 0;
+              const comboGst = row.comboSubtotalInclGst ?? 0;
+              /** Prefer packet count / GST slice over `isComboApplied` — `??` would keep literal `false` and skip fallback. */
+              const isComboApplied =
+                Boolean(row.isComboApplied) || comboPk > 0 || comboGst > 0.005;
+              return {
+                key: row.key,
+                pricePerUnit: row.pricePerUnit,
+                basicPricePerUnit: row.basicPricePerUnit,
+                comboPricedPackets: comboPk,
+                comboSubtotalInclGst: row.comboSubtotalInclGst,
+                isComboApplied,
+              };
+            })
+          );
+        }
 
         onMetaRef.current({
-          suggestion: json.data.smartSuggestion ?? null,
-          minimumOrderInclGst: json.data.minimumOrderInclGst ?? 25_000,
-          minimumOrderMet: Boolean(json.data.minimumOrderMet),
-          comboSavingsInclGst: json.data.comboSavingsInclGst ?? 0,
+          suggestion:
+            typeof data.smartSuggestion === "string" && data.smartSuggestion.trim() !== ""
+              ? data.smartSuggestion.trim()
+              : null,
+          minimumOrderInclGst: data.minimumOrderInclGst ?? 25_000,
+          minimumOrderMet: Boolean(data.minimumOrderMet),
+          comboSavingsInclGst: data.comboSavingsInclGst ?? 0,
         });
       } catch {
         if (ac.signal.aborted) return;
@@ -115,7 +138,7 @@ export default function ComboCartPricingSync({
     })();
 
     return () => ac.abort();
-  }, [cartItems, cartHydrated, applyComboPricingLines, couponPricingMode]);
+  }, [cartPricingSyncKey, cartHydrated, couponPricingMode]);
 
   return null;
 }

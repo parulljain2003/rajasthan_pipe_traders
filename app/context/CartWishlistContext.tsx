@@ -8,6 +8,17 @@ import {
 } from "@/lib/cart/packetLine";
 import { loadCartFromStorage, saveCartToStorage } from "@/lib/cart/cartStorage";
 import { comboCartLineKeyFromCartItem } from "@/lib/cart/cartLineKey";
+import {
+  isEligibleForCombo,
+  COMBO_TARGET_ADD_BLOCKED_MESSAGE,
+  type ComboRuleGuard,
+} from "@/lib/combo/comboAddGuard";
+import {
+  comboTargetMaxReachedMessage,
+  effectiveTargetCapForSlug,
+  wouldExceedTargetCap,
+} from "@/lib/combo/comboTargetCap";
+import type { ThresholdUnit } from "@/lib/comboRules/thresholdUnits";
 
 /** Must match `DEFAULT_SELLER_ID` in `app/data/products.ts` (not imported here to keep this client bundle lean). */
 const DEFAULT_SELLER_ID = "default";
@@ -38,6 +49,8 @@ export interface CartItem {
    * `master_bag`: `quantity` = number of master bags; line amount = price × (quantity × qtyPerBag) packets.
    */
   orderMode?: CartOrderMode;
+  /** Optional: packets per shipping carton — used for carton-based combo caps (matches resolver when set). */
+  packetsPerCarton?: number;
   /** Packets on this line priced at RPT combo net rate (set by combo pricing sync) */
   comboPricedPackets?: number;
   /** GST-inclusive value of combo net-priced packets (authoritative for coupon exclusion) */
@@ -72,6 +85,47 @@ function sameLine(
   );
 }
 
+type CartAddOutcome =
+  | { ok: true }
+  | { ok: false; reason: "guard" }
+  | { ok: false; reason: "cap"; cap: number; unit: ThresholdUnit };
+
+/** Pure: whether add/merge would succeed under combo guard + target cap (mirrors addToCart). */
+function getCartAddOutcome(
+  prev: CartItem[],
+  row: AddCartItemInput,
+  sid: string,
+  mode: CartOrderMode,
+  qty: number,
+  rules: ComboRuleGuard[] | null
+): CartAddOutcome {
+  const existing = prev.find((ci) => sameLine(ci, row.productId, row.size, row.sellerId, mode));
+  if (!existing && rules && row.productSlug?.trim()) {
+    if (!isEligibleForCombo(row.productSlug, prev, rules)) {
+      return { ok: false, reason: "guard" };
+    }
+  }
+  if (rules?.length && row.productSlug?.trim()) {
+    const proposed = {
+      productSlug: row.productSlug,
+      productId: row.productId,
+      size: row.size,
+      sellerId: sid,
+      orderMode: mode,
+      quantity: qty,
+      qtyPerBag: row.qtyPerBag,
+      pcsPerPacket: row.pcsPerPacket,
+      packetsPerCarton: row.packetsPerCarton,
+    };
+    if (wouldExceedTargetCap(row.productSlug, prev, proposed, rules)) {
+      const eff = effectiveTargetCapForSlug(row.productSlug, rules);
+      if (eff) return { ok: false, reason: "cap", cap: eff.cap, unit: eff.unit };
+      return { ok: false, reason: "guard" };
+    }
+  }
+  return { ok: true };
+}
+
 interface CartWishlistState {
   cartItems: CartItem[];
   /** True after localStorage cart has been loaded on the client */
@@ -92,7 +146,8 @@ interface CartWishlistState {
   /** When `list_for_full_coupon`, combo allocation is skipped so coupons can use list-priced totals */
   couponPricingMode: CartCouponPricingMode;
   setCouponPricingMode: (mode: CartCouponPricingMode) => void;
-  addToCart: (item: AddCartItemInput, qty?: number) => void;
+  /** Returns true if the line was added/updated; false if combo guard or target cap blocked it. */
+  addToCart: (item: AddCartItemInput, qty?: number) => boolean;
   removeFromCart: (productId: number, size: string, sellerId?: string, orderMode?: CartOrderMode) => void;
   /** Remove every line for this product + size + seller (both packet and bulk rows) */
   removeCartGroup: (productId: number, size: string, sellerId?: string) => void;
@@ -109,6 +164,12 @@ interface CartWishlistState {
     orderMode?: CartOrderMode
   ) => void;
   clearCart: () => void;
+  /** In-app notice when a combo target line is blocked (see combo add guard) */
+  comboAddBlockedNotice: string | null;
+  clearComboAddBlockedNotice: () => void;
+  /** Max combo target cap reached (see comboTargetCap) */
+  comboTargetCapNotice: string | null;
+  clearComboTargetCapNotice: () => void;
 }
 
 const CartWishlistContext = createContext<CartWishlistState | null>(null);
@@ -118,6 +179,30 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
   /** False until client has read localStorage — avoids overwriting saved cart with [] on first paint */
   const [cartHydrated, setCartHydrated] = useState(false);
   const [couponPricingMode, setCouponPricingMode] = useState<CartCouponPricingMode>("combo_first");
+  const [comboGuardRules, setComboGuardRules] = useState<ComboRuleGuard[] | null>(null);
+  const [comboAddBlockedNotice, setComboAddBlockedNotice] = useState<string | null>(null);
+  const [comboTargetCapNotice, setComboTargetCapNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/combo/active-guard-rules", { cache: "no-store" });
+        const json = (await res.json()) as { data?: { rules?: ComboRuleGuard[] } };
+        if (cancelled) return;
+        if (res.ok && Array.isArray(json.data?.rules)) {
+          setComboGuardRules(json.data!.rules!);
+        } else {
+          setComboGuardRules([]);
+        }
+      } catch {
+        if (!cancelled) setComboGuardRules([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     /* Persisted cart only exists in the browser — load after mount to match SSR (empty) then fill */
@@ -127,24 +212,57 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
   }, []);
 
   useEffect(() => {
+    if (!comboAddBlockedNotice) return;
+    const t = window.setTimeout(() => setComboAddBlockedNotice(null), 8000);
+    return () => window.clearTimeout(t);
+  }, [comboAddBlockedNotice]);
+
+  useEffect(() => {
+    if (!comboTargetCapNotice) return;
+    const t = window.setTimeout(() => setComboTargetCapNotice(null), 8000);
+    return () => window.clearTimeout(t);
+  }, [comboTargetCapNotice]);
+
+  useEffect(() => {
     if (!cartHydrated) return;
     saveCartToStorage(cartItems);
   }, [cartItems, cartHydrated]);
 
-  const addToCart = useCallback((item: AddCartItemInput, qty: number = 1) => {
-    const sid = normalizeSellerId(item.sellerId);
-    const mode = normalizeOrderMode(item.orderMode);
-    const row: AddCartItemInput = { ...item, sellerId: sid, orderMode: mode };
-    setCartItems(prev => {
-      const existing = prev.find((ci) => sameLine(ci, row.productId, row.size, row.sellerId, mode));
-      if (existing) {
-        return prev.map((ci) =>
-          sameLine(ci, row.productId, row.size, row.sellerId, mode) ? { ...ci, quantity: qty } : ci
-        );
-      }
-      return [...prev, { ...row, quantity: qty }];
-    });
-  }, []);
+  const clearComboAddBlockedNotice = useCallback(() => setComboAddBlockedNotice(null), []);
+  const clearComboTargetCapNotice = useCallback(() => setComboTargetCapNotice(null), []);
+
+  const addToCart = useCallback(
+    (item: AddCartItemInput, qty: number = 1): boolean => {
+      const sid = normalizeSellerId(item.sellerId);
+      const mode = normalizeOrderMode(item.orderMode);
+      const row: AddCartItemInput = { ...item, sellerId: sid, orderMode: mode };
+      let added = false;
+      setCartItems((prev) => {
+        const outcome = getCartAddOutcome(prev, row, sid, mode, qty, comboGuardRules);
+        if (!outcome.ok) {
+          if (outcome.reason === "guard") {
+            setComboTargetCapNotice(null);
+            setComboAddBlockedNotice(COMBO_TARGET_ADD_BLOCKED_MESSAGE);
+          } else {
+            setComboAddBlockedNotice(null);
+            setComboTargetCapNotice(comboTargetMaxReachedMessage(outcome.cap, outcome.unit));
+          }
+          added = false;
+          return prev;
+        }
+        added = true;
+        const existing = prev.find((ci) => sameLine(ci, row.productId, row.size, row.sellerId, mode));
+        if (existing) {
+          return prev.map((ci) =>
+            sameLine(ci, row.productId, row.size, row.sellerId, mode) ? { ...ci, quantity: qty } : ci
+          );
+        }
+        return [...prev, { ...row, quantity: qty }];
+      });
+      return added;
+    },
+    [comboGuardRules]
+  );
 
   const removeFromCart = useCallback((productId: number, size: string, sellerId?: string, orderMode?: CartOrderMode) => {
     const sid = normalizeSellerId(sellerId);
@@ -159,16 +277,39 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
     );
   }, []);
 
-  const updateQuantity = useCallback((productId: number, size: string, qty: number, sellerId?: string, orderMode?: CartOrderMode) => {
-    if (qty < 1) return;
-    const sid = normalizeSellerId(sellerId);
-    const mode = normalizeOrderMode(orderMode);
-    setCartItems((prev) =>
-      prev.map((ci) =>
-        sameLine(ci, productId, size, sid, mode) ? { ...ci, quantity: qty } : ci
-      )
-    );
-  }, []);
+  const updateQuantity = useCallback(
+    (productId: number, size: string, qty: number, sellerId?: string, orderMode?: CartOrderMode) => {
+      if (qty < 1) return;
+      const sid = normalizeSellerId(sellerId);
+      const mode = normalizeOrderMode(orderMode);
+      setCartItems((prev) => {
+        const ci = prev.find((c) => sameLine(c, productId, size, sid, mode));
+        if (!ci) return prev;
+        if (comboGuardRules?.length && ci.productSlug?.trim()) {
+          const proposed = {
+            productSlug: ci.productSlug,
+            productId: ci.productId,
+            size: ci.size,
+            sellerId: sid,
+            orderMode: mode,
+            quantity: qty,
+            qtyPerBag: ci.qtyPerBag,
+            pcsPerPacket: ci.pcsPerPacket,
+            packetsPerCarton: ci.packetsPerCarton,
+          };
+          if (wouldExceedTargetCap(ci.productSlug, prev, proposed, comboGuardRules)) {
+            const eff = effectiveTargetCapForSlug(ci.productSlug, comboGuardRules);
+            if (eff) {
+              window.setTimeout(() => setComboTargetCapNotice(comboTargetMaxReachedMessage(eff.cap, eff.unit)), 0);
+            }
+            return prev;
+          }
+        }
+        return prev.map((c) => (sameLine(c, productId, size, sid, mode) ? { ...c, quantity: qty } : c));
+      });
+    },
+    [comboGuardRules]
+  );
 
   const updateSize = useCallback((
     productId: number,
@@ -274,26 +415,77 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
   );
 
   return (
-    <CartWishlistContext.Provider
-      value={{
-        cartItems,
-        cartHydrated,
-        cartCount,
-        cartTotal,
-        cartBasicTotal,
-        applyComboPricingLines,
-        couponPricingMode,
-        setCouponPricingMode,
-        addToCart,
-        removeFromCart,
-        removeCartGroup,
-        updateQuantity,
-        updateSize,
-        clearCart,
-      }}
-    >
-      {children}
-    </CartWishlistContext.Provider>
+    <>
+      <CartWishlistContext.Provider
+        value={{
+          cartItems,
+          cartHydrated,
+          cartCount,
+          cartTotal,
+          cartBasicTotal,
+          applyComboPricingLines,
+          couponPricingMode,
+          setCouponPricingMode,
+          addToCart,
+          removeFromCart,
+          removeCartGroup,
+          updateQuantity,
+          updateSize,
+          clearCart,
+          comboAddBlockedNotice,
+          clearComboAddBlockedNotice,
+          comboTargetCapNotice,
+          clearComboTargetCapNotice,
+        }}
+      >
+        {children}
+      </CartWishlistContext.Provider>
+      {comboTargetCapNotice || comboAddBlockedNotice ? (
+        <div
+          role="alert"
+          style={{
+            position: "fixed",
+            bottom: "1.25rem",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 9999,
+            maxWidth: "min(32rem, calc(100vw - 2rem))",
+            padding: "0.85rem 1.1rem",
+            background: comboTargetCapNotice ? "#fef2f2" : "#fffbeb",
+            border: comboTargetCapNotice ? "1px solid #fecaca" : "1px solid #fcd34d",
+            borderRadius: "12px",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.12)",
+            fontSize: "0.9rem",
+            lineHeight: 1.45,
+            color: comboTargetCapNotice ? "#7f1d1d" : "#78350f",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "0.75rem",
+          }}
+        >
+          <span style={{ flex: 1 }}>{comboTargetCapNotice ?? comboAddBlockedNotice}</span>
+          <button
+            type="button"
+            onClick={() => {
+              clearComboTargetCapNotice();
+              clearComboAddBlockedNotice();
+            }}
+            style={{
+              flexShrink: 0,
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              fontWeight: 700,
+              color: comboTargetCapNotice ? "#991b1b" : "#92400e",
+              padding: "0 0.25rem",
+            }}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -302,3 +494,6 @@ export function useCartWishlist() {
   if (!ctx) throw new Error("useCartWishlist must be used within CartWishlistProvider");
   return ctx;
 }
+
+export { isEligibleForCombo, COMBO_TARGET_ADD_BLOCKED_MESSAGE } from "@/lib/combo/comboAddGuard";
+export type { ComboRuleGuard } from "@/lib/combo/comboAddGuard";

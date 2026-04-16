@@ -46,7 +46,7 @@ export default function ProductGrid({ listingEntries: entries }: ProductGridProp
     }
     setErrorListingKey(null);
     const qty = getQty(entry);
-    addToCart({
+    const ok = addToCart({
       productId: product.id,
       mongoProductId: product.mongoProductId,
       categoryMongoId: product.categoryMongoId,
@@ -64,6 +64,7 @@ export default function ProductGrid({ listingEntries: entries }: ProductGridProp
       pcsPerPacket: sizeRow.pcsPerPacket,
       orderMode: "packets" as const,
     }, qty);
+    if (!ok) return;
     setPopupProductName(product.name);
     setPopupOpen(true);
   };

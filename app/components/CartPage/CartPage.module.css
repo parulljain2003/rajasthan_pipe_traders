@@ -165,6 +165,43 @@
   gap: 1.25rem;
 }
 
+/* Combo offer hint from /api/cart/combo-pricing — shown above product list */
+.comboSuggestionBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%);
+  border: 1px solid #7dd3fc;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+}
+
+.comboSuggestionIcon {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #dbeafe;
+  border-radius: 10px;
+  color: #1d4ed8;
+}
+
+.comboSuggestionIcon svg {
+  display: block;
+}
+
+.comboSuggestionText {
+  margin: 0;
+  padding-top: 0.1rem;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  font-weight: 600;
+  color: #0c4a6e;
+}
+
 .itemsHeader {
   display: flex;
   align-items: baseline;

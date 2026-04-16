@@ -188,7 +188,7 @@ function ProductCarousel() {
       return;
     }
     setErrorProductId(null);
-    addToCart({
+    const ok = addToCart({
       productId: p.id,
       productName: p.name,
       productSlug: p.slug,
@@ -204,6 +204,7 @@ function ProductCarousel() {
       pcsPerPacket: p.pcsPerPacket,
       orderMode: "packets",
     }, qty);
+    if (!ok) return;
     setPopupProduct(p.name);
     setPopupOpen(true);
   };

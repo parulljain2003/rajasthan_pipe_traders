@@ -48,7 +48,7 @@ export default function Products() {
     }
     setErrorListingKey(null);
     const qty = getQty(entry);
-    addToCart({
+    const ok = addToCart({
       productId: product.id,
       mongoProductId: product.mongoProductId,
       categoryMongoId: product.categoryMongoId,
@@ -66,6 +66,7 @@ export default function Products() {
       pcsPerPacket: sizeRow.pcsPerPacket,
       orderMode: "packets" as const,
     }, qty);
+    if (!ok) return;
     setPopupProduct(product.name);
     setPopupOpen(true);
   };

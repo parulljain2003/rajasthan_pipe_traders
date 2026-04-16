@@ -20,6 +20,27 @@ export type CouponPacketTier = { minPackets: number; value: number };
 
 export type CouponTierUnit = "packets" | "outer";
 
+export type ComboThresholdUnit = "packets" | "bags" | "cartons";
+
+export type AdminComboRule = {
+  _id: string;
+  name: string;
+  triggerSlugs: string[];
+  targetSlugs: string[];
+  triggerCategoryIds?: string[];
+  targetCategoryIds?: string[];
+  minTriggerBags: number;
+  minTargetBags: number;
+  triggerThresholdUnit: ComboThresholdUnit;
+  targetThresholdUnit: ComboThresholdUnit;
+  /** @deprecated Optional legacy; combo net rates come from product size rows. */
+  comboPriceInclGst?: number;
+  suggestionMessage?: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type AdminCoupon = {
   _id: string;
   code: string;

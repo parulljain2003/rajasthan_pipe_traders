@@ -332,6 +332,19 @@ export default function CartPage() {
             <ComboCartPricingSync onMeta={setComboMeta} />
             {/* Left: Items list */}
             <div className={styles.itemsCol}>
+              {comboMeta.suggestion ? (
+                <div className={styles.comboSuggestionBanner} role="status" aria-live="polite">
+                  <span className={styles.comboSuggestionIcon} aria-hidden>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="16" x2="12" y2="12" />
+                      <line x1="12" y1="8" x2="12.01" y2="8" />
+                    </svg>
+                  </span>
+                  <p className={styles.comboSuggestionText}>{comboMeta.suggestion}</p>
+                </div>
+              ) : null}
+
               <div className={styles.itemsHeader}>
                 <h2 className={styles.itemsTitle}>Products</h2>
                 <span className={styles.itemsSubtitle}>
@@ -409,7 +422,6 @@ export default function CartPage() {
                 couponBannerError={couponRevalidateError}
                 onCouponChange={handleCouponChange}
                 onPlaceOrder={handlePlaceOrder}
-                comboSuggestion={comboMeta.suggestion}
                 comboSavingsInclGst={comboMeta.comboSavingsInclGst}
                 couponPricingMode={couponPricingMode}
                 onCouponPricingModeChange={setCouponPricingMode}

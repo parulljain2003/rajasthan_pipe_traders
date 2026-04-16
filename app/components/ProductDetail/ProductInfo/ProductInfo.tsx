@@ -69,7 +69,8 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       return;
     }
     setShowQtyError(false);
-    addToCart(cartPayload("packets"), quantity);
+    const ok = addToCart(cartPayload("packets"), quantity);
+    if (!ok) return;
     setAddedToCart(true);
     setPopupOpen(true);
   };
@@ -89,17 +90,21 @@ export default function ProductInfo({ product }: ProductInfoProps) {
     const size = selectedSize.size;
     const sid = activeOffer.sellerId;
 
+    let ok = true;
     if (masterBags > 0) {
-      addToCart(cartPayload("master_bag"), masterBags);
+      ok = addToCart(cartPayload("master_bag"), masterBags);
     } else {
       removeFromCart(pid, size, sid, "master_bag");
     }
-    if (quantity > 0) {
-      addToCart(cartPayload("packets"), quantity);
-    } else {
-      removeFromCart(pid, size, sid, "packets");
+    if (ok) {
+      if (quantity > 0) {
+        ok = addToCart(cartPayload("packets"), quantity);
+      } else {
+        removeFromCart(pid, size, sid, "packets");
+      }
     }
 
+    if (!ok) return;
     setAddedToCart(true);
     setPopupOpen(true);
   };
