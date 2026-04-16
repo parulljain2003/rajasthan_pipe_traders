@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       productByMongoId.set(p._id.toString(), p as unknown as LeanProductForCombo);
     }
 
-    const result = resolveCartComboPricing(lines, productByMongoId, {
+    const result = await resolveCartComboPricing(lines, productByMongoId, {
       skipComboAllocation: preferListOverCombo,
     });
     const minimumOrderInclGst = await getMinimumOrderInclGst();

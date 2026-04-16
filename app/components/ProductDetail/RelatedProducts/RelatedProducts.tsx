@@ -62,7 +62,8 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
       orderMode: "packets" as const,
     };
 
-    addToCart(payload, qty);
+    const ok = addToCart(payload, qty);
+    if (!ok) return;
     setActiveProductName(product.name);
     setPopupOpen(true);
   };

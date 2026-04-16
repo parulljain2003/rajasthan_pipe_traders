@@ -80,3 +80,35 @@ export function serializeCouponLean(doc: LeanDoc | null): Record<string, unknown
   }
   return out;
 }
+
+/** Combo rule for admin JSON */
+export function serializeComboRuleLean(doc: LeanDoc | null): Record<string, unknown> | null {
+  if (!doc) return null;
+  const triggerSlugs = doc.triggerSlugs;
+  const targetSlugs = doc.targetSlugs;
+  return {
+    _id: idString(doc._id),
+    name: doc.name,
+    triggerSlugs: Array.isArray(triggerSlugs) ? [...triggerSlugs] : [],
+    targetSlugs: Array.isArray(targetSlugs) ? [...targetSlugs] : [],
+    triggerCategoryIds: mapIdArray(doc.triggerCategoryIds),
+    targetCategoryIds: mapIdArray(doc.targetCategoryIds),
+    minTriggerBags: doc.minTriggerBags,
+    minTargetBags:
+      typeof doc.minTargetBags === "number" && Number.isFinite(doc.minTargetBags) ? doc.minTargetBags : 1,
+    triggerThresholdUnit:
+      doc.triggerThresholdUnit === "packets" || doc.triggerThresholdUnit === "bags" || doc.triggerThresholdUnit === "cartons"
+        ? doc.triggerThresholdUnit
+        : "bags",
+    targetThresholdUnit:
+      doc.targetThresholdUnit === "packets" || doc.targetThresholdUnit === "bags" || doc.targetThresholdUnit === "cartons"
+        ? doc.targetThresholdUnit
+        : "bags",
+    comboPriceInclGst:
+      typeof doc.comboPriceInclGst === "number" && Number.isFinite(doc.comboPriceInclGst) ? doc.comboPriceInclGst : undefined,
+    suggestionMessage: typeof doc.suggestionMessage === "string" ? doc.suggestionMessage : "",
+    isActive: Boolean(doc.isActive),
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+  };
+}
