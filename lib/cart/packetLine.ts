@@ -27,3 +27,22 @@ export function totalPiecesForLine(item: CartLineForPricing): number {
   const ppp = Number(item.pcsPerPacket) || 0;
   return pkts * ppp;
 }
+
+/**
+ * When `qtyPerBag` > 0, UI "packet" steps are in master-bag units: each step adds `qtyPerBag` packets
+ * (same MOQ as one outer bag).
+ */
+export function packetsFromMoqSteps(steps: number, qtyPerBag: number): number {
+  const qpb = Math.max(0, Math.floor(Number(qtyPerBag) || 0));
+  const s = Math.max(0, Math.floor(Number(steps) || 0));
+  if (qpb <= 0) return s;
+  return s * qpb;
+}
+
+/** Packet-line quantity → whole MOQ steps (floor). */
+export function moqStepsFromPacketQty(pktQty: number, qtyPerBag: number): number {
+  const qpb = Math.max(0, Math.floor(Number(qtyPerBag) || 0));
+  if (qpb <= 0) return Math.max(0, Math.floor(Number(pktQty) || 0));
+  const pk = Math.max(0, Math.floor(Number(pktQty) || 0));
+  return Math.floor(pk / qpb + 1e-9);
+}

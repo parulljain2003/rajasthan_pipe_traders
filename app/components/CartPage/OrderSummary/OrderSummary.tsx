@@ -215,9 +215,9 @@ export default function OrderSummary({
               const pk = pricedPacketCount(l);
               const pc = totalPiecesForLine(l);
               if (normalizeOrderMode(l.orderMode) === "master_bag") {
-                const bq = Number(l.quantity) || 0;
-                const outerWord = bq === 1 ? labels.outer : labels.outerPlural;
-                return `${bq} ${outerWord} → ${pk} ${labels.innerPlural} (${formatPieces(pc)} pc)`;
+                const bqn = Number(l.quantity) || 0;
+                const outerWord = bqn === 1 ? labels.outer : labels.outerPlural;
+                return `${bqn} ${outerWord} → ${pk} ${labels.innerPlural} (${formatPieces(pc)} pc)`;
               }
               return `${pk} ${labels.innerPlural} (${formatPieces(pc)} pc)`;
             });

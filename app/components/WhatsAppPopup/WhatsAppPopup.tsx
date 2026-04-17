@@ -128,7 +128,7 @@ export default function WhatsAppPopup({ isOpen, onClose, productName }: WhatsApp
               </div>
               {error && <p className={styles.error}>{error}</p>}
               <button type="submit" className={styles.submitBtn}>
-                Add to Cart
+                Confirm
               </button>
             </form>
 
@@ -144,7 +144,7 @@ export default function WhatsAppPopup({ isOpen, onClose, productName }: WhatsApp
                 <path d="M20 7 9 18l-5-5" />
               </svg>
             </div>
-            <h2 className={styles.title}>Added to Cart!</h2>
+            <h2 className={styles.title}>Thanks!</h2>
             <p className={styles.desc}>
               {productName
                 ? <><strong>{productName}</strong> has been added to your cart.</>

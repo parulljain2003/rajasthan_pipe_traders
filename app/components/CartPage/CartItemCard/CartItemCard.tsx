@@ -5,7 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import styles from "./CartItemCard.module.css";
 import type { AddCartItemInput, CartItem } from "../../../context/CartWishlistContext";
-import { normalizeOrderMode, pricedPacketCount, totalPiecesForLine, type CartOrderMode } from "@/lib/cart/packetLine";
+import {
+  normalizeOrderMode,
+  pricedPacketCount,
+  totalPiecesForLine,
+  type CartOrderMode,
+} from "@/lib/cart/packetLine";
 import { resolvePackingLabelsForCartLine } from "@/lib/packingLabels";
 import { productHeading } from "../../../lib/productHeading";
 
@@ -60,6 +65,7 @@ export default function CartItemCard({
 
   const pktQty = packetLine ? Number(packetLine.quantity) || 0 : 0;
   const bagQty = bagLine ? Number(bagLine.quantity) || 0 : 0;
+  const qpb = Math.max(0, Math.floor(Number(base.qtyPerBag) || 0));
 
   /** Unit row for display: bag line when user has bags (carries combo-updated price); else first line. */
   const unitDisplayLine = bagLine && bagQty > 0 ? bagLine : base;
@@ -213,15 +219,23 @@ export default function CartItemCard({
 
         <div className={`${styles.stackedQtyBlock} ${hasBulk ? styles.stackedQtyBlockRow : ""}`}>
           <div className={styles.qtyRow}>
-            <span className={styles.fieldLabel}>Quantity ({labels.innerPlural})</span>
+            <span className={styles.fieldLabel}>
+              {hasBulk && qpb > 0
+                ? `${labels.innerPlural} (+/- adds ${qpb})`
+                : `Quantity (${labels.innerPlural})`}
+            </span>
             <div className={styles.qtyControls}>
               <div className={styles.qtyControlsInner}>
                 <button
                   type="button"
                   className={styles.qtyBtn}
-                  onClick={() => setPacketQty(Math.max(0, pktQty - 1))}
+                  onClick={() =>
+                    hasBulk && qpb > 0
+                      ? setPacketQty(Math.max(0, pktQty - qpb))
+                      : setPacketQty(Math.max(0, pktQty - 1))
+                  }
                   disabled={pktQty <= 0}
-                  aria-label="Decrease packets"
+                  aria-label={hasBulk && qpb > 0 ? "Decrease one MOQ step" : "Decrease packets"}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M5 12h14" />
@@ -239,13 +253,24 @@ export default function CartItemCard({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                     }}
-                    aria-label={`Quantity in ${labels.innerPlural}`}
+                    aria-label={
+                      hasBulk && qpb > 0
+                        ? `Quantity in ${labels.innerPlural} (${qpb} per click)`
+                        : `Quantity in ${labels.innerPlural}`
+                    }
                   />
                   <span className={styles.qtyPc} aria-hidden>
-                    {labels.inner}
+                    {hasBulk && qpb > 0 ? labels.innerPlural : labels.inner}
                   </span>
                 </div>
-                <button type="button" className={styles.qtyBtn} onClick={() => setPacketQty(pktQty + 1)} aria-label="Increase packets">
+                <button
+                  type="button"
+                  className={styles.qtyBtn}
+                  onClick={() =>
+                    hasBulk && qpb > 0 ? setPacketQty(pktQty + qpb) : setPacketQty(pktQty + 1)
+                  }
+                  aria-label={hasBulk && qpb > 0 ? "Increase one MOQ step" : "Increase packets"}
+                >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M12 5v14M5 12h14" />
                   </svg>

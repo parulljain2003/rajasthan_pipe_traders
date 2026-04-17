@@ -769,7 +769,8 @@ export default function AdminProductsPage() {
           slug: form.slug.trim().toLowerCase() || undefined,
           category: form.categoryId,
           description: form.description.trim() || undefined,
-          brand: form.brand.trim() || undefined,
+          // Always send string on update so clearing the field persists (JSON omits `undefined`).
+          brand: form.brand.trim(),
           image: form.image.trim() || undefined,
           isActive: form.isActive,
           isNew: form.isNew,

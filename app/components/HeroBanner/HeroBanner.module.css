@@ -379,7 +379,13 @@
 .slideBasic { font-size:0.62rem; color:#475569; text-decoration:line-through; }
 
 .slideCtaRow {
-  display:flex; align-items:center; gap:0.55rem; margin-top:0.2rem; flex-wrap:wrap;
+  display:flex; align-items:flex-start; gap:0.55rem; margin-top:0.2rem; flex-wrap:wrap;
+  width: 100%;
+}
+
+.slideListingMoq {
+  width: 100%;
+  max-width: 100%;
 }
 
 .slideBtn {
