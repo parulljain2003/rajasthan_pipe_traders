@@ -44,7 +44,6 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       "description",
       "longDescription",
       "subCategory",
-      "brand",
       "brandCode",
       "productLine",
       "sizeOrModel",
@@ -57,6 +56,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     for (const key of scalarString) {
       if (typeof body[key] === "string") {
         $set[key] = key === "slug" ? (body[key] as string).trim().toLowerCase() : (body[key] as string);
+      }
+    }
+    if ("brand" in body) {
+      if (body.brand === null || body.brand === "") {
+        $unset.brand = 1;
+      } else if (typeof body.brand === "string") {
+        $set.brand = body.brand.trim();
       }
     }
     if ("image" in body) {

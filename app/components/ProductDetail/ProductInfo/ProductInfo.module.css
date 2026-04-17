@@ -403,6 +403,12 @@
   border-radius: 10px;
 }
 
+.premiumBagSection .modernQtyUnit {
+  color: #0ea5e9;
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+
 .modernQtyBtn {
   width: 44px;
   border: none;
@@ -569,6 +575,17 @@
   opacity: 0.9;
 }
 
+.moqStepHint {
+  margin: 0.5rem 0 0;
+  width: 100%;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #0c4a6e;
+  opacity: 0.88;
+  line-height: 1.35;
+  text-align: center;
+}
+
 .bagActionControls {
   display: flex;
   gap: 1rem;
@@ -586,7 +603,7 @@
 .bulkQtyRow {
   display: flex;
   flex-direction: row;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 1rem;
   width: 100%;
 }

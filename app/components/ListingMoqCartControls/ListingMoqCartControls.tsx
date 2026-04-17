@@ -1,0 +1,124 @@
+"use client";
+
+import React from "react";
+import type { PackingUnitLabels } from "@/app/data/products";
+import { useMoqCartForModel } from "@/lib/cart/useMoqCartForModel";
+import type { ListingMoqCartModel } from "@/lib/cart/listingMoqModel";
+import styles from "./ListingMoqCartControls.module.css";
+
+export type { ListingMoqCartModel };
+export { listingEntryToModel } from "@/lib/cart/listingMoqModel";
+
+interface ListingMoqCartControlsProps {
+  model: ListingMoqCartModel;
+  labels: PackingUnitLabels;
+  className?: string;
+  compact?: boolean;
+}
+
+export default function ListingMoqCartControls({ model, labels, className, compact = false }: ListingMoqCartControlsProps) {
+  const {
+    hasBulk,
+    qpb,
+    bagQty,
+    pktQty,
+    onBagDelta,
+    onPacketDelta,
+    setPacketStepsFromInput,
+    setPacketTarget,
+  } = useMoqCartForModel(model);
+
+  const stop = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const onPacketInput = (raw: string) => {
+    const n = parseInt(raw, 10);
+    if (Number.isNaN(n) || n < 0) return;
+    setPacketTarget(n);
+  };
+
+  return (
+    <div className={`${styles.root} ${compact ? styles.compact : ""} ${className ?? ""}`} onClick={stop}>
+      {hasBulk ? (
+        <>
+          <div className={styles.bulkRows}>
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>{labels.outerHeading}</span>
+              <div className={styles.stepper}>
+                <button type="button" className={styles.stepBtn} disabled={bagQty <= 0} onClick={(e) => { stop(e); onBagDelta(-1); }} aria-label={`Decrease ${labels.outerPlural}`}>
+                  −
+                </button>
+                <span className={styles.stepValue} aria-live="polite">
+                  {bagQty}
+                </span>
+                <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onBagDelta(1); }} aria-label={`Increase ${labels.outerPlural}`}>
+                  +
+                </button>
+                <span className={styles.unit}>{labels.outerPlural}</span>
+              </div>
+            </div>
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>{labels.innerHeading}</span>
+              <div className={styles.stepper}>
+                <button
+                  type="button"
+                  className={styles.stepBtn}
+                  disabled={pktQty <= 0}
+                  onClick={(e) => {
+                    stop(e);
+                    onPacketDelta(-1);
+                  }}
+                  aria-label="Decrease packet MOQ step"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  className={styles.stepInput}
+                  value={pktQty}
+                  min={0}
+                  onChange={(e) => onPacketInput(e.target.value)}
+                  onClick={stop}
+                  onFocus={(e) => e.currentTarget.select()}
+                  aria-label={`${labels.innerHeading} quantity in ${labels.innerPlural} (adds ${qpb} per click)`}
+                />
+                <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onPacketDelta(1); }} aria-label="Increase packet MOQ step">
+                  +
+                </button>
+                <span className={styles.unit}>{labels.innerPlural}</span>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className={styles.row}>
+          <span className={styles.rowLabel}>{labels.innerHeading}</span>
+          <div className={styles.stepper}>
+            <button type="button" className={styles.stepBtn} disabled={pktQty <= 0} onClick={(e) => { stop(e); onPacketDelta(-1); }} aria-label="Decrease quantity">
+              −
+            </button>
+            <input
+              type="number"
+              className={styles.stepInput}
+              value={pktQty}
+              min={0}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10);
+                if (!Number.isNaN(n) && n >= 0) setPacketStepsFromInput(n);
+              }}
+              onClick={stop}
+              onFocus={(e) => e.currentTarget.select()}
+              aria-label={`Quantity in ${labels.innerPlural}`}
+            />
+            <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onPacketDelta(1); }} aria-label="Increase quantity">
+              +
+            </button>
+            <span className={styles.unit}>{labels.innerPlural}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

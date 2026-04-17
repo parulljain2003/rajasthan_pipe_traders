@@ -1,76 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import styles from "./RelatedProducts.module.css";
 import { getSellerOffers, type Product } from "../../../data/products";
 import { productHeading, listingBrandPill } from "../../../lib/productHeading";
-import { useCartWishlist } from "../../../context/CartWishlistContext";
 import { resolvePackingUnitLabels } from "@/lib/packingLabels";
-import WhatsAppPopup from "../../WhatsAppPopup/WhatsAppPopup";
+import ListingMoqCartControls, { listingEntryToModel } from "@/app/components/ListingMoqCartControls/ListingMoqCartControls";
 
 interface RelatedProductsProps {
   products: Product[];
 }
 
 export default function RelatedProducts({ products }: RelatedProductsProps) {
-  const { addToCart } = useCartWishlist();
-  const [quantities, setQuantities] = useState<Record<number, number>>(
-    Object.fromEntries(products.map(p => [p.id, 0]))
-  );
-  const [popupOpen, setPopupOpen] = useState(false);
-  const [activeProductName, setActiveProductName] = useState("");
-  const [errorProductId, setErrorProductId] = useState<number | null>(null);
-
   if (products.length === 0) return null;
-
-  const handleQtyChange = (id: number, val: number) => {
-    setQuantities(prev => ({
-      ...prev,
-      [id]: Math.max(0, val)
-    }));
-    setErrorProductId(null);
-  };
-
-  const handleAddToCart = (product: Product) => {
-    const qty = quantities[product.id] || 0;
-    if (qty <= 0) {
-      setErrorProductId(product.id);
-      return;
-    }
-    setErrorProductId(null);
-
-    const offer = getSellerOffers(product)[0];
-    const size = offer.sizes[0];
-    const payload = {
-      productId: product.id,
-      mongoProductId: product.mongoProductId,
-      categoryMongoId: product.categoryMongoId,
-      productName: product.name,
-      productSlug: product.slug,
-      productImage: product.image,
-      brand: offer.brand,
-      category: product.category,
-      sellerId: offer.sellerId,
-      sellerName: offer.sellerName,
-      size: size.size,
-      pricePerUnit: size.withGST,
-      basicPricePerUnit: size.basicPrice,
-      qtyPerBag: size.qtyPerBag,
-      pcsPerPacket: size.pcsPerPacket,
-      orderMode: "packets" as const,
-    };
-
-    const ok = addToCart(payload, qty);
-    if (!ok) return;
-    setActiveProductName(product.name);
-    setPopupOpen(true);
-  };
 
   return (
     <section className={styles.section}>
-      {/* ... header code ... */}
       <div className={styles.sectionHeader}>
         <div>
           <h2 className={styles.sectionTitle}>Related Products</h2>
@@ -97,8 +44,8 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
                 ? styles.listingBrandTejas
                 : styles.listingBrandNstar;
           const size = offer.sizes[0];
-          const qty = quantities[product.id] || 0;
           const listLabels = resolvePackingUnitLabels(product, size);
+          const entry = { product, offer };
 
           return (
             <div key={product.id} className={styles.card}>
@@ -125,86 +72,25 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
                   </span>
                   <h3 className={styles.cardName}>{productHeading(product.name, size.size)}</h3>
                 </Link>
-                
+
                 <p className={styles.cardDesc}>{product.description}</p>
-                
+
                 <div className={styles.cardPricing}>
                   <span className={styles.fromLabel}>From</span>
                   <span className={styles.cardPrice}>₹{size.withGST.toFixed(2)}</span>
                   <span className={styles.gstTag}>incl. GST / {listLabels.inner}</span>
                 </div>
 
-                <div className={styles.cardCtaRow}>
-                  <div className={styles.qtyCounter}>
-                    <button 
-                      className={styles.qtyBtn}
-                      onClick={() => handleQtyChange(product.id, qty - 1)}
-                      disabled={qty <= 0}
-                    >
-                      −
-                    </button>
-                    <div className={styles.qtyInputBlock}>
-                      <input 
-                        type="number" 
-                        value={qty}
-                        min={0}
-                        step={1}
-                        onFocus={(e) => {
-                          e.target.select();
-                        }}
-                        onChange={e => {
-                          const v = parseInt(e.target.value) || 0;
-                          if (v >= 0) {
-                            handleQtyChange(product.id, v);
-                          }
-                        }}
-                        onWheel={e => e.currentTarget.blur()}
-                        onBlur={e => {
-                          const v = parseInt(e.target.value) || 0;
-                          if (v < 0) {
-                            handleQtyChange(product.id, 0);
-                          }
-                        }}
-                      />
-                      <span className={styles.qtyUnit}>{listLabels.inner}</span>
-                    </div>
-                    <button 
-                      className={styles.qtyBtn}
-                      onClick={() => handleQtyChange(product.id, qty + 1)}
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  <button 
-                    className={styles.addToCartBtn}
-                    onClick={() => handleAddToCart(product)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                      <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5zM3.14 5l1.25 5h8.22l1.25-5H3.14zM5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0z" />
-                    </svg>
-                    <span>Add to Cart</span>
-                  </button>
-                </div>
-                {errorProductId === product.id && (
-                  <div className={styles.qtyError}>
-                    Please add product quantity first
-                  </div>
-                )}
-                <div className={styles.moqLabel}>
-                  Minimum order: 1 {listLabels.inner}
-                </div>
+                <ListingMoqCartControls
+                  model={listingEntryToModel(entry)}
+                  labels={listLabels}
+                  className={styles.listingMoqWrap}
+                />
               </div>
             </div>
           );
         })}
       </div>
-
-      <WhatsAppPopup 
-        isOpen={popupOpen} 
-        onClose={() => setPopupOpen(false)} 
-        productName={activeProductName}
-      />
     </section>
   );
 }

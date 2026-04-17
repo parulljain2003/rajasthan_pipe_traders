@@ -403,6 +403,13 @@
   text-decoration: line-through;
 }
 
+/* ── Listing MOQ (cart sync) ── */
+.listing-moq-wrap {
+  width: 100%;
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+
 /* ── CTA Row ── */
 .card-cta-row {
   display: flex;
