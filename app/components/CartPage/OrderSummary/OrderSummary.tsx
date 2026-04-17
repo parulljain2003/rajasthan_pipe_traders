@@ -213,6 +213,12 @@ export default function OrderSummary({
             );
             const metaLines = lines.map((l) => {
               const pk = pricedPacketCount(l);
+              const qpb = Number(first.qtyPerBag) || 0;
+              if (qpb > 0 && normalizeOrderMode(l.orderMode) === "packets") {
+                const bagEq = Math.floor(pk / qpb + 1e-9);
+                const outerWord = bagEq === 1 ? labels.outer : labels.outerPlural;
+                return `${bagEq} ${outerWord} (${pk} ${labels.innerPlural})`;
+              }
               const pc = totalPiecesForLine(l);
               if (normalizeOrderMode(l.orderMode) === "master_bag") {
                 const bqn = Number(l.quantity) || 0;

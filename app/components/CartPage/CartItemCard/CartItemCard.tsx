@@ -13,6 +13,7 @@ import {
 } from "@/lib/cart/packetLine";
 import { resolvePackingLabelsForCartLine } from "@/lib/packingLabels";
 import { productHeading } from "../../../lib/productHeading";
+import listingMoqStyles from "@/app/components/ListingMoqCartControls/ListingMoqCartControls.module.css";
 
 interface CartItemCardProps {
   /** One or two lines (packets + optional bulk) merged into one card */
@@ -63,9 +64,11 @@ export default function CartItemCard({
   const packetLine = lines.find((l) => normalizeOrderMode(l.orderMode) === "packets");
   const bagLine = lines.find((l) => normalizeOrderMode(l.orderMode) === "master_bag");
 
-  const pktQty = packetLine ? Number(packetLine.quantity) || 0 : 0;
-  const bagQty = bagLine ? Number(bagLine.quantity) || 0 : 0;
+  const pktQtyRaw = packetLine ? Number(packetLine.quantity) || 0 : 0;
+  const bagQtyRaw = bagLine ? Number(bagLine.quantity) || 0 : 0;
   const qpb = Math.max(0, Math.floor(Number(base.qtyPerBag) || 0));
+  const pktQty = hasBulk && qpb > 0 ? (pktQtyRaw > 0 ? pktQtyRaw : bagQtyRaw * qpb) : pktQtyRaw;
+  const bagQty = hasBulk && qpb > 0 ? Math.floor(pktQty / qpb + 1e-9) : bagQtyRaw;
 
   /** Unit row for display: bag line when user has bags (carries combo-updated price); else first line. */
   const unitDisplayLine = bagLine && bagQty > 0 ? bagLine : base;
@@ -102,6 +105,22 @@ export default function CartItemCard({
 
   const setPacketQty = (next: number) => {
     if (next < 0) return;
+    if (hasBulk && qpb > 0) {
+      if (next === 0) {
+        if (packetLine) removeFromCart(base.productId, base.size, base.sellerId, "packets");
+        if (bagLine) removeFromCart(base.productId, base.size, base.sellerId, "master_bag");
+        return;
+      }
+      if (!packetLine) {
+        addToCart(lineToPayload(base, "packets"), next);
+      } else {
+        updateQuantity(base.productId, base.size, next, base.sellerId, "packets");
+      }
+      if (bagLine) {
+        removeFromCart(base.productId, base.size, base.sellerId, "master_bag");
+      }
+      return;
+    }
     if (next === 0) {
       if (packetLine) removeFromCart(base.productId, base.size, base.sellerId, "packets");
       return;
@@ -115,6 +134,10 @@ export default function CartItemCard({
 
   const setBagQty = (next: number) => {
     if (next < 0) return;
+    if (hasBulk && qpb > 0) {
+      setPacketQty(next * qpb);
+      return;
+    }
     if (next === 0) {
       if (bagLine) removeFromCart(base.productId, base.size, base.sellerId, "master_bag");
       return;
@@ -161,8 +184,7 @@ export default function CartItemCard({
   const qtySummaryText = (() => {
     if (hasBulk && bagQty > 0 && pktQty > 0) {
       const outerWord = bagQty === 1 ? labels.outer : labels.outerPlural;
-      const looseWord = pktQty === 1 ? labels.inner : labels.innerPlural;
-      return `${bagQty} ${outerWord} = ${pkFromBags} ${labels.innerPlural} + ${pktQty} ${looseWord} = ${formatPieces(combinedPieces)} pcs`;
+      return `${bagQty} ${outerWord} = ${combinedPacketCount} ${labels.innerPlural}.`;
     }
     if (hasBulk && bagQty > 0 && pktQty === 0) {
       const outerWord = bagQty === 1 ? labels.outer : labels.outerPlural;
@@ -217,34 +239,59 @@ export default function CartItemCard({
           </button>
         </div>
 
-        <div className={`${styles.stackedQtyBlock} ${hasBulk ? styles.stackedQtyBlockRow : ""}`}>
-          <div className={styles.qtyRow}>
-            <span className={styles.fieldLabel}>
-              {hasBulk && qpb > 0
-                ? `${labels.innerPlural} (+/- adds ${qpb})`
-                : `Quantity (${labels.innerPlural})`}
-            </span>
-            <div className={styles.qtyControls}>
-              <div className={styles.qtyControlsInner}>
-                <button
-                  type="button"
-                  className={styles.qtyBtn}
-                  onClick={() =>
-                    hasBulk && qpb > 0
-                      ? setPacketQty(Math.max(0, pktQty - qpb))
-                      : setPacketQty(Math.max(0, pktQty - 1))
-                  }
-                  disabled={pktQty <= 0}
-                  aria-label={hasBulk && qpb > 0 ? "Decrease one MOQ step" : "Decrease packets"}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M5 12h14" />
-                  </svg>
-                </button>
-                <div className={styles.qtyValueCell}>
+        <div className={`${listingMoqStyles.root} ${listingMoqStyles.detailPage} ${styles.cartMoqRoot}`}>
+          {hasBulk ? (
+            <div className={listingMoqStyles.bulkRows}>
+              <div className={listingMoqStyles.row}>
+                <span className={listingMoqStyles.rowLabel}>{labels.outerPlural}</span>
+                <div className={listingMoqStyles.stepper}>
+                  <button
+                    type="button"
+                    className={listingMoqStyles.stepBtn}
+                    onClick={() => setBagQty(Math.max(0, bagQty - 1))}
+                    disabled={bagQty <= 0}
+                    aria-label={`Decrease ${labels.outerPlural}`}
+                  >
+                    −
+                  </button>
                   <input
                     type="number"
-                    className={styles.qtyInput}
+                    className={listingMoqStyles.stepInput}
+                    value={bagInput}
+                    min={0}
+                    step={1}
+                    onChange={(e) => setBagInput(e.target.value)}
+                    onBlur={(e) => commitBag(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                    }}
+                    aria-label={`Quantity in ${labels.outerPlural}`}
+                  />
+                  <button type="button" className={listingMoqStyles.stepBtn} onClick={() => setBagQty(bagQty + 1)} aria-label={`Increase ${labels.outerPlural}`}>
+                    +
+                  </button>
+                  <span className={listingMoqStyles.unit}>{labels.outer}</span>
+                </div>
+              </div>
+              <div className={listingMoqStyles.row}>
+                <span className={listingMoqStyles.rowLabel}>
+                  {qpb > 0 ? `${labels.innerPlural} (+/- ${qpb})` : labels.innerPlural}
+                </span>
+                <div className={listingMoqStyles.stepper}>
+                  <button
+                    type="button"
+                    className={listingMoqStyles.stepBtn}
+                    onClick={() =>
+                      qpb > 0 ? setPacketQty(Math.max(0, pktQty - qpb)) : setPacketQty(Math.max(0, pktQty - 1))
+                    }
+                    disabled={pktQty <= 0}
+                    aria-label={qpb > 0 ? "Decrease one MOQ step" : "Decrease packets"}
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    className={listingMoqStyles.stepInput}
                     value={pktInput}
                     min={0}
                     step={1}
@@ -254,71 +301,53 @@ export default function CartItemCard({
                       if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                     }}
                     aria-label={
-                      hasBulk && qpb > 0
+                      qpb > 0
                         ? `Quantity in ${labels.innerPlural} (${qpb} per click)`
                         : `Quantity in ${labels.innerPlural}`
                     }
                   />
-                  <span className={styles.qtyPc} aria-hidden>
-                    {hasBulk && qpb > 0 ? labels.innerPlural : labels.inner}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className={styles.qtyBtn}
-                  onClick={() =>
-                    hasBulk && qpb > 0 ? setPacketQty(pktQty + qpb) : setPacketQty(pktQty + 1)
-                  }
-                  aria-label={hasBulk && qpb > 0 ? "Increase one MOQ step" : "Increase packets"}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {hasBulk && (
-            <div className={styles.qtyRow}>
-              <span className={styles.fieldLabel}>{labels.outerPlural}</span>
-              <div className={styles.qtyControls}>
-                <div className={styles.qtyControlsInner}>
                   <button
                     type="button"
-                    className={styles.qtyBtn}
-                    onClick={() => setBagQty(Math.max(0, bagQty - 1))}
-                    disabled={bagQty <= 0}
-                    aria-label={`Decrease ${labels.outerPlural}`}
+                    className={listingMoqStyles.stepBtn}
+                    onClick={() => (qpb > 0 ? setPacketQty(pktQty + qpb) : setPacketQty(pktQty + 1))}
+                    aria-label={qpb > 0 ? "Increase one MOQ step" : "Increase packets"}
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M5 12h14" />
-                    </svg>
+                    +
                   </button>
-                  <div className={styles.qtyValueCell}>
-                    <input
-                      type="number"
-                      className={styles.qtyInput}
-                      value={bagInput}
-                      min={0}
-                      step={1}
-                      onChange={(e) => setBagInput(e.target.value)}
-                      onBlur={(e) => commitBag(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                      }}
-                      aria-label={`Quantity in ${labels.outerPlural}`}
-                    />
-                    <span className={styles.qtyPc} aria-hidden>
-                      {labels.outer}
-                    </span>
-                  </div>
-                  <button type="button" className={styles.qtyBtn} onClick={() => setBagQty(bagQty + 1)} aria-label={`Increase ${labels.outerPlural}`}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M12 5v14M5 12h14" />
-                    </svg>
-                  </button>
+                  <span className={listingMoqStyles.unit}>{qpb > 0 ? labels.innerPlural : labels.inner}</span>
                 </div>
+              </div>
+            </div>
+          ) : (
+            <div className={listingMoqStyles.row}>
+              <span className={listingMoqStyles.rowLabel}>{`Quantity (${labels.innerPlural})`}</span>
+              <div className={listingMoqStyles.stepper}>
+                <button
+                  type="button"
+                  className={listingMoqStyles.stepBtn}
+                  onClick={() => setPacketQty(Math.max(0, pktQty - 1))}
+                  disabled={pktQty <= 0}
+                  aria-label="Decrease packets"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  className={listingMoqStyles.stepInput}
+                  value={pktInput}
+                  min={0}
+                  step={1}
+                  onChange={(e) => setPktInput(e.target.value)}
+                  onBlur={(e) => commitPkt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                  }}
+                  aria-label={`Quantity in ${labels.innerPlural}`}
+                />
+                <button type="button" className={listingMoqStyles.stepBtn} onClick={() => setPacketQty(pktQty + 1)} aria-label="Increase packets">
+                  +
+                </button>
+                <span className={listingMoqStyles.unit}>{labels.innerPlural}</span>
               </div>
             </div>
           )}

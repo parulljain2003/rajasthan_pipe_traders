@@ -9,14 +9,30 @@ import styles from "./ListingMoqCartControls.module.css";
 export type { ListingMoqCartModel };
 export { listingEntryToModel } from "@/lib/cart/listingMoqModel";
 
-interface ListingMoqCartControlsProps {
-  model: ListingMoqCartModel;
+export type MoqCartControlsApi = ReturnType<typeof useMoqCartForModel>;
+
+interface ListingMoqCartControlsViewProps {
   labels: PackingUnitLabels;
+  moq: MoqCartControlsApi;
   className?: string;
   compact?: boolean;
+  stackRows?: boolean;
+  labelOuter?: string;
+  labelInner?: string;
+  labelSingle?: string;
 }
 
-export default function ListingMoqCartControls({ model, labels, className, compact = false }: ListingMoqCartControlsProps) {
+/** Presentational MOQ steppers; pass `moq` from `useMoqCartForModel` (e.g. product detail shares state with summary). */
+export function ListingMoqCartControlsView({
+  labels,
+  moq,
+  className,
+  compact = false,
+  stackRows = false,
+  labelOuter,
+  labelInner,
+  labelSingle,
+}: ListingMoqCartControlsViewProps) {
   const {
     hasBulk,
     qpb,
@@ -26,7 +42,11 @@ export default function ListingMoqCartControls({ model, labels, className, compa
     onPacketDelta,
     setPacketStepsFromInput,
     setPacketTarget,
-  } = useMoqCartForModel(model);
+  } = moq;
+
+  const outerRowText = labelOuter ?? labels.outer;
+  const innerRowText = labelInner ?? labels.innerHeading;
+  const singleRowText = labelSingle ?? labels.innerHeading;
 
   const stop = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -40,12 +60,15 @@ export default function ListingMoqCartControls({ model, labels, className, compa
   };
 
   return (
-    <div className={`${styles.root} ${compact ? styles.compact : ""} ${className ?? ""}`} onClick={stop}>
+    <div
+      className={`${styles.root} ${compact ? styles.compact : ""} ${stackRows ? styles.stackRows : ""} ${className ?? ""}`}
+      onClick={stop}
+    >
       {hasBulk ? (
         <>
           <div className={styles.bulkRows}>
             <div className={styles.row}>
-              <span className={styles.rowLabel}>{labels.outerHeading}</span>
+              <span className={styles.rowLabel}>{outerRowText}</span>
               <div className={styles.stepper}>
                 <button type="button" className={styles.stepBtn} disabled={bagQty <= 0} onClick={(e) => { stop(e); onBagDelta(-1); }} aria-label={`Decrease ${labels.outerPlural}`}>
                   −
@@ -60,7 +83,7 @@ export default function ListingMoqCartControls({ model, labels, className, compa
               </div>
             </div>
             <div className={styles.row}>
-              <span className={styles.rowLabel}>{labels.innerHeading}</span>
+              <span className={styles.rowLabel}>{innerRowText}</span>
               <div className={styles.stepper}>
                 <button
                   type="button"
@@ -94,7 +117,7 @@ export default function ListingMoqCartControls({ model, labels, className, compa
         </>
       ) : (
         <div className={styles.row}>
-          <span className={styles.rowLabel}>{labels.innerHeading}</span>
+          <span className={styles.rowLabel}>{singleRowText}</span>
           <div className={styles.stepper}>
             <button type="button" className={styles.stepBtn} disabled={pktQty <= 0} onClick={(e) => { stop(e); onPacketDelta(-1); }} aria-label="Decrease quantity">
               −
@@ -121,4 +144,13 @@ export default function ListingMoqCartControls({ model, labels, className, compa
       )}
     </div>
   );
+}
+
+interface ListingMoqCartControlsProps extends Omit<ListingMoqCartControlsViewProps, "moq"> {
+  model: ListingMoqCartModel;
+}
+
+export default function ListingMoqCartControls({ model, ...rest }: ListingMoqCartControlsProps) {
+  const moq = useMoqCartForModel(model);
+  return <ListingMoqCartControlsView {...rest} moq={moq} />;
 }

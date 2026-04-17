@@ -7,6 +7,8 @@ import { getSellerOffers, type Product } from "../../../data/products";
 import { resolvePackingUnitLabels } from "@/lib/packingLabels";
 import type { ListingMoqCartModel } from "@/lib/cart/listingMoqModel";
 import { useMoqCartForModel } from "@/lib/cart/useMoqCartForModel";
+import { ListingMoqCartControlsView } from "@/app/components/ListingMoqCartControls/ListingMoqCartControls";
+import listingMoqStyles from "@/app/components/ListingMoqCartControls/ListingMoqCartControls.module.css";
 
 interface ProductInfoProps {
   product: Product;
@@ -49,8 +51,8 @@ export default function ProductInfo({ product }: ProductInfoProps) {
     };
   }, [product, activeOffer, selectedSize]);
 
-  const { bagQty, pktQty, pktSteps, onBagDelta, onPacketDelta, setPacketStepsFromInput, setPacketTarget } =
-    useMoqCartForModel(moqModel);
+  const moq = useMoqCartForModel(moqModel);
+  const { bagQty, pktQty, pktSteps } = moq;
 
   return (
     <div className={styles.infoPanel}>
@@ -170,24 +172,6 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       <div className={styles.premiumBagSection}>
         <div className={styles.bagTopRow}>
           {hasBulk && <div className={styles.bagPromoTag}>Best value</div>}
-          <div className={styles.bagTitleBlock}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-              <polyline points="3.29 7 12 12 20.71 7" />
-              <line x1="12" y1="22" x2="12" y2="12" />
-            </svg>
-            <span>
-              {hasBulk ? (
-                <>
-                  Order by <strong>{labels.outerHeading}</strong> or <strong>{labels.innerHeading}</strong>
-                </>
-              ) : (
-                <>
-                  Order by <strong>{labels.innerHeading}</strong>
-                </>
-              )}
-            </span>
-          </div>
           <p className={styles.bagCalc}>
             {hasBulk ? (
               (() => {
@@ -220,124 +204,14 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         </div>
 
         <div className={styles.bagActionControls}>
-          <div className={`${styles.dualQtyWrapper} ${!hasBulk ? styles.dualQtySingle : ""}`}>
-            {hasBulk ? (
-              <>
-              <div className={styles.bulkQtyRow}>
-                <div className={styles.qtySection}>
-                  <label className={styles.qtyCounterLabel}>Order by {labels.outerHeading}</label>
-                  <div className={styles.bagQtyCounter}>
-                    <button type="button" disabled={bagQty <= 0} onClick={() => onBagDelta(-1)}>
-                      −
-                    </button>
-                    <input type="number" readOnly value={bagQty} aria-label={`Count in ${labels.outerPlural}`} />
-                    <button type="button" onClick={() => onBagDelta(1)}>
-                      +
-                    </button>
-                    <span className={styles.bagQtyUnit}>{labels.outerPlural}</span>
-                  </div>
-                </div>
-
-                <div className={styles.qtySection}>
-                  <label className={styles.qtyCounterLabel}>Order by {labels.innerHeading}</label>
-                  <div className={styles.modernQtyCounter}>
-                    <button
-                      type="button"
-                      className={styles.modernQtyBtn}
-                      disabled={pktSteps <= 0}
-                      onClick={() => onPacketDelta(-1)}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                    </button>
-
-                    <div className={styles.modernQtyInputBlock}>
-                      <input
-                        type="number"
-                        className={styles.modernQtyInput}
-                        value={pktQty}
-                        min={0}
-                        step={selectedSize.qtyPerBag}
-                        onFocus={(e) => e.currentTarget.select()}
-                        onChange={(e) => {
-                          const v = parseInt(e.target.value, 10) || 0;
-                          if (v >= 0) setPacketTarget(v);
-                        }}
-                        onWheel={(e) => e.currentTarget.blur()}
-                        onBlur={(e) => {
-                          const v = parseInt(e.target.value, 10) || 0;
-                          if (v < 0) setPacketTarget(0);
-                        }}
-                        aria-label={`${labels.innerHeading} quantity in ${labels.innerPlural} (adds ${selectedSize.qtyPerBag} per click)`}
-                      />
-                      <span className={styles.modernQtyUnit}>{labels.innerPlural}</span>
-                    </div>
-
-                    <button
-                      type="button"
-                      className={styles.modernQtyBtn}
-                      onClick={() => onPacketDelta(1)}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-              </>
-            ) : (
-              <div className={styles.qtySection}>
-                <label className={styles.qtyCounterLabel}>Order by {labels.innerHeading}</label>
-                <div className={styles.modernQtyCounter}>
-                  <button
-                    type="button"
-                    className={styles.modernQtyBtn}
-                    disabled={pktQty <= 0}
-                    onClick={() => onPacketDelta(-1)}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </button>
-
-                  <div className={styles.modernQtyInputBlock}>
-                    <input
-                      type="number"
-                      className={styles.modernQtyInput}
-                      value={pktQty}
-                      min={0}
-                      step={1}
-                      onFocus={(e) => e.currentTarget.select()}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value, 10) || 0;
-                        if (v >= 0) setPacketStepsFromInput(v);
-                      }}
-                      onWheel={(e) => e.currentTarget.blur()}
-                      onBlur={(e) => {
-                        const v = parseInt(e.target.value, 10) || 0;
-                        if (v < 0) setPacketStepsFromInput(0);
-                      }}
-                    />
-                    <span className={styles.modernQtyUnit}>{labels.inner}</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    className={styles.modernQtyBtn}
-                    onClick={() => onPacketDelta(1)}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          <ListingMoqCartControlsView
+            labels={labels}
+            moq={moq}
+            className={listingMoqStyles.detailPage}
+            labelOuter={`Order by ${labels.outerHeading}`}
+            labelInner={`Order by ${labels.innerHeading}`}
+            labelSingle={`Order by ${labels.innerHeading}`}
+          />
         </div>
       </div>
 
