@@ -75,7 +75,6 @@ export default function ProductGrid({ listingEntries: entries }: ProductGridProp
                 model={listingEntryToModel(entry)}
                 labels={listLabels}
                 className={styles.listingMoqWrap}
-                compact
               />
             </div>
           </Link>

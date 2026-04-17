@@ -412,8 +412,8 @@
 .modernQtyBtn {
   width: 44px;
   border: none;
-  background: transparent;
-  color: #64748b;
+  background: #0284c7;
+  color: #ffffff;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -422,8 +422,8 @@
 }
 
 .modernQtyBtn:hover:not(:disabled) {
-  background: #f1f5f9;
-  color: #2563eb;
+  background: #0369a1;
+  color: #ffffff;
 }
 
 .modernQtyBtn:disabled {
@@ -556,18 +556,6 @@
   letter-spacing: 0.05em;
 }
 
-.bagTitleBlock {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 1rem;
-  color: #0c4a6e;
-}
-
-.bagTitleBlock strong {
-  color: #0369a1;
-}
-
 .bagCalc {
   font-size: 0.75rem;
   font-weight: 600;
@@ -653,9 +641,9 @@
   width: 36px;
   height: 36px;
   border: none;
-  background: #f0f9ff;
+  background: #0284c7;
   border-radius: 4px;
-  color: #0ea5e9;
+  color: #ffffff;
   cursor: pointer;
   font-weight: 800;
   transition: all 0.2s;
@@ -663,7 +651,7 @@
 }
 
 .bagQtyCounter button:hover:not(:disabled) {
-  background: #0ea5e9;
+  background: #0369a1;
   color: white;
 }
 

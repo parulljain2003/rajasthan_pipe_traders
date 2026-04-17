@@ -217,7 +217,6 @@ function ProductCarousel() {
               model={heroSlideProductToModel(p)}
               labels={heroLabels}
               className={styles.slideListingMoq}
-              compact
             />
           </div>
         </div>

@@ -119,47 +119,9 @@
   color: #dc2626;
 }
 
-.fieldLabel {
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.detailsQtyWrap {
-  flex-direction: column;
-  gap: 0.3rem;
-  align-items: flex-start;
-}
-
-.stackedQtyBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+.cartMoqRoot {
   width: 100%;
-  max-width: 20rem;
-}
-
-/* Carton + box counters on one row (matches product detail bulk row) */
-.stackedQtyBlockRow {
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 1rem 1.25rem;
-  max-width: none;
-}
-
-.stackedQtyBlockRow .qtyRow {
-  flex: 1 1 10rem;
-  min-width: min(100%, 9.5rem);
-}
-
-.qtyRow {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  align-items: flex-start;
+  max-width: 100%;
 }
 
 /* ── Column 2: pricing (3 rows) ── */
@@ -261,97 +223,6 @@
   word-break: break-word;
 }
 
-.qtyControls {
-  display: flex;
-  justify-content: center;
-  border: 1px solid #e2e8f0;
-  border-radius: 9px;
-  overflow: hidden;
-  width: fit-content;
-  max-width: 100%;
-  align-self: center;
-}
-
-.qtyControlsInner {
-  display: flex;
-  align-items: stretch;
-  width: max-content;
-  max-width: 100%;
-}
-
-.qtyValueCell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.1rem;
-  min-width: 0;
-  padding: 0 0.35rem 0 0.05rem;
-  border-left: 1px solid #e2e8f0;
-  border-right: 1px solid #e2e8f0;
-  background: #fff;
-}
-
-.qtyBtn {
-  width: 32px;
-  height: 32px;
-  background: #f8fafc;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #475569;
-  transition: background 0.15s;
-}
-
-.qtyBtn:hover:not(:disabled) {
-  background: #e2e8f0;
-  color: #0f172a;
-}
-
-.qtyBtn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.qtyInput {
-  width: auto;
-  min-width: 1.35rem;
-  max-width: 4.5rem;
-  flex: 0 1 auto;
-  height: 32px;
-  text-align: center;
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: #0f172a;
-  border: none;
-  background: transparent;
-  padding: 0 0.15rem;
-  outline: none;
-  appearance: textfield;
-  -moz-appearance: textfield;
-}
-
-.qtyInput::-webkit-outer-spin-button,
-.qtyInput::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.qtyInput:focus {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-
-.qtyPc {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #64748b;
-  white-space: nowrap;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
 .savingBadge {
   display: inline-flex;
   align-items: center;
@@ -408,15 +279,6 @@
   .pricingCol {
     width: 100%;
   }
-
-  .stackedQtyBlockRow {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .stackedQtyBlockRow .qtyRow {
-    min-width: 0;
-  }
 }
 
 @media (max-width: 480px) {
@@ -433,22 +295,6 @@
 
   .name {
     font-size: 0.82rem;
-  }
-
-  .qtyBtn {
-    width: 40px;
-    height: 40px;
-  }
-
-  .qtyValueCell {
-    height: 40px;
-  }
-
-  .qtyInput {
-    height: 40px;
-    font-size: 0.85rem;
-    min-width: 1.75rem;
-    max-width: 4.5rem;
   }
 
   .removeBtn {
