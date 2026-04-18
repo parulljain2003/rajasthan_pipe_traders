@@ -8,6 +8,7 @@ import { productHeading, listingBrandPill } from "../../lib/productHeading";
 import { resolvePackingUnitLabels } from "@/lib/packingLabels";
 import type { Product, ProductSize } from "@/app/data/products";
 import ListingMoqCartControls from "@/app/components/ListingMoqCartControls/ListingMoqCartControls";
+import listingMoqStyles from "@/app/components/ListingMoqCartControls/ListingMoqCartControls.module.css";
 import { heroSlideProductToModel } from "@/lib/cart/listingMoqModel";
 /* ════════════════════════════════════
    COUPON DATA (fallback if API empty)
@@ -216,7 +217,7 @@ function ProductCarousel() {
             <ListingMoqCartControls
               model={heroSlideProductToModel(p)}
               labels={heroLabels}
-              className={styles.slideListingMoq}
+              className={`${listingMoqStyles.heroSlideBulk} ${styles.slideListingMoq}`}
             />
           </div>
         </div>
