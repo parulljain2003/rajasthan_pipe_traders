@@ -1,6 +1,8 @@
 .page {
   min-height: 100vh;
   background: #f8fafc;
+  /* Prevent flex/grid children from causing horizontal page scroll */
+  overflow-x: clip;
 }
 
 /* ── Breadcrumb ── */
@@ -44,7 +46,11 @@
 .inner {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: clamp(0.75rem, 2vw + 0.25rem, 2rem);
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 /* ── Page header ── */
@@ -153,9 +159,10 @@
 /* ── Cart layout ── */
 .layout {
   display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 2rem;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
+  gap: clamp(1rem, 3vw, 2rem);
   align-items: flex-start;
+  min-width: 0;
 }
 
 /* ── Items column ── */
@@ -163,6 +170,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  min-width: 0;
 }
 
 /* Combo offer hint from /api/cart/combo-pricing — shown above product list */
@@ -200,6 +208,8 @@
   line-height: 1.55;
   font-weight: 600;
   color: #0c4a6e;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .itemsHeader {
@@ -272,9 +282,16 @@
   position: sticky;
   top: calc(var(--header-height, 72px) + 1rem);
   margin-top: 2.75rem;
+  min-width: 0;
 }
 
 /* ── Responsive ── */
+@media (max-width: 1180px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+  }
+}
+
 @media (max-width: 1024px) {
   .layout {
     grid-template-columns: 1fr;
@@ -282,17 +299,13 @@
 
   .summaryCol {
     position: static;
-    order: -1;
+    margin-top: 0;
   }
 }
 
 @media (max-width: 768px) {
-  .inner {
-    padding: 1.25rem 1rem;
-  }
-
   .breadcrumbInner {
-    padding: 0.6rem 1rem;
+    padding: 0.6rem max(1rem, env(safe-area-inset-right)) 0.6rem max(1rem, env(safe-area-inset-left));
   }
 
   .pageTitle {
@@ -301,6 +314,13 @@
 
   .policyBar {
     gap: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pageHeader {
+    flex-wrap: wrap;
+    align-items: flex-start;
   }
 }
 

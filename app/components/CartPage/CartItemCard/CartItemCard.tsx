@@ -239,7 +239,9 @@ export default function CartItemCard({
           </button>
         </div>
 
-        <div className={`${listingMoqStyles.root} ${listingMoqStyles.detailPage} ${styles.cartMoqRoot}`}>
+        <div
+          className={`${listingMoqStyles.root} ${listingMoqStyles.detailPage} ${listingMoqStyles.cartPageMoq} ${styles.cartMoqRoot}`}
+        >
           {hasBulk ? (
             <div className={listingMoqStyles.bulkRows}>
               <div className={listingMoqStyles.row}>

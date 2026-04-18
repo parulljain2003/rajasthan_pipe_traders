@@ -23,6 +23,7 @@ export interface ListingMoqCartModel {
 /** Hero carousel stub product (inline slide data — no full `Product` document). */
 export function heroSlideProductToModel(p: {
   id: number;
+  mongoProductId?: string;
   slug: string;
   name: string;
   image: string;
@@ -38,6 +39,7 @@ export function heroSlideProductToModel(p: {
 }): ListingMoqCartModel {
   return {
     productId: p.id,
+    mongoProductId: p.mongoProductId,
     productSlug: p.slug,
     productImage: p.image,
     productName: p.name,
