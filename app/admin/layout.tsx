@@ -1,22 +1,6 @@
-import Link from "next/link";
+import AdminShell from "./components/AdminShell";
 import "./admin.css";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="admin-root">
-      <nav className="admin-nav" aria-label="Admin">
-        <span className="admin-title">Admin</span>
-        <Link href="/admin">Overview</Link>
-        <Link href="/admin/categories">Categories</Link>
-        <Link href="/admin/products">Products</Link>
-        <Link href="/admin/coupons">Coupons</Link>
-        <Link href="/admin/combos">Combo rules</Link>
-        <Link href="/admin/media">Media (Cloudinary)</Link>
-        <Link href="/admin/banner">Banner</Link>
-        <Link href="/admin/settings">Settings</Link>
-        <Link href="/">← Storefront</Link>
-      </nav>
-      {children}
-    </div>
-  );
+  return <AdminShell>{children}</AdminShell>;
 }
