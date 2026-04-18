@@ -354,14 +354,13 @@ export default function HeroBanner({ banner }: { banner: HomeBannerPayload }) {
         </div>
       </div>
 
-      <div className={styles.strip}>
+      <div className={styles.strip} aria-hidden="true">
         <div className={styles.stripInner}>
           {[...quickLinks, ...quickLinks].map((l, i) => (
             <Link
               key={`${l.slug}-${i}`}
               href={`/products/${l.slug}`}
               className={styles.stripItem}
-              aria-hidden={i >= quickLinks.length}
             >
               <span className={styles.stripIcon}>{l.icon}</span>
               {l.label}

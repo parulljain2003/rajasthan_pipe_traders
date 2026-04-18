@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import AdminLogoutButton from "./AdminLogoutButton";
 
 type NavItem = {
   href: string;
@@ -110,6 +111,7 @@ function isActive(pathname: string, item: NavItem): boolean {
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
+  const isLogin = pathname === "/admin/login" || pathname.startsWith("/admin/login/");
 
   useEffect(() => {
     document.body.classList.add("admin-route");
@@ -117,6 +119,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       document.body.classList.remove("admin-route");
     };
   }, []);
+
+  if (isLogin) {
+    return <div className="admin-login-shell">{children}</div>;
+  }
 
   return (
     <div className="admin-shell">
@@ -143,6 +149,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           ))}
         </nav>
         <div className="admin-sidebar-footer">
+          <AdminLogoutButton />
           <Link href="/" className="admin-sidebar-store">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />

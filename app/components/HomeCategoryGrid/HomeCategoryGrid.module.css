@@ -6,7 +6,7 @@
 .container {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 0 4rem;
+  padding: 0 2rem;
 }
 
 /* ── Header row with arrows ── */
@@ -219,7 +219,7 @@
   }
 
   .container {
-    padding: 0 1rem;
+    padding: 0 1.25rem;
   }
 
   .title {
@@ -227,8 +227,8 @@
   }
 
   .card {
-    flex: 0 0 52%;
-    min-width: 170px;
+    flex: 0 0 54%;
+    min-width: 180px;
   }
 
   .name {
