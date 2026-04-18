@@ -265,6 +265,49 @@
   }
 }
 
+/* Cart line items: narrow column — stack steppers, full-width steppers, no horizontal overflow */
+.cartPageMoq.detailPage .bulkRows {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.65rem;
+}
+
+.cartPageMoq.detailPage .row {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.cartPageMoq.detailPage .stepper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  justify-content: space-between;
+}
+
+.cartPageMoq.detailPage .stepInput {
+  flex: 1 1 auto;
+  min-width: 2rem;
+  max-width: 100%;
+}
+
+@media (min-width: 720px) {
+  .cartPageMoq.detailPage .bulkRows {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .cartPageMoq.detailPage .row {
+    flex: 1 1 calc(50% - 0.5rem);
+    min-width: min(100%, 16rem);
+    width: auto;
+  }
+}
+
 /* Product detail page: large touch-friendly steppers, full width in each column */
 .detailPageLarge .bulkRows {
   width: 100%;
