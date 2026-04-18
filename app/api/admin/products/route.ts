@@ -107,9 +107,9 @@ export async function POST(req: NextRequest) {
       note: typeof body.note === "string" ? body.note : undefined,
       listNotes: typeof body.listNotes === "string" ? body.listNotes : undefined,
       alternateSkus: Array.isArray(body.alternateSkus) ? body.alternateSkus : undefined,
-      discountTiers: body.discountTiers,
-      sizes: body.sizes,
-      sellers: body.sellers,
+      discountTiers: Array.isArray(body.discountTiers) ? body.discountTiers : undefined,
+      sizes: Array.isArray(body.sizes) ? body.sizes : undefined,
+      sellers: Array.isArray(body.sellers) ? body.sellers : undefined,
       pricing: {
         basicPrice: pricing.basicPrice,
         priceWithGst: pricing.priceWithGst,

@@ -90,7 +90,11 @@ export async function POST(req: NextRequest) {
       }
       const prod = byId.get(pid);
       if (!prod) return null;
-      return buildPackagingContextFromProduct(prod, row.sellerId, row.size);
+      return buildPackagingContextFromProduct(
+        prod as Parameters<typeof buildPackagingContextFromProduct>[0],
+        row.sellerId,
+        row.size
+      );
     });
 
     return NextResponse.json({ data: out });
