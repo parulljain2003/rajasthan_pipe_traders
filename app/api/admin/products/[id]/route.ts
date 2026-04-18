@@ -4,6 +4,7 @@ import { connectDb } from "@/lib/db/connect";
 import { ProductModel } from "@/lib/db/models/Product";
 import { CategoryModel } from "@/lib/db/models/Category";
 import { serializeProductLean } from "@/lib/db/serialize";
+import { sanitizeKeyFeaturesInput } from "@/app/lib/sanitizeKeyFeatures";
 
 function err(message: string, status: number) {
   return NextResponse.json({ message }, { status });
@@ -72,15 +73,51 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
         $set.image = body.image.trim();
       }
     }
-    if (typeof body.sku === "string") $set.sku = body.sku.trim().toUpperCase();
+    if ("sku" in body) {
+      if (body.sku === null || (typeof body.sku === "string" && body.sku.trim() === "")) {
+        $unset.sku = 1;
+      } else if (typeof body.sku === "string") {
+        $set.sku = body.sku.trim().toUpperCase();
+      }
+    }
     if (body.productKind === "sku" || body.productKind === "catalog") $set.productKind = body.productKind;
     if (typeof body.isNew === "boolean") $set.isNew = body.isNew;
+    if (typeof body.isIsiCertified === "boolean") $set.isIsiCertified = body.isIsiCertified;
     if (typeof body.isBestseller === "boolean") $set.isBestseller = body.isBestseller;
     if (typeof body.isActive === "boolean") $set.isActive = body.isActive;
     if (typeof body.isEligibleForCombo === "boolean") $set.isEligibleForCombo = body.isEligibleForCombo;
-    if (typeof body.moq === "number") $set.moq = body.moq;
+    if ("moq" in body) {
+      if (body.moq === null) {
+        $unset.moq = 1;
+      } else if (typeof body.moq === "number" && Number.isFinite(body.moq)) {
+        $set.moq = body.moq;
+      }
+    }
+    if ("moqBags" in body) {
+      if (body.moqBags === null) {
+        $unset.moqBags = 1;
+      } else if (typeof body.moqBags === "number" && Number.isFinite(body.moqBags)) {
+        $set.moqBags = body.moqBags;
+      }
+    }
     if (typeof body.legacyId === "number") $set.legacyId = body.legacyId;
-    if (Array.isArray(body.features)) $set.features = body.features;
+    if ("keyFeatures" in body) {
+      if (body.keyFeatures === null) {
+        $unset.keyFeatures = 1;
+        $set.features = [];
+      } else if (Array.isArray(body.keyFeatures)) {
+        const kf = sanitizeKeyFeaturesInput(body.keyFeatures);
+        if (kf && kf.length > 0) {
+          $set.keyFeatures = kf;
+          $set.features = [];
+        } else {
+          $unset.keyFeatures = 1;
+          $set.features = [];
+        }
+      }
+    } else if (Array.isArray(body.features)) {
+      $set.features = body.features;
+    }
     if (body.images === null) {
       $unset.images = 1;
     } else if (Array.isArray(body.images)) {
@@ -120,6 +157,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
         "masterCartoonQty",
         "pricingUnit",
         "notes",
+        "bulkUnitChoices",
+        "innerUnitChoices",
       ] as const;
       for (const k of packagingKeys) {
         if (pk[k] !== undefined) {

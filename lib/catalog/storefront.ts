@@ -14,6 +14,48 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** Multi-token AND search across common catalog fields (each token must match at least one field). */
+function applyProductTextSearch(filter: Record<string, unknown>, q: string): void {
+  const tokens = q
+    .trim()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2);
+  if (tokens.length === 0) return;
+
+  const andClauses = tokens.map((token) => {
+    const rx = escapeRegex(token);
+    return {
+      $or: [
+        { name: { $regex: rx, $options: "i" } },
+        { sku: { $regex: rx, $options: "i" } },
+        { slug: { $regex: rx, $options: "i" } },
+        { brand: { $regex: rx, $options: "i" } },
+        { brandCode: { $regex: rx, $options: "i" } },
+        { description: { $regex: rx, $options: "i" } },
+        { longDescription: { $regex: rx, $options: "i" } },
+        { subCategory: { $regex: rx, $options: "i" } },
+        { sizeOrModel: { $regex: rx, $options: "i" } },
+        { productLine: { $regex: rx, $options: "i" } },
+        { material: { $regex: rx, $options: "i" } },
+        { note: { $regex: rx, $options: "i" } },
+        { listNotes: { $regex: rx, $options: "i" } },
+        { tags: { $regex: rx, $options: "i" } },
+        { alternateSkus: { $regex: rx, $options: "i" } },
+        { certifications: { $regex: rx, $options: "i" } },
+        { features: { $regex: rx, $options: "i" } },
+      ],
+    };
+  });
+
+  const existing = filter.$and;
+  if (Array.isArray(existing)) {
+    filter.$and = [...existing, ...andClauses];
+  } else {
+    filter.$and = andClauses;
+  }
+}
+
 /**
  * Active product by URL slug: matches stored `slug` (case-insensitive), or derived slug
  * (e.g. catalog SKU-based) consistent with `apiProductToProduct`.
@@ -122,6 +164,10 @@ export async function getStorefrontProductsFromSearchParams(
   const productKind = sp.get("productKind");
   if (productKind === "sku" || productKind === "catalog") {
     filter.productKind = productKind;
+  }
+  const q = sp.get("q")?.trim() ?? "";
+  if (q.length >= 2) {
+    applyProductTextSearch(filter, q);
   }
   const limit = Math.min(500, Math.max(1, Number(sp.get("limit")) || 100));
   const skip = Math.max(0, Number(sp.get("skip")) || 0);

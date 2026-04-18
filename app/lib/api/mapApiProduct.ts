@@ -1,4 +1,11 @@
-import type { Product, ProductListingEntry, ProductSellerOffer, ProductSize } from "../../data/products";
+import type {
+  KeyFeatureIcon,
+  KeyFeatureLine,
+  Product,
+  ProductListingEntry,
+  ProductSellerOffer,
+  ProductSize,
+} from "../../data/products";
 import { expandProductsForListing } from "../../data/products";
 import { getApiBaseUrl, resolveAssetUrl } from "./baseUrl";
 import type {
@@ -14,6 +21,26 @@ function stableNumericId(mongoId: string): number {
     h = (Math.imul(31, h) + mongoId.charCodeAt(i)) | 0;
   }
   return Math.abs(h) || 1;
+}
+
+type PackagingFields = NonNullable<ApiProduct["packaging"]>;
+
+function enrichSizeFromPackaging(s: ApiProductSize, packaging: PackagingFields | undefined): ApiProductSize {
+  const ppp =
+    s.pcsPerPacket ??
+    packaging?.pcsPerPacket ??
+    packaging?.pcsInPacket ??
+    1;
+  const qpb =
+    s.qtyPerBag ??
+    packaging?.packetsInMasterBag ??
+    packaging?.pktInMasterBag ??
+    0;
+  return {
+    ...s,
+    pcsPerPacket: ppp,
+    qtyPerBag: qpb,
+  };
 }
 
 function mapApiSize(s: ApiProductSize): ProductSize {
@@ -35,8 +62,28 @@ function mapApiSize(s: ApiProductSize): ProductSize {
   return row;
 }
 
-function mapSellerOffer(s: ApiProductSellerOffer, pricing: ApiPricing): ProductSellerOffer {
-  let sizes = (s.sizes ?? []).map(mapApiSize);
+function mapApiKeyFeatures(raw: unknown): KeyFeatureLine[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out: KeyFeatureLine[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const o = row as { text?: unknown; icon?: unknown };
+    const text = typeof o.text === "string" ? o.text.trim() : "";
+    if (!text) continue;
+    const ic = o.icon;
+    const icon: KeyFeatureIcon =
+      ic === "material" || ic === "dot" || ic === "check" ? ic : "check";
+    out.push({ text, icon });
+  }
+  return out.length ? out : undefined;
+}
+
+function mapSellerOffer(
+  s: ApiProductSellerOffer,
+  pricing: ApiPricing,
+  packaging: PackagingFields | undefined
+): ProductSellerOffer {
+  let sizes = (s.sizes ?? []).map((sz) => mapApiSize(enrichSizeFromPackaging(sz, packaging)));
   if (sizes.length === 0) {
     sizes = [
       {
@@ -71,29 +118,39 @@ export function apiProductToProduct(p: ApiProduct): Product {
   const gallery = (p.images ?? []).map((path) => resolveAssetUrl(path, baseUrl));
 
   const categoryName = p.category?.name ?? "";
+  const packaging = p.packaging;
 
   let sizes: ProductSize[] = [];
   let sellers: ProductSellerOffer[] | undefined;
 
   if (p.sellers && p.sellers.length > 0) {
-    sellers = p.sellers.map((s) => mapSellerOffer(s, p.pricing));
+    sellers = p.sellers.map((s) => mapSellerOffer(s, p.pricing, packaging));
   } else if (p.sizes && p.sizes.length > 0) {
-    sizes = p.sizes.map(mapApiSize);
+    sizes = p.sizes.map((s) => mapApiSize(enrichSizeFromPackaging(s, packaging)));
   } else {
+    const qpb =
+      packaging?.packetsInMasterBag ??
+      packaging?.pktInMasterBag ??
+      0;
+    const ppp = packaging?.pcsPerPacket ?? packaging?.pcsInPacket ?? 1;
     sizes = [
       {
         size: p.sizeOrModel?.trim() || "Standard",
         basicPrice: p.pricing.basicPrice,
         withGST: p.pricing.priceWithGst,
-        qtyPerBag: 0,
-        pcsPerPacket: 1,
+        qtyPerBag: qpb,
+        pcsPerPacket: ppp,
       },
     ];
   }
 
   const slug =
     (p.slug && p.slug.trim()) ||
-    (p.productKind === "catalog" ? catalogSlugFromSku(p.sku) : p.sku.toLowerCase());
+    (p.productKind === "catalog" && p.sku
+      ? catalogSlugFromSku(p.sku)
+      : p.sku
+        ? p.sku.toLowerCase()
+        : `p-${p._id.toLowerCase()}`);
 
   return {
     id: p.legacyId ?? stableNumericId(p._id),
@@ -105,11 +162,18 @@ export function apiProductToProduct(p: ApiProduct): Product {
     category: categoryName,
     subCategory: p.subCategory ?? "",
     description: p.description ?? "",
-    longDescription: p.longDescription ?? "",
+    /** PDP “About this product” — admin often fills only `description`; use it when `longDescription` is unset */
+    longDescription: (() => {
+      const long = typeof p.longDescription === "string" ? p.longDescription.trim() : "";
+      if (long) return long;
+      return typeof p.description === "string" ? p.description.trim() : "";
+    })(),
     features: p.features ?? [],
+    keyFeatures: mapApiKeyFeatures(p.keyFeatures),
     image: primaryImage,
     images: gallery.length ? gallery : [primaryImage],
     isNew: p.isNew ?? false,
+    isIsiCertified: p.isIsiCertified === true,
     isBestseller: p.isBestseller,
     tags: p.tags ?? [],
     sizes,
@@ -120,7 +184,15 @@ export function apiProductToProduct(p: ApiProduct): Product {
     certifications: p.certifications,
     material: p.material,
     moq: p.moq,
+    moqBags: p.moqBags,
     packingUnitLabels: p.packingUnitLabels,
+    packaging: p.packaging
+      ? {
+          bulkUnitChoices: p.packaging.bulkUnitChoices,
+          innerUnitChoices: p.packaging.innerUnitChoices,
+          pricingUnit: p.packaging.pricingUnit,
+        }
+      : undefined,
     isEligibleForCombo: p.isEligibleForCombo,
   };
 }

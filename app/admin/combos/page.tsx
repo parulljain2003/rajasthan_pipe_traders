@@ -16,7 +16,7 @@ type ProductOption = {
   id: string;
   slug: string;
   name: string;
-  sku: string;
+  sku?: string;
   categoryId: string;
   categoryName: string;
 };
@@ -397,7 +397,7 @@ export default function AdminCombosPage() {
       triggerProductsForPicker.map((p) => ({
         key: p.slug,
         primary: p.name,
-        secondary: `${p.sku} · ${p.categoryName || "—"}`,
+        secondary: `${p.sku ?? "—"} · ${p.categoryName || "—"}`,
       })),
     [triggerProductsForPicker]
   );
@@ -407,7 +407,7 @@ export default function AdminCombosPage() {
       targetProductsForPicker.map((p) => ({
         key: p.slug,
         primary: p.name,
-        secondary: `${p.sku} · ${p.categoryName || "—"}`,
+        secondary: `${p.sku ?? "—"} · ${p.categoryName || "—"}`,
       })),
     [targetProductsForPicker]
   );

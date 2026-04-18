@@ -16,6 +16,8 @@ export interface ListingMoqCartModel {
   basicPricePerUnit: number;
   qtyPerBag: number;
   pcsPerPacket: number;
+  moq?: number;
+  moqBags?: number;
 }
 
 /** Hero carousel stub product (inline slide data — no full `Product` document). */
@@ -69,5 +71,7 @@ export function listingEntryToModel(entry: ProductListingEntry): ListingMoqCartM
     basicPricePerUnit: s.basicPrice,
     qtyPerBag: s.qtyPerBag,
     pcsPerPacket: s.pcsPerPacket,
+    moq: entry.product.moq,
+    moqBags: entry.product.moqBags,
   };
 }

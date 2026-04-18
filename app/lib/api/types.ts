@@ -16,6 +16,13 @@ export interface ApiCategory extends ApiCategoryRef {
   updatedAt: string;
 }
 
+export type ApiKeyFeatureIcon = "check" | "material" | "dot";
+
+export interface ApiKeyFeatureLine {
+  text: string;
+  icon?: ApiKeyFeatureIcon;
+}
+
 export interface ApiPackingLabelsPartial {
   inner?: string;
   innerPlural?: string;
@@ -67,7 +74,7 @@ export interface ApiPricing {
 
 export interface ApiProduct {
   _id: string;
-  sku: string;
+  sku?: string;
   productKind: "sku" | "catalog";
   slug?: string;
   legacyId?: number;
@@ -81,15 +88,31 @@ export interface ApiProduct {
   productLine?: string;
   sizeOrModel?: string;
   features?: string[];
+  /** Rich PDP key features (optional; overrides simple `features` when non-empty) */
+  keyFeatures?: ApiKeyFeatureLine[];
   image?: string;
   images?: string[];
   isNew?: boolean;
+  /** Product detail trust bar — show ISI badge when true */
+  isIsiCertified?: boolean;
   isBestseller?: boolean;
   tags?: string[];
   certifications?: string[];
   material?: string;
   minOrder?: string;
   moq?: number;
+  /** Minimum order in master bags (storefront may combine with `moq` in packets) */
+  moqBags?: number;
+  /** Mongo packaging subdoc — merged into catalog sizes on the client */
+  packaging?: {
+    pcsPerPacket?: number;
+    pcsInPacket?: number;
+    packetsInMasterBag?: number;
+    pktInMasterBag?: number;
+    pricingUnit?: string;
+    bulkUnitChoices?: string[];
+    innerUnitChoices?: string[];
+  };
   note?: string;
   listNotes?: string;
   packingUnitLabels?: ApiPackingLabelsPartial;

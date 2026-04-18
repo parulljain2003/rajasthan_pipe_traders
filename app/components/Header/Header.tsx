@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
@@ -99,23 +99,63 @@ const Header = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const { cartCount } = useCartWishlist();
 
-  const handleSearch = useCallback((query: string) => {
-    if (!query.trim()) { setSearchResults([]); return; }
-    const lower = query.toLowerCase();
-    const results = searchIndex.filter(
-      item =>
-        item.name.toLowerCase().includes(lower) ||
-        item.category.toLowerCase().includes(lower) ||
-        item.brand.toLowerCase().includes(lower)
-    ).slice(0, 8);
-    setSearchResults(results);
-    setActiveIndex(-1);
-  }, []);
-
+  /** Live suggestions: query Mongo catalog via `/api/products?q=` (multi-field match); fallback to static `searchData`. */
   useEffect(() => {
-    const t = setTimeout(() => handleSearch(searchQuery), 180);
-    return () => clearTimeout(t);
-  }, [searchQuery, handleSearch]);
+    const ac = new AbortController();
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setActiveIndex(-1);
+      return () => ac.abort();
+    }
+    const t = setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/products?q=${encodeURIComponent(q)}&limit=8`, {
+            signal: ac.signal,
+          });
+          if (!res.ok) throw new Error("search failed");
+          const json = (await res.json()) as { data?: Record<string, unknown>[] };
+          const rows = Array.isArray(json.data) ? json.data : [];
+          const mapped: SearchResult[] = [];
+          for (const d of rows) {
+            const slug =
+              typeof d.slug === "string" && d.slug.trim() ? d.slug.trim() : "";
+            const name = String(d.name ?? "");
+            if (!slug || !name) continue;
+            const cat = d.category as { name?: string } | undefined;
+            mapped.push({
+              name,
+              slug,
+              category: cat?.name ?? "",
+              brand: String(d.brand ?? ""),
+            });
+          }
+          if (mapped.length > 0) {
+            setSearchResults(mapped.slice(0, 8));
+            setActiveIndex(-1);
+            return;
+          }
+        } catch (e) {
+          if ((e as Error).name === "AbortError") return;
+        }
+        const tokens = q
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((tok) => tok.length >= 2);
+        const fallback = searchIndex.filter((item) => {
+          const hay = `${item.name} ${item.category} ${item.brand}`.toLowerCase();
+          return tokens.every((tok) => hay.includes(tok));
+        });
+        setSearchResults(fallback.slice(0, 8));
+        setActiveIndex(-1);
+      })();
+    }, 200);
+    return () => {
+      clearTimeout(t);
+      ac.abort();
+    };
+  }, [searchQuery]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -165,7 +205,8 @@ const Header = () => {
     );
   };
 
-  const showDropdown = isSearchFocused && (searchResults.length > 0 || searchQuery.trim().length > 0);
+  const showDropdown =
+    isSearchFocused && (searchResults.length > 0 || searchQuery.trim().length >= 2);
 
   return (
     <header className="main-header">
@@ -281,7 +322,7 @@ const Header = () => {
                   placeholder="Search products..."
                   className="mobile-search-input"
                   value={searchQuery}
-                  onChange={e => { setSearchQuery(e.target.value); handleSearch(e.target.value); }}
+                  onChange={e => setSearchQuery(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && searchResults.length > 0) { navigateToProduct(searchResults[0]); setMobileMenuOpen(false); } }}
                 />
               </div>
@@ -390,7 +431,7 @@ const Header = () => {
                     ))}
                   </ul>
                 </>
-              ) : searchQuery.trim().length > 0 ? (
+              ) : searchQuery.trim().length >= 2 ? (
                 <div className="search-no-results">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />

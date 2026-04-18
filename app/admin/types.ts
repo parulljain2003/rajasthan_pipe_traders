@@ -61,7 +61,7 @@ export type AdminCoupon = {
 
 export type AdminProduct = {
   _id: string;
-  sku: string;
+  sku?: string;
   productKind: "sku" | "catalog";
   slug?: string;
   name: string;

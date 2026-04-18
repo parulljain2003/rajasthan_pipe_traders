@@ -7,6 +7,20 @@ import { cartLineMatches } from "@/lib/cart/matchCartLine";
 import { moqStepsFromPacketQty, packetsFromMoqSteps } from "@/lib/cart/packetLine";
 import type { ListingMoqCartModel } from "@/lib/cart/listingMoqModel";
 
+/** Minimum packets to satisfy both MOQ (packets) and MOQ (bags) when bulk pricing applies */
+function effectiveMinPackets(model: ListingMoqCartModel, qpb: number, hasBulk: boolean): number {
+  const moqP = Math.max(0, Math.floor(Number(model.moq) || 0));
+  const moqB = Math.max(0, Math.floor(Number(model.moqBags) || 0));
+  if (!hasBulk || qpb <= 0) return moqP;
+  return Math.max(moqP, moqB * qpb);
+}
+
+function clampPositivePackets(nextPkt: number, minPkt: number): number {
+  if (nextPkt <= 0) return 0;
+  if (minPkt <= 0) return nextPkt;
+  return Math.max(nextPkt, minPkt);
+}
+
 function basePayload(m: ListingMoqCartModel, orderMode: "packets" | "master_bag"): AddCartItemInput {
   return {
     productId: m.productId,
@@ -54,11 +68,17 @@ export function useMoqCartForModel(model: ListingMoqCartModel) {
   const bagQty = hasBulk && qpb > 0 ? Math.floor(pktQty / qpb + 1e-9) : bagQtyRaw;
   const pktSteps = hasBulk ? moqStepsFromPacketQty(pktQty, qpb) : pktQty;
 
+  const minPkt = useMemo(
+    () => effectiveMinPackets(model, qpb, hasBulk),
+    [model, qpb, hasBulk]
+  );
+
   const setBagTarget = useCallback(
     (next: number) => {
       if (next < 0) return;
       if (hasBulk && qpb > 0) {
-        const nextPkt = next * qpb;
+        let nextPkt = next * qpb;
+        nextPkt = clampPositivePackets(nextPkt, minPkt);
         if (nextPkt === 0) {
           removeFromCart(model.productId, model.size, model.sellerId, "packets");
           removeFromCart(model.productId, model.size, model.sellerId, "master_bag");
@@ -90,33 +110,34 @@ export function useMoqCartForModel(model: ListingMoqCartModel) {
   const setPacketTarget = useCallback(
     (nextPkt: number) => {
       if (nextPkt < 0) return;
+      const next = clampPositivePackets(nextPkt, minPkt);
       if (hasBulk && qpb > 0) {
-        if (nextPkt === 0) {
+        if (next === 0) {
           removeFromCart(model.productId, model.size, model.sellerId, "packets");
           removeFromCart(model.productId, model.size, model.sellerId, "master_bag");
           return;
         }
         if (pktQtyRaw === 0) {
-          addToCart(basePayload(model, "packets"), nextPkt);
+          addToCart(basePayload(model, "packets"), next);
         } else {
-          updateQuantity(model.productId, model.size, nextPkt, model.sellerId, "packets");
+          updateQuantity(model.productId, model.size, next, model.sellerId, "packets");
         }
         if (bagQtyRaw > 0) {
           removeFromCart(model.productId, model.size, model.sellerId, "master_bag");
         }
         return;
       }
-      if (nextPkt === 0) {
+      if (next === 0) {
         removeFromCart(model.productId, model.size, model.sellerId, "packets");
         return;
       }
       if (pktQtyRaw === 0) {
-        addToCart(basePayload(model, "packets"), nextPkt);
+        addToCart(basePayload(model, "packets"), next);
       } else {
-        updateQuantity(model.productId, model.size, nextPkt, model.sellerId, "packets");
+        updateQuantity(model.productId, model.size, next, model.sellerId, "packets");
       }
     },
-    [model, hasBulk, qpb, pktQtyRaw, bagQtyRaw, addToCart, updateQuantity, removeFromCart]
+    [model, hasBulk, qpb, pktQtyRaw, bagQtyRaw, minPkt, addToCart, updateQuantity, removeFromCart]
   );
 
   const onBagDelta = useCallback((delta: number) => {

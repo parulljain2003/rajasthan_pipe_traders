@@ -15,7 +15,7 @@ type CategoryOption = { id: string; name: string };
 type ProductOption = {
   id: string;
   name: string;
-  sku: string;
+  sku?: string;
   categoryId: string;
   categoryName: string;
 };
@@ -46,7 +46,7 @@ async function fetchAllProductOptions(): Promise<ProductOption[]> {
       data?: Array<{
         _id: string;
         name: string;
-        sku: string;
+        sku?: string;
         category?: { _id?: string; name?: string };
       }>;
       meta?: { total?: number };
@@ -271,7 +271,7 @@ export default function AdminCouponsPage() {
     return productsForPicker.filter((p) => {
       return (
         p.name.toLowerCase().includes(q) ||
-        p.sku.toLowerCase().includes(q) ||
+        (p.sku ?? "").toLowerCase().includes(q) ||
         p.categoryName.toLowerCase().includes(q)
       );
     });
@@ -382,7 +382,7 @@ export default function AdminCouponsPage() {
     () =>
       filteredProducts.map((p) => ({
         id: p.id,
-        primary: `${p.sku} — ${p.name}`,
+        primary: p.sku ? `${p.sku} — ${p.name}` : p.name,
         secondary: p.categoryName || undefined,
       })),
     [filteredProducts]

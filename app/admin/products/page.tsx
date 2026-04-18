@@ -1,622 +1,208 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import type { ApiDiscountTier, ApiProductSize, ApiProductSellerOffer } from "@/app/lib/api/types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ApiProductSize } from "@/app/lib/api/types";
+import type { KeyFeatureIcon } from "@/app/data/products";
+import { normalizeKeyFeatureIcon } from "@/app/lib/sanitizeKeyFeatures";
 import { MediaImageField } from "../components/MediaImageField";
 import type { AdminCategory, AdminProduct } from "../types";
 
 const pageSize = 50;
 
-type TierRow = { qty: string; discount: string };
-type SizeRow = {
-  size: string;
-  basicPrice: string;
-  priceWithGst: string;
-  qtyPerBag: string;
-  pcsPerPacket: string;
-  note: string;
-  comboBasicPrice: string;
-  comboPriceWithGst: string;
-  coreClipVariant: string;
-  /** "", "yes", "no" — per-size eligible pool (blank = use product-level flag) */
-  eligiblePool: string;
-};
-type SellerRow = {
-  sellerId: string;
-  sellerName: string;
-  brand: string;
-  minOrder: string;
-  note: string;
-  sizes: SizeRow[];
-  discountTiers: TierRow[];
-};
+/** Primary cart unit — derived from inner (packet/box) first, then bulk (bags/carton) */
+type PackagingPricingUnit =
+  | "per_piece"
+  | "per_packet"
+  | "per_box"
+  | "per_cartoon"
+  | "per_dozen"
+  | "per_bag"
+  | "per_master_bag"
+  | "other";
 
-const emptyTierRow = (): TierRow => ({ qty: "", discount: "" });
-const emptySizeRow = (): SizeRow => ({
-  size: "",
-  basicPrice: "",
-  priceWithGst: "",
-  qtyPerBag: "",
-  pcsPerPacket: "",
-  note: "",
-  comboBasicPrice: "",
-  comboPriceWithGst: "",
-  coreClipVariant: "",
-  eligiblePool: "",
-});
-const emptySellerRow = (): SellerRow => ({
-  sellerId: "",
-  sellerName: "",
-  brand: "",
-  minOrder: "",
-  note: "",
-  sizes: [],
-  discountTiers: [],
-});
+const BULK_UNIT_OPTIONS = [
+  { value: "per_bag", label: "Bags" },
+  { value: "per_cartoon", label: "Carton" },
+] as const;
 
-function tierFromApi(x: unknown): TierRow {
-  if (!x || typeof x !== "object") return emptyTierRow();
-  const o = x as Record<string, unknown>;
-  return {
-    qty: typeof o.qty === "string" ? o.qty : o.qty != null ? String(o.qty) : "",
-    discount: typeof o.discount === "string" ? o.discount : o.discount != null ? String(o.discount) : "",
-  };
+const INNER_UNIT_OPTIONS = [
+  { value: "per_packet", label: "Packets" },
+  { value: "per_box", label: "Box" },
+] as const;
+
+/** Select value for “Add new” — stored as `custom:label` */
+const UNIT_ADD_NEW = "__add_new__";
+
+const KEY_FEATURE_ICON_OPTIONS: { value: KeyFeatureIcon; label: string }[] = [
+  { value: "check", label: "Checkmark" },
+  { value: "material", label: "Info / material" },
+  { value: "dot", label: "Dot" },
+];
+
+function migrateBulkSegment(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "per_bag";
+  if (t.startsWith("custom:")) return t;
+  if (t === "per_bag" || t === "per_cartoon") return t;
+  return `custom:${t}`;
 }
 
-function sizeFromApi(x: unknown): SizeRow {
-  if (!x || typeof x !== "object") return emptySizeRow();
-  const o = x as Record<string, unknown>;
-  const gst =
-    typeof o.priceWithGst === "number"
-      ? String(o.priceWithGst)
-      : typeof (o as { withGST?: unknown }).withGST === "number"
-        ? String((o as { withGST: number }).withGST)
-        : "";
-  const core =
-    o.coreComboVariant === "20" || o.coreComboVariant === "25" ? o.coreComboVariant : "";
-  const comboB =
-    typeof o.comboBasicPrice === "number"
-      ? String(o.comboBasicPrice)
-      : typeof (o as { comboBasic?: unknown }).comboBasic === "number"
-        ? String((o as { comboBasic: number }).comboBasic)
-        : "";
-  const comboG =
-    typeof o.comboPriceWithGst === "number"
-      ? String(o.comboPriceWithGst)
-      : "";
-  let eligiblePool = "";
-  if (o.countsTowardComboEligible === true) eligiblePool = "yes";
-  else if (o.countsTowardComboEligible === false) eligiblePool = "no";
-
-  return {
-    size: typeof o.size === "string" ? o.size : "",
-    basicPrice: typeof o.basicPrice === "number" ? String(o.basicPrice) : "",
-    priceWithGst: gst,
-    qtyPerBag: typeof o.qtyPerBag === "number" ? String(o.qtyPerBag) : "",
-    pcsPerPacket: typeof o.pcsPerPacket === "number" ? String(o.pcsPerPacket) : "",
-    note: typeof o.note === "string" ? o.note : "",
-    comboBasicPrice: comboB,
-    comboPriceWithGst: comboG,
-    coreClipVariant: core,
-    eligiblePool,
-  };
+function migrateInnerSegment(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "per_packet";
+  if (t.startsWith("custom:")) return t;
+  if (t === "per_packet" || t === "per_box") return t;
+  return `custom:${t}`;
 }
 
-function sellerFromApi(x: unknown): SellerRow {
-  if (!x || typeof x !== "object") return emptySellerRow();
-  const o = x as Record<string, unknown>;
-  const sizesRaw = o.sizes;
-  const tiersRaw = o.discountTiers;
-  return {
-    sellerId: typeof o.sellerId === "string" ? o.sellerId : "",
-    sellerName: typeof o.sellerName === "string" ? o.sellerName : "",
-    brand: typeof o.brand === "string" ? o.brand : "",
-    minOrder: typeof o.minOrder === "string" ? o.minOrder : "",
-    note: typeof o.note === "string" ? o.note : "",
-    sizes: Array.isArray(sizesRaw) ? sizesRaw.map(sizeFromApi) : [],
-    discountTiers: Array.isArray(tiersRaw) ? tiersRaw.map(tierFromApi) : [],
-  };
-}
-
-function parseTierRow(r: TierRow): ApiDiscountTier | null {
-  const qty = r.qty.trim();
-  const discount = r.discount.trim();
-  if (!qty && !discount) return null;
-  if (!qty || !discount) {
-    throw new Error("Discount tiers: each row needs both a quantity label and a discount, or clear the row.");
-  }
-  return { qty, discount };
-}
-
-function parseSizeRow(r: SizeRow): ApiProductSize | null {
-  const size = r.size.trim();
-  const bp = r.basicPrice.trim();
-  const gst = r.priceWithGst.trim();
-  const qpb = r.qtyPerBag.trim();
-  const ppp = r.pcsPerPacket.trim();
-  const note = r.note.trim();
-  const cbCombo = r.comboBasicPrice.trim();
-  const cgCombo = r.comboPriceWithGst.trim();
-  const coreV = r.coreClipVariant.trim();
-  const ep = r.eligiblePool.trim().toLowerCase();
-
-  if (!size && !bp && !gst && !qpb && !ppp && !note && !cbCombo && !cgCombo && !coreV && !ep) return null;
-  if (!size || !bp || !gst) {
-    throw new Error("Sizes: each row needs a size label, basic price, and price with GST (or remove the row).");
-  }
-  const basicPrice = Number(bp);
-  const priceWithGst = Number(gst);
-  if (Number.isNaN(basicPrice) || Number.isNaN(priceWithGst)) {
-    throw new Error("Sizes: basic price and price with GST must be valid numbers.");
-  }
-  const out: ApiProductSize = { size, basicPrice, priceWithGst };
-  if (qpb !== "") {
-    const n = Number(qpb);
-    if (Number.isNaN(n)) throw new Error("Sizes: qty per bag must be a number when set.");
-    out.qtyPerBag = n;
-  }
-  if (ppp !== "") {
-    const n = Number(ppp);
-    if (Number.isNaN(n)) throw new Error("Sizes: pieces per packet must be a number when set.");
-    out.pcsPerPacket = n;
-  }
-  if (note) out.note = note;
-  if (cbCombo || cgCombo) {
-    if (!cbCombo || !cgCombo) {
-      throw new Error("Sizes: set both combo basic and combo GST, or leave both empty.");
+function normalizeBulkUnitsForSave(arr: string[] | undefined): string[] {
+  const out: string[] = [];
+  for (const s of arr ?? []) {
+    const t = String(s ?? "").trim();
+    if (!t) continue;
+    if (t.startsWith("custom:")) {
+      const label = t.slice(7).trim();
+      if (label) out.push(`custom:${label}`);
+    } else if (t === "per_bag" || t === "per_cartoon") {
+      out.push(t);
     }
-    const comboBasicPrice = Number(cbCombo);
-    const comboPriceWithGst = Number(cgCombo);
-    if (Number.isNaN(comboBasicPrice) || Number.isNaN(comboPriceWithGst)) {
-      throw new Error("Sizes: combo prices must be valid numbers.");
+  }
+  return out.length ? out : ["per_bag"];
+}
+
+function normalizeInnerUnitsForSave(arr: string[] | undefined): string[] {
+  const out: string[] = [];
+  for (const s of arr ?? []) {
+    const t = String(s ?? "").trim();
+    if (!t) continue;
+    if (t.startsWith("custom:")) {
+      const label = t.slice(7).trim();
+      if (label) out.push(`custom:${label}`);
+    } else if (t === "per_packet" || t === "per_box") {
+      out.push(t);
     }
-    out.comboBasicPrice = comboBasicPrice;
-    out.comboPriceWithGst = comboPriceWithGst;
   }
-  if (coreV === "20" || coreV === "25") {
-    out.coreComboVariant = coreV;
-  }
-  if (ep === "yes") out.countsTowardComboEligible = true;
-  if (ep === "no") out.countsTowardComboEligible = false;
-  return out;
+  return out.length ? out : ["per_packet"];
 }
 
-function sellerRowHasNestedContent(s: SellerRow): boolean {
-  return (
-    s.sizes.some((z) => Object.values(z).some((v) => String(v).trim() !== "")) ||
-    s.discountTiers.some((t) => t.qty.trim() !== "" || t.discount.trim() !== "")
-  );
+function segmentToPricing(segment: string): PackagingPricingUnit {
+  if (segment.startsWith("custom:")) return "other";
+  if (
+    segment === "per_piece" ||
+    segment === "per_packet" ||
+    segment === "per_box" ||
+    segment === "per_cartoon" ||
+    segment === "per_dozen" ||
+    segment === "per_bag" ||
+    segment === "per_master_bag" ||
+    segment === "other"
+  ) {
+    return segment;
+  }
+  return "other";
 }
 
-function parseSellerRow(s: SellerRow): ApiProductSellerOffer | null {
-  const sellerId = s.sellerId.trim();
-  const sellerName = s.sellerName.trim();
-  const brand = s.brand.trim();
-  const minOrder = s.minOrder.trim();
-  const note = s.note.trim();
-  const headerEmpty = !sellerId && !sellerName && !brand && !minOrder && !note;
-  if (headerEmpty && !sellerRowHasNestedContent(s)) return null;
-  if (!sellerId || !sellerName || !brand) {
-    throw new Error("Sellers: each offer needs seller ID, display name, and brand (or remove the offer).");
-  }
-  const sizes: ApiProductSize[] = [];
-  for (const row of s.sizes) {
-    const parsed = parseSizeRow(row);
-    if (parsed) sizes.push(parsed);
-  }
-  const discountTiers: ApiDiscountTier[] = [];
-  for (const row of s.discountTiers) {
-    const parsed = parseTierRow(row);
-    if (parsed) discountTiers.push(parsed);
-  }
-  const out: ApiProductSellerOffer = { sellerId, sellerName, brand, sizes };
-  if (discountTiers.length) out.discountTiers = discountTiers;
-  if (minOrder) out.minOrder = minOrder;
-  if (note) out.note = note;
-  return out;
+function primaryPricingUnit(inner: string[], bulk: string[]): PackagingPricingUnit {
+  if (inner[0]) return segmentToPricing(inner[0]);
+  if (bulk[0]) return segmentToPricing(bulk[0]);
+  return "per_piece";
 }
 
-function buildProductDiscountTiers(rows: TierRow[]): ApiDiscountTier[] {
-  const out: ApiDiscountTier[] = [];
-  for (const row of rows) {
-    const p = parseTierRow(row);
-    if (p) out.push(p);
+/** Human-readable min-order line for admin / listings */
+function buildMinOrderLine(
+  moq: number | undefined,
+  moqBags: number | undefined,
+  packetsPerBag: number,
+  bulk: string[],
+  inner: string[],
+): string | undefined {
+  const hasBag = bulk.some((s) => s === "per_bag");
+  const hasPacket = inner.some((s) => s === "per_packet");
+  const parts: string[] = [];
+  if (hasBag && hasPacket && packetsPerBag > 0) {
+    parts.push(`1 bag = ${packetsPerBag} packets`);
   }
-  return out;
+  if (moq != null && moq > 0) parts.push(`MOQ ${moq} packets`);
+  if (moqBags != null && moqBags > 0 && packetsPerBag > 0) parts.push(`MOQ ${moqBags} bags`);
+  return parts.length ? parts.join(" · ") : undefined;
 }
 
-function buildCatalogPayload(form: { sizes: SizeRow[]; sellers: SellerRow[] }): {
-  sizes: ApiProductSize[];
-  sellers: ApiProductSellerOffer[];
-} {
-  const sizes: ApiProductSize[] = [];
-  for (const row of form.sizes) {
-    const p = parseSizeRow(row);
-    if (p) sizes.push(p);
+type ProductFromApi = AdminProduct & {
+  sizeOrModel?: string;
+  isIsiCertified?: boolean;
+  features?: string[];
+  keyFeatures?: Array<{ text?: string; icon?: string }>;
+  moq?: number;
+  moqBags?: number;
+  minOrder?: string;
+  packaging?: {
+    pricingUnit?: string;
+    bulkUnitChoices?: string[];
+    innerUnitChoices?: string[];
+    pcsPerPacket?: number;
+    packetsInMasterBag?: number;
+    pktInMasterBag?: number;
+  };
+  sizes?: Array<{ size?: string; pcsPerPacket?: number; qtyPerBag?: number }>;
+};
+
+function loadBulkFromProduct(p: ProductFromApi): string[] {
+  const raw = p.packaging?.bulkUnitChoices;
+  if (Array.isArray(raw) && raw.length) {
+    return raw.map((x) => migrateBulkSegment(String(x)));
   }
-  const sellers: ApiProductSellerOffer[] = [];
-  for (const row of form.sellers) {
-    const p = parseSellerRow(row);
-    if (p) sellers.push(p);
+  const u = p.packaging?.pricingUnit;
+  if (u === "per_bag" || u === "per_cartoon") return [u];
+  return ["per_bag"];
+}
+
+function loadInnerFromProduct(p: ProductFromApi): string[] {
+  const raw = p.packaging?.innerUnitChoices;
+  if (Array.isArray(raw) && raw.length) {
+    return raw.map((x) => migrateInnerSegment(String(x)));
   }
-  return { sizes, sellers };
+  const u = p.packaging?.pricingUnit;
+  if (u === "per_packet" || u === "per_box") return [u];
+  return ["per_packet"];
 }
 
-function DiscountTiersBlock({
-  rows,
-  onChange,
-  title,
-  hint,
-  nested,
-}: {
-  rows: TierRow[];
-  onChange: (next: TierRow[]) => void;
-  title: string;
-  hint: string;
-  nested?: boolean;
-}) {
-  const update = (i: number, patch: Partial<TierRow>) =>
-    onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const remove = (i: number) => onChange(rows.filter((_, j) => j !== i));
-  const wrap = nested ? "admin-catalog-nested" : "admin-catalog-section";
-  return (
-    <div className={wrap}>
-      <div
-        className="admin-catalog-toolbar"
-        style={{ justifyContent: "space-between", width: "100%" }}
-      >
-        <h3 style={{ margin: 0 }}>{title}</h3>
-        <button
-          type="button"
-          className="admin-btn admin-btn-ghost"
-          onClick={() => onChange([...rows, emptyTierRow()])}
-        >
-          Add tier
-        </button>
-      </div>
-      <p className="admin-catalog-hint">{hint}</p>
-      {rows.length === 0 ? (
-        <p className="muted" style={{ fontSize: "0.8rem", margin: 0 }}>
-          No tiers yet. Use “Add tier” for volume discounts (optional).
-        </p>
-      ) : (
-        rows.map((row, i) => (
-          <div
-            key={i}
-            className="admin-field-row"
-            style={{ alignItems: "flex-end", marginBottom: "0.5rem" }}
-          >
-            <div className="admin-field" style={{ flex: 2, minWidth: "140px" }}>
-              <label>Quantity / volume label</label>
-              <input
-                className="admin-input"
-                value={row.qty}
-                onChange={(e) => update(i, { qty: e.target.value })}
-                placeholder='e.g. 15 Cartons'
-              />
-            </div>
-            <div className="admin-field" style={{ minWidth: "100px" }}>
-              <label>Discount</label>
-              <input
-                className="admin-input"
-                value={row.discount}
-                onChange={(e) => update(i, { discount: e.target.value })}
-                placeholder="e.g. 7%"
-              />
-            </div>
-            <div className="admin-field admin-field-shrink">
-              <button
-                type="button"
-                className="admin-btn admin-btn-ghost admin-btn-icon"
-                onClick={() => remove(i)}
-                aria-label="Remove tier"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  );
+function loadKeyFeatureRowsFromProduct(p: ProductFromApi): Array<{ text: string; icon: KeyFeatureIcon }> {
+  const kf = p.keyFeatures;
+  if (Array.isArray(kf) && kf.length > 0) {
+    return kf.map((row) => ({
+      text: typeof row?.text === "string" ? row.text : "",
+      icon: normalizeKeyFeatureIcon(row?.icon),
+    }));
+  }
+  const legacy = p.features;
+  if (Array.isArray(legacy) && legacy.length > 0) {
+    return legacy.map((line) => ({
+      text: String(line ?? ""),
+      icon: "check" as KeyFeatureIcon,
+    }));
+  }
+  return [];
 }
 
-function SizesBlock({
-  rows,
-  onChange,
-  title,
-  hint,
-  nested,
-}: {
-  rows: SizeRow[];
-  onChange: (next: SizeRow[]) => void;
-  title: string;
-  hint: string;
-  nested?: boolean;
-}) {
-  const update = (i: number, patch: Partial<SizeRow>) =>
-    onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const remove = (i: number) => onChange(rows.filter((_, j) => j !== i));
-  const wrap = nested ? "admin-catalog-nested" : "admin-catalog-section";
-  return (
-    <div className={wrap}>
-      <div
-        className="admin-catalog-toolbar"
-        style={{ justifyContent: "space-between", width: "100%" }}
-      >
-        <h3 style={{ margin: 0 }}>{title}</h3>
-        <button
-          type="button"
-          className="admin-btn admin-btn-ghost"
-          onClick={() => onChange([...rows, emptySizeRow()])}
-        >
-          Add size
-        </button>
-      </div>
-      <p className="admin-catalog-hint">{hint}</p>
-      {rows.length === 0 ? (
-        <p className="muted" style={{ fontSize: "0.8rem", margin: 0 }}>
-          No size rows yet. Add one row per buyable variant.
-        </p>
-      ) : (
-        <div className="admin-mini-table-wrap">
-          <table className="admin-mini-table">
-            <thead>
-              <tr>
-                <th>Size</th>
-                <th>Basic ₹</th>
-                <th>GST ₹</th>
-                <th>Combo ₹ (ex)</th>
-                <th>Combo ₹ (GST)</th>
-                <th>Core</th>
-                <th title="Counts toward eligible pool for combo">Pool</th>
-                <th>Qty / bag</th>
-                <th>Pcs / pkt</th>
-                <th>Note</th>
-                <th className="admin-sr-only">Remove</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => (
-                <tr key={i}>
-                  <td>
-                    <input
-                      className="admin-input"
-                      value={row.size}
-                      onChange={(e) => update(i, { size: e.target.value })}
-                      placeholder="4MM"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="admin-input"
-                      type="number"
-                      step="any"
-                      value={row.basicPrice}
-                      onChange={(e) => update(i, { basicPrice: e.target.value })}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="admin-input"
-                      type="number"
-                      step="any"
-                      value={row.priceWithGst}
-                      onChange={(e) => update(i, { priceWithGst: e.target.value })}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="admin-input"
-                      type="number"
-                      step="any"
-                      value={row.comboBasicPrice}
-                      onChange={(e) => update(i, { comboBasicPrice: e.target.value })}
-                      placeholder="—"
-                      title="Net combo basic (20/25MM)"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="admin-input"
-                      type="number"
-                      step="any"
-                      value={row.comboPriceWithGst}
-                      onChange={(e) => update(i, { comboPriceWithGst: e.target.value })}
-                      placeholder="—"
-                      title="Net combo incl. GST"
-                    />
-                  </td>
-                  <td>
-                    <select
-                      className="admin-input admin-select"
-                      value={row.coreClipVariant}
-                      onChange={(e) => update(i, { coreClipVariant: e.target.value })}
-                      title="20/25MM core clip row"
-                      aria-label="Core combo clip variant"
-                    >
-                      <option value="">—</option>
-                      <option value="20">20MM</option>
-                      <option value="25">25MM</option>
-                    </select>
-                  </td>
-                  <td>
-                    <select
-                      className="admin-input admin-select"
-                      value={row.eligiblePool}
-                      onChange={(e) => update(i, { eligiblePool: e.target.value })}
-                      aria-label="Eligible pool override"
-                      title="Whether this size counts toward eligible packets"
-                    >
-                      <option value="">Auto</option>
-                      <option value="yes">Yes</option>
-                      <option value="no">No</option>
-                    </select>
-                  </td>
-                  <td>
-                    <input
-                      className="admin-input"
-                      type="number"
-                      step="any"
-                      value={row.qtyPerBag}
-                      onChange={(e) => update(i, { qtyPerBag: e.target.value })}
-                      placeholder="—"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="admin-input"
-                      type="number"
-                      step="any"
-                      value={row.pcsPerPacket}
-                      onChange={(e) => update(i, { pcsPerPacket: e.target.value })}
-                      placeholder="—"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="admin-input"
-                      value={row.note}
-                      onChange={(e) => update(i, { note: e.target.value })}
-                      placeholder="—"
-                    />
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn-ghost admin-btn-icon"
-                      onClick={() => remove(i)}
-                      aria-label="Remove size row"
-                    >
-                      ✕
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SellersBlock({
-  sellers,
-  onChange,
-}: {
-  sellers: SellerRow[];
-  onChange: (next: SellerRow[]) => void;
-}) {
-  const updateSeller = (i: number, patch: Partial<SellerRow>) =>
-    onChange(sellers.map((s, j) => (j === i ? { ...s, ...patch } : s)));
-  const removeSeller = (i: number) => onChange(sellers.filter((_, j) => j !== i));
-  return (
-    <div className="admin-catalog-section">
-      <div
-        className="admin-catalog-toolbar"
-        style={{ justifyContent: "space-between", width: "100%" }}
-      >
-        <h3 style={{ margin: 0 }}>Seller offers</h3>
-        <button
-          type="button"
-          className="admin-btn admin-btn-ghost"
-          onClick={() => onChange([...sellers, emptySellerRow()])}
-        >
-          Add seller
-        </button>
-      </div>
-      <p className="admin-catalog-hint">
-        Optional: separate price lists per supplier (e.g. Hitech vs Tejas). Each seller has its own
-        sizes and discount tiers.
-      </p>
-      {sellers.length === 0 ? (
-        <p className="muted" style={{ fontSize: "0.8rem", margin: 0 }}>
-          No seller offers. Use product-level sizes above if you only have one supplier.
-        </p>
-      ) : (
-        sellers.map((seller, i) => (
-          <div key={i} className="admin-catalog-card">
-            <div
-              className="admin-catalog-toolbar"
-              style={{ justifyContent: "space-between", width: "100%", marginBottom: "0.5rem" }}
-            >
-              <p className="admin-catalog-card-title" style={{ margin: 0 }}>
-                Seller {i + 1}
-              </p>
-              <button
-                type="button"
-                className="admin-btn admin-btn-ghost admin-btn-danger"
-                onClick={() => removeSeller(i)}
-              >
-                Remove seller
-              </button>
-            </div>
-            <div className="admin-field-row">
-              <div className="admin-field">
-                <label>Seller ID (stable key)</label>
-                <input
-                  className="admin-input"
-                  value={seller.sellerId}
-                  onChange={(e) => updateSeller(i, { sellerId: e.target.value })}
-                  placeholder="hitech"
-                />
-              </div>
-              <div className="admin-field">
-                <label>Display name</label>
-                <input
-                  className="admin-input"
-                  value={seller.sellerName}
-                  onChange={(e) => updateSeller(i, { sellerName: e.target.value })}
-                  placeholder="Hitech"
-                />
-              </div>
-              <div className="admin-field">
-                <label>Brand label</label>
-                <input
-                  className="admin-input"
-                  value={seller.brand}
-                  onChange={(e) => updateSeller(i, { brand: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="admin-field-row">
-              <div className="admin-field">
-                <label>Min order (optional)</label>
-                <input
-                  className="admin-input"
-                  value={seller.minOrder}
-                  onChange={(e) => updateSeller(i, { minOrder: e.target.value })}
-                />
-              </div>
-              <div className="admin-field" style={{ flex: 2 }}>
-                <label>Note (optional)</label>
-                <input
-                  className="admin-input"
-                  value={seller.note}
-                  onChange={(e) => updateSeller(i, { note: e.target.value })}
-                />
-              </div>
-            </div>
-            <SizesBlock
-              nested
-              title="Sizes for this seller"
-              hint="Same columns as product-level sizes: one row per variant for this supplier."
-              rows={seller.sizes}
-              onChange={(next) => updateSeller(i, { sizes: next })}
-            />
-            <DiscountTiersBlock
-              nested
-              title="Discount tiers for this seller"
-              hint="Volume discounts that apply to this seller’s offer only."
-              rows={seller.discountTiers}
-              onChange={(next) => updateSeller(i, { discountTiers: next })}
-            />
-          </div>
-        ))
-      )}
-    </div>
-  );
+/** One catalog size row from base pricing; clear multi-seller lists from the simplified form */
+function buildSizesAndSellers(
+  productKind: "sku" | "catalog",
+  sizeLabel: string,
+  basicPrice: number,
+  priceWithGst: number,
+  pcsPerPacket: number,
+  packetsPerBag: number,
+): { sizes?: ApiProductSize[]; sellers: [] } {
+  if (productKind !== "catalog") {
+    return { sellers: [] };
+  }
+  const size = String(sizeLabel ?? "").trim() || "Standard";
+  const ppp = pcsPerPacket > 0 ? Math.floor(pcsPerPacket) : 1;
+  const qpb = packetsPerBag > 0 ? Math.floor(packetsPerBag) : 0;
+  return {
+    sizes: [{ size, basicPrice, priceWithGst, pcsPerPacket: ppp, qtyPerBag: qpb }],
+    sellers: [],
+  };
 }
 
 const emptyForm = {
@@ -627,17 +213,21 @@ const emptyForm = {
   categoryId: "",
   description: "",
   brand: "",
-  image: "",
   basicPrice: "",
   priceWithGst: "",
   currency: "INR",
   isActive: true,
   isNew: false,
-  isEligibleForCombo: false,
-  discountTiers: [] as TierRow[],
-  sizes: [] as SizeRow[],
-  sellers: [] as SellerRow[],
+  isIsiCertified: false,
+  sizeLabel: "",
+  bulkUnits: ["per_bag"] as string[],
+  innerUnits: ["per_packet"] as string[],
+  moq: "",
+  moqBags: "",
+  pcsPerPacket: "100",
+  packetsPerBag: "",
   imagesJson: "[]",
+  keyFeatureRows: [] as Array<{ text: string; icon: KeyFeatureIcon }>,
 };
 
 export default function AdminProductsPage() {
@@ -650,6 +240,17 @@ export default function AdminProductsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+
+  /** Both packing fields set → storefront uses packing only; separate MOQ fields hidden and cleared on save */
+  const packingReplacesMoq = useMemo(() => {
+    if (form.productKind !== "catalog") return false;
+    const ppbRaw = String(form.packetsPerBag ?? "").trim();
+    if (!ppbRaw) return false;
+    const ppb = Math.floor(Number(ppbRaw));
+    if (!Number.isFinite(ppb) || ppb <= 0) return false;
+    const ppp = Math.max(1, Math.floor(Number(form.pcsPerPacket) || 1));
+    return ppp >= 1;
+  }, [form.productKind, form.packetsPerBag, form.pcsPerPacket]);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -703,35 +304,67 @@ export default function AdminProductsPage() {
       const res = await fetch(`/api/admin/products/${id}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
-      const p = json.data as AdminProduct & {
-        longDescription?: string;
-        discountTiers?: unknown[];
-        sizes?: unknown[];
-        sellers?: unknown[];
-      };
+      const p = json.data as ProductFromApi;
       setEditingId(id);
-      const tiers = Array.isArray(p.discountTiers) ? p.discountTiers.map(tierFromApi) : [];
-      const sizes = Array.isArray(p.sizes) ? p.sizes.map(sizeFromApi) : [];
-      const sellers = Array.isArray(p.sellers) ? p.sellers.map(sellerFromApi) : [];
+
+      const firstSize =
+        Array.isArray(p.sizes) && p.sizes[0] && typeof p.sizes[0].size === "string"
+          ? p.sizes[0].size
+          : "";
+      const sizeLabel =
+        (typeof p.sizeOrModel === "string" && p.sizeOrModel.trim()) || firstSize || "";
+
+      const s0 =
+        Array.isArray(p.sizes) && p.sizes[0]
+          ? (p.sizes[0] as { pcsPerPacket?: number; qtyPerBag?: number })
+          : {};
+      const pack = p.packaging;
+      const qtyFromSize = typeof s0.qtyPerBag === "number" ? Math.max(0, Math.floor(s0.qtyPerBag)) : 0;
+      const pktFromPack = Math.max(
+        0,
+        Math.floor(Number(pack?.packetsInMasterBag ?? pack?.pktInMasterBag ?? 0) || 0),
+      );
+      const packetsPerBagResolved = qtyFromSize > 0 ? qtyFromSize : pktFromPack;
+      const pcsResolved =
+        typeof s0.pcsPerPacket === "number" && s0.pcsPerPacket > 0
+          ? Math.floor(s0.pcsPerPacket)
+          : pack?.pcsPerPacket != null && Number.isFinite(Number(pack.pcsPerPacket))
+            ? Math.max(1, Math.floor(Number(pack.pcsPerPacket)))
+            : 100;
+
+      const gallery = Array.isArray(p.images)
+        ? p.images.filter((x): x is string => typeof x === "string")
+        : [];
+      const primary = typeof p.image === "string" && p.image.trim() ? p.image.trim() : "";
+      const mergedGallery = [...gallery];
+      if (primary && !mergedGallery.includes(primary)) mergedGallery.unshift(primary);
+
       setForm({
-        sku: p.sku,
+        sku: p.sku ?? "",
         name: p.name,
         productKind: p.productKind,
         slug: p.slug ?? "",
         categoryId: p.category?._id ?? "",
         description: p.description ?? "",
         brand: p.brand ?? "",
-        image: p.image ?? "",
         basicPrice: String(p.pricing?.basicPrice ?? ""),
         priceWithGst: String(p.pricing?.priceWithGst ?? ""),
         currency: p.pricing?.currency ?? "INR",
         isActive: p.isActive,
         isNew: Boolean(p.isNew),
-        isEligibleForCombo: Boolean((p as { isEligibleForCombo?: boolean }).isEligibleForCombo),
-        discountTiers: tiers,
-        sizes,
-        sellers,
-        imagesJson: p.images?.length ? JSON.stringify(p.images, null, 2) : "[]",
+        isIsiCertified: Boolean(p.isIsiCertified),
+        sizeLabel,
+        bulkUnits: [loadBulkFromProduct(p)[0] ?? "per_bag"],
+        innerUnits: [loadInnerFromProduct(p)[0] ?? "per_packet"],
+        moq: p.moq != null && Number.isFinite(p.moq) && p.moq > 0 ? String(Math.floor(p.moq)) : "",
+        moqBags:
+          p.moqBags != null && Number.isFinite(p.moqBags) && p.moqBags > 0
+            ? String(Math.floor(p.moqBags))
+            : "",
+        pcsPerPacket: String(pcsResolved),
+        packetsPerBag: packetsPerBagResolved > 0 ? String(packetsPerBagResolved) : "",
+        imagesJson: mergedGallery.length ? JSON.stringify(mergedGallery, null, 2) : "[]",
+        keyFeatureRows: loadKeyFeatureRowsFromProduct(p),
       });
       setModalOpen(true);
     } catch (e) {
@@ -744,16 +377,31 @@ export default function AdminProductsPage() {
     setSaving(true);
     setError(null);
     try {
-      const basicPrice = Number(form.basicPrice);
-      const priceWithGst = Number(form.priceWithGst);
+      const f = { ...emptyForm, ...form };
+      const basicPrice = Number(f.basicPrice);
+      const priceWithGst = Number(f.priceWithGst);
       if (Number.isNaN(basicPrice) || Number.isNaN(priceWithGst)) {
         throw new Error("Pricing must be valid numbers");
       }
-      const catalog = buildCatalogPayload(form);
-      const productDiscountTiers = buildProductDiscountTiers(form.discountTiers);
+      const pcsPerPacketNum = Math.max(1, Math.floor(Number(f.pcsPerPacket) || 1));
+      const packetsPerBagRaw = String(f.packetsPerBag ?? "").trim();
+      const packetsPerBagNum =
+        packetsPerBagRaw === "" ? 0 : Math.max(0, Math.floor(Number(packetsPerBagRaw)));
+
+      const packingDefinesMoq =
+        f.productKind === "catalog" && pcsPerPacketNum >= 1 && packetsPerBagNum > 0;
+
+      const catalog = buildSizesAndSellers(
+        f.productKind,
+        f.sizeLabel,
+        basicPrice,
+        priceWithGst,
+        pcsPerPacketNum,
+        packetsPerBagNum,
+      );
       let imagesList: string[];
       try {
-        const raw = form.imagesJson.trim() || "[]";
+        const raw = String(f.imagesJson ?? "").trim() || "[]";
         const parsed = JSON.parse(raw) as unknown;
         if (!Array.isArray(parsed)) throw new Error("Gallery images must be a JSON array");
         imagesList = parsed.filter((x): x is string => typeof x === "string");
@@ -761,30 +409,80 @@ export default function AdminProductsPage() {
         throw e instanceof SyntaxError ? new Error("Invalid JSON in gallery images") : e;
       }
 
+      const sizeOrModelTrim = String(f.sizeLabel ?? "").trim();
+      const bulkUnits = normalizeBulkUnitsForSave(f.bulkUnits);
+      const innerUnits = normalizeInnerUnitsForSave(f.innerUnits);
+      const pricingUnit = primaryPricingUnit(innerUnits, bulkUnits);
+      const primaryImage = imagesList[0]?.trim() || undefined;
+
+      let moq: number | undefined;
+      let moqBags: number | undefined;
+      if (packingDefinesMoq) {
+        moq = undefined;
+        moqBags = undefined;
+      } else {
+        const moqRaw = String(f.moq ?? "").trim();
+        const moqParsed = moqRaw === "" ? NaN : Number(moqRaw);
+        moq = Number.isFinite(moqParsed) && moqParsed > 0 ? Math.floor(moqParsed) : undefined;
+        const moqBagsRaw = String(f.moqBags ?? "").trim();
+        const moqBagsParsed = moqBagsRaw === "" ? NaN : Number(moqBagsRaw);
+        moqBags =
+          Number.isFinite(moqBagsParsed) && moqBagsParsed > 0 ? Math.floor(moqBagsParsed) : undefined;
+      }
+
+      const minOrder = buildMinOrderLine(moq, moqBags, packetsPerBagNum, bulkUnits, innerUnits);
+
+      const keyRows = f.keyFeatureRows
+        .map((r) => ({
+          text: String(r.text ?? "").trim(),
+          icon: normalizeKeyFeatureIcon(r.icon),
+        }))
+        .filter((r) => r.text.length > 0);
+
+      const packaging = {
+        pricingUnit,
+        bulkUnitChoices: bulkUnits,
+        innerUnitChoices: innerUnits,
+        pcsPerPacket: pcsPerPacketNum,
+        ...(packetsPerBagNum > 0
+          ? { packetsInMasterBag: packetsPerBagNum, pktInMasterBag: packetsPerBagNum }
+          : {}),
+      };
+
       if (editingId) {
         const body: Record<string, unknown> = {
-          sku: form.sku.trim().toUpperCase(),
-          name: form.name.trim(),
-          productKind: form.productKind,
-          slug: form.slug.trim().toLowerCase() || undefined,
-          category: form.categoryId,
-          description: form.description.trim() || undefined,
-          // Always send string on update so clearing the field persists (JSON omits `undefined`).
-          brand: form.brand.trim(),
-          image: form.image.trim() || undefined,
-          isActive: form.isActive,
-          isNew: form.isNew,
+          sku: String(f.sku ?? "").trim().toUpperCase(),
+          name: String(f.name ?? "").trim(),
+          productKind: f.productKind,
+          slug: String(f.slug ?? "").trim().toLowerCase() || undefined,
+          category: f.categoryId,
+          description: String(f.description ?? "").trim() || undefined,
+          brand: String(f.brand ?? "").trim(),
+          image: primaryImage,
+          isActive: f.isActive,
+          isNew: f.isNew,
+          isIsiCertified: f.isIsiCertified,
           pricing: {
             basicPrice,
             priceWithGst,
-            currency: form.currency.trim() || "INR",
+            currency: String(f.currency ?? "").trim() || "INR",
           },
+          sizeOrModel: sizeOrModelTrim,
+          packaging,
+          images: imagesList,
+          moq: packingDefinesMoq ? null : moq ?? null,
+          moqBags: packingDefinesMoq ? null : moqBags ?? null,
+          minOrder: minOrder ?? "",
+          ...(keyRows.length > 0
+            ? { keyFeatures: keyRows, features: [] }
+            : { keyFeatures: null, features: [] }),
         };
-        body.discountTiers = productDiscountTiers;
-        body.sizes = catalog.sizes;
-        body.sellers = catalog.sellers;
-        body.images = imagesList;
-        body.isEligibleForCombo = form.isEligibleForCombo;
+        if (f.productKind === "catalog" && catalog.sizes) {
+          body.sizes = catalog.sizes;
+        } else {
+          body.sizes = [];
+        }
+        body.sellers = [];
 
         const res = await fetch(`/api/admin/products/${editingId}`, {
           method: "PATCH",
@@ -794,29 +492,43 @@ export default function AdminProductsPage() {
         const json = await res.json();
         if (!res.ok) throw new Error(json.message || res.statusText);
       } else {
-        if (!form.categoryId) throw new Error("Category is required");
+        if (!f.categoryId) throw new Error("Category is required");
         const body: Record<string, unknown> = {
-          sku: form.sku.trim().toUpperCase(),
-          name: form.name.trim(),
-          productKind: form.productKind,
-          slug: form.slug.trim().toLowerCase() || undefined,
-          category: form.categoryId,
-          description: form.description.trim() || undefined,
-          brand: form.brand.trim() || undefined,
-          image: form.image.trim() || undefined,
-          isActive: form.isActive,
-          isNew: form.isNew,
+          name: String(f.name ?? "").trim(),
+          productKind: f.productKind,
+          slug: String(f.slug ?? "").trim().toLowerCase() || undefined,
+          category: f.categoryId,
+          description: String(f.description ?? "").trim() || undefined,
+          brand: String(f.brand ?? "").trim() || undefined,
+          image: primaryImage,
+          isActive: f.isActive,
+          isNew: f.isNew,
+          isIsiCertified: f.isIsiCertified,
           pricing: {
             basicPrice,
             priceWithGst,
-            currency: form.currency.trim() || "INR",
+            currency: String(f.currency ?? "").trim() || "INR",
           },
+          sizeOrModel: sizeOrModelTrim || undefined,
+          packaging,
+          images: imagesList,
+          ...(packingDefinesMoq
+            ? {}
+            : {
+                ...(moq !== undefined ? { moq } : {}),
+                ...(moqBags !== undefined ? { moqBags } : {}),
+              }),
+          ...(minOrder ? { minOrder } : {}),
+          ...(keyRows.length > 0
+            ? { keyFeatures: keyRows, features: [] }
+            : { keyFeatures: null, features: [] }),
         };
-        if (productDiscountTiers.length) body.discountTiers = productDiscountTiers;
-        if (catalog.sizes.length) body.sizes = catalog.sizes;
-        if (catalog.sellers.length) body.sellers = catalog.sellers;
-        body.images = imagesList;
-        body.isEligibleForCombo = form.isEligibleForCombo;
+        if (f.productKind === "catalog" && catalog.sizes) {
+          body.sizes = catalog.sizes;
+        }
+        body.sellers = [];
+        const skuTrim = String(f.sku ?? "").trim().toUpperCase();
+        if (skuTrim) body.sku = skuTrim;
 
         const res = await fetch("/api/admin/products", {
           method: "POST",
@@ -901,7 +613,7 @@ export default function AdminProductsPage() {
                       {p.image ? <img src={p.image} alt="" className="admin-thumb" /> : "—"}
                     </td>
                     <td>
-                      <code style={{ fontSize: "0.8rem" }}>{p.sku}</code>
+                      <code style={{ fontSize: "0.8rem" }}>{p.sku ?? "—"}</code>
                     </td>
                     <td>{p.name}</td>
                     <td>{p.category?.name ?? "—"}</td>
@@ -970,13 +682,12 @@ export default function AdminProductsPage() {
                 <h3 className="admin-form-section-title">Product details</h3>
                 <div className="admin-field-row">
                   <div className="admin-field">
-                    <label htmlFor="p-sku">SKU</label>
+                    <label htmlFor="p-sku">SKU (optional)</label>
                     <input
                       id="p-sku"
                       className="admin-input"
                       value={form.sku}
                       onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
-                      required
                       autoComplete="off"
                     />
                   </div>
@@ -993,8 +704,8 @@ export default function AdminProductsPage() {
                         }))
                       }
                     >
-                      <option value="catalog">Catalog (grouped / variants)</option>
-                      <option value="sku">SKU (single line item)</option>
+                      <option value="catalog">Catalog</option>
+                      <option value="sku">SKU line item</option>
                     </select>
                   </div>
                 </div>
@@ -1049,46 +760,118 @@ export default function AdminProductsPage() {
 
               <div className="admin-form-section">
                 <h3 className="admin-form-section-title">Images &amp; description</h3>
-              <MediaImageField
-                label="Primary image (Cloudinary)"
-                kind="product"
-                productId={editingId ?? undefined}
-                value={form.image}
-                onUrlChange={(url) => setForm((f) => ({ ...f, image: url }))}
-                helpText="Uploads to Cloudinary (folder rpt/product/…). Set CLOUDINARY_URL in .env.local. When editing, images are scoped under this product’s id."
-              />
-              <MediaImageField
-                label="Add to image gallery"
-                kind="product"
-                productId={editingId ?? undefined}
-                value=""
-                showUrlInput={false}
-                trackMediaId={false}
-                onUrlChange={(url) =>
-                  setForm((f) => {
-                    let arr: string[] = [];
-                    try {
-                      const p = JSON.parse(f.imagesJson.trim() || "[]") as unknown;
-                      if (Array.isArray(p)) arr = p.filter((x): x is string => typeof x === "string");
-                    } catch {
-                      arr = [];
-                    }
-                    return { ...f, imagesJson: JSON.stringify([...arr, url], null, 2) };
-                  })
-                }
-                helpText="Each upload appends a URL to the product’s image gallery."
-              />
-              <div className="admin-field">
-                <label htmlFor="p-desc">Description</label>
-                <textarea
-                  id="p-desc"
-                  className="admin-input"
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  rows={4}
-                  placeholder="Short product description"
+                <MediaImageField
+                  label="Image gallery (Cloudinary)"
+                  kind="product"
+                  productId={editingId ?? undefined}
+                  value=""
+                  showUrlInput={false}
+                  trackMediaId={false}
+                  onUrlChange={(url) =>
+                    setForm((f) => {
+                      let arr: string[] = [];
+                      try {
+                        const p = JSON.parse(String(f.imagesJson ?? "").trim() || "[]") as unknown;
+                        if (Array.isArray(p)) arr = p.filter((x): x is string => typeof x === "string");
+                      } catch {
+                        arr = [];
+                      }
+                      return { ...f, imagesJson: JSON.stringify([...arr, url], null, 2) };
+                    })
+                  }
+                  helpText="Upload images here. The first image is used as the main product photo on the storefront. Set CLOUDINARY_URL in .env.local. When editing, uploads are scoped under this product’s id."
                 />
-              </div>
+                <div className="admin-field">
+                  <label htmlFor="p-desc">Description</label>
+                  <textarea
+                    id="p-desc"
+                    className="admin-input"
+                    value={form.description}
+                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                    rows={4}
+                    placeholder="Short product description"
+                  />
+                </div>
+
+                <div className="admin-field" style={{ marginTop: "1rem" }}>
+                  <span style={{ fontWeight: 600 }}>Key features (product page)</span>
+                  <p className="muted" style={{ fontSize: "0.8rem", margin: "0.35rem 0 0.5rem" }}>
+                    Optional. One row per bullet. Wrap text in **double asterisks** for bold. Use Enter for a new line
+                    within the same bullet. Pick an icon per row.
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    {form.keyFeatureRows.map((row, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0, 1fr) 11rem auto",
+                          gap: "0.5rem",
+                          alignItems: "start",
+                        }}
+                      >
+                        <textarea
+                          className="admin-input"
+                          rows={2}
+                          value={row.text}
+                          placeholder='e.g. Material: **Grey Polypropylene**'
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setForm((prev) => {
+                              const next = [...prev.keyFeatureRows];
+                              next[idx] = { ...next[idx], text: v };
+                              return { ...prev, keyFeatureRows: next };
+                            });
+                          }}
+                        />
+                        <select
+                          className="admin-input"
+                          value={row.icon}
+                          onChange={(e) => {
+                            const v = e.target.value as KeyFeatureIcon;
+                            setForm((prev) => {
+                              const next = [...prev.keyFeatureRows];
+                              next[idx] = { ...next[idx], icon: v };
+                              return { ...prev, keyFeatureRows: next };
+                            });
+                          }}
+                        >
+                          {KEY_FEATURE_ICON_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn-ghost"
+                          style={{ padding: "0.35rem 0.6rem" }}
+                          onClick={() => {
+                            setForm((prev) => ({
+                              ...prev,
+                              keyFeatureRows: prev.keyFeatureRows.filter((_, i) => i !== idx),
+                            }));
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-ghost"
+                    style={{ marginTop: "0.5rem" }}
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        keyFeatureRows: [...prev.keyFeatureRows, { text: "", icon: "check" }],
+                      }))
+                    }
+                  >
+                    Add feature line
+                  </button>
+                </div>
               </div>
 
               <div className="admin-form-section">
@@ -1130,37 +913,248 @@ export default function AdminProductsPage() {
                 </div>
               </div>
 
-              <div
-                className={`admin-catalog-offers-wrap${form.productKind === "sku" ? " admin-catalog-offers-muted" : ""}`}
-              >
-                <h3 className="admin-catalog-offers-heading">Catalog pricing &amp; offers</h3>
-                <p className="admin-catalog-hint" style={{ marginTop: 0 }}>
-                  Used for <strong>catalog</strong> products (variant grid and multi-seller lists). SKU-only
-                  lines can stay empty. Reference:{" "}
-                  <code style={{ fontSize: "0.78rem" }}>docs/FRONTEND_API_INTEGRATION.md</code>.
+              <div className="admin-form-section">
+                <h3 className="admin-form-section-title">Size &amp; quantity units</h3>
+                <p className="muted" style={{ fontSize: "0.875rem", marginTop: 0 }}>
+                  One <strong>size</strong> per product. Pick a preset or <strong>Add new</strong> and type your unit
+                  (e.g. bundle). Primary cart unit: packet or box first, then bags or carton; custom labels use
+                  &quot;other&quot; pricing mode.
                 </p>
-                <label className="admin-check" style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                <div className="admin-field">
+                  <label htmlFor="p-size">Size / model</label>
                   <input
-                    type="checkbox"
-                    checked={form.isEligibleForCombo}
-                    onChange={(e) => setForm((f) => ({ ...f, isEligibleForCombo: e.target.checked }))}
+                    id="p-size"
+                    className="admin-input"
+                    value={form.sizeLabel}
+                    onChange={(e) => setForm((f) => ({ ...f, sizeLabel: e.target.value }))}
+                    placeholder="e.g. 5 MM"
+                    autoComplete="off"
                   />
-                  <span>
-                    <strong>Eligible for combo (product)</strong> — when enabled, all sizes on this SKU count toward
-                    the eligible packet pool unless a size row sets Pool to No. For mixed clip lists, leave this off
-                    and set Pool per size (Yes on 1.4–18MM, No on 20/25 core rows).
-                  </span>
-                </label>
-                <SizesBlock
-                  title="Product sizes (variants)"
-                  hint="One row per buyable size: label, basic price, price with GST. Optional packing columns and note."
-                  rows={form.sizes}
-                  onChange={(sizes) => setForm((f) => ({ ...f, sizes }))}
-                />
-                <SellersBlock
-                  sellers={form.sellers}
-                  onChange={(sellers) => setForm((f) => ({ ...f, sellers }))}
-                />
+                </div>
+
+                <div style={{ marginTop: "1rem" }}>
+                  <p style={{ margin: "0 0 0.5rem", fontWeight: 600 }}>Bags / carton</p>
+                  <p className="muted" style={{ fontSize: "0.8rem", margin: "0 0 0.5rem" }}>
+                    Outer or bulk units — choose Bags, Carton, or <strong>Add new</strong> and type a label.
+                  </p>
+                  {(() => {
+                    const u = form.bulkUnits[0] ?? "per_bag";
+                    const isCustom = u.startsWith("custom:");
+                    const selectVal = isCustom ? UNIT_ADD_NEW : u;
+                    const customText = isCustom ? u.slice(7) : "";
+                    return (
+                      <div
+                        className="admin-field-row"
+                        style={{
+                          alignItems: "flex-end",
+                          marginBottom: "0.5rem",
+                          gap: "0.5rem",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div className="admin-field" style={{ flex: 1, minWidth: "9rem" }}>
+                          <label className="admin-sr-only" htmlFor="p-bulk-0">
+                            Bags, carton, or add new
+                          </label>
+                          <select
+                            id="p-bulk-0"
+                            className="admin-input admin-select"
+                            value={selectVal}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setForm((f) => ({
+                                ...f,
+                                bulkUnits: [v === UNIT_ADD_NEW ? "custom:" : v],
+                              }));
+                            }}
+                          >
+                            {BULK_UNIT_OPTIONS.map((o) => (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            ))}
+                            <option value={UNIT_ADD_NEW}>Add new</option>
+                          </select>
+                        </div>
+                        {(isCustom || selectVal === UNIT_ADD_NEW) && (
+                          <div className="admin-field" style={{ flex: 1, minWidth: "10rem" }}>
+                            <label className="admin-sr-only" htmlFor="p-bulk-custom-0">
+                              New bulk unit label
+                            </label>
+                            <input
+                              id="p-bulk-custom-0"
+                              className="admin-input"
+                              value={customText}
+                              placeholder="e.g. bundle"
+                              autoComplete="off"
+                              onChange={(e) => {
+                                const t = e.target.value;
+                                setForm((f) => ({
+                                  ...f,
+                                  bulkUnits: [t.trim() ? `custom:${t}` : "custom:"],
+                                }));
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div style={{ marginTop: "1.25rem" }}>
+                  <p style={{ margin: "0 0 0.5rem", fontWeight: 600 }}>Packets / box</p>
+                  <p className="muted" style={{ fontSize: "0.8rem", margin: "0 0 0.5rem" }}>
+                    Inner sell units — Packets, Box, or <strong>Add new</strong> with your label.
+                  </p>
+                  {(() => {
+                    const u = form.innerUnits[0] ?? "per_packet";
+                    const isCustom = u.startsWith("custom:");
+                    const selectVal = isCustom ? UNIT_ADD_NEW : u;
+                    const customText = isCustom ? u.slice(7) : "";
+                    return (
+                      <div
+                        className="admin-field-row"
+                        style={{
+                          alignItems: "flex-end",
+                          marginBottom: "0.5rem",
+                          gap: "0.5rem",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div className="admin-field" style={{ flex: 1, minWidth: "9rem" }}>
+                          <label className="admin-sr-only" htmlFor="p-inner-0">
+                            Packet, box, or add new
+                          </label>
+                          <select
+                            id="p-inner-0"
+                            className="admin-input admin-select"
+                            value={selectVal}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setForm((f) => ({
+                                ...f,
+                                innerUnits: [v === UNIT_ADD_NEW ? "custom:" : v],
+                              }));
+                            }}
+                          >
+                            {INNER_UNIT_OPTIONS.map((o) => (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            ))}
+                            <option value={UNIT_ADD_NEW}>Add new</option>
+                          </select>
+                        </div>
+                        {(isCustom || selectVal === UNIT_ADD_NEW) && (
+                          <div className="admin-field" style={{ flex: 1, minWidth: "10rem" }}>
+                            <label className="admin-sr-only" htmlFor="p-inner-custom-0">
+                              New inner unit label
+                            </label>
+                            <input
+                              id="p-inner-custom-0"
+                              className="admin-input"
+                              value={customText}
+                              placeholder="e.g. bundle"
+                              autoComplete="off"
+                              onChange={(e) => {
+                                const t = e.target.value;
+                                setForm((f) => ({
+                                  ...f,
+                                  innerUnits: [t.trim() ? `custom:${t}` : "custom:"],
+                                }));
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div className="admin-field-row" style={{ marginTop: "1.25rem", alignItems: "flex-end" }}>
+                  <div className="admin-field">
+                    <label htmlFor="p-pcs-per-pkt">PCS per packet</label>
+                    <input
+                      id="p-pcs-per-pkt"
+                      className="admin-input"
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={form.pcsPerPacket ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, pcsPerPacket: e.target.value }))}
+                    />
+                  </div>
+                  <div className="admin-field">
+                    <label htmlFor="p-pkt-per-bag">Packets per master bag</label>
+                    <input
+                      id="p-pkt-per-bag"
+                      className="admin-input"
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={form.packetsPerBag ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, packetsPerBag: e.target.value }))}
+                      placeholder="e.g. 750 — empty = packet-only"
+                    />
+                  </div>
+                </div>
+                <p className="muted" style={{ fontSize: "0.8rem", margin: "0.25rem 0 0" }}>
+                  Drives storefront <strong>PACKING DETAILS</strong> (pcs/packet and pkts/master bag) and the bag
+                  quantity stepper. Leave &quot;packets per master bag&quot; empty if you only sell by packet.
+                  {packingReplacesMoq ? (
+                    <>
+                      {" "}
+                      With <strong>both</strong> values set, separate MOQ fields are hidden — packing defines sellable
+                      units (customers order in packets and/or master bags; no extra minimum quantity fields).
+                    </>
+                  ) : null}
+                </p>
+
+                {!packingReplacesMoq ? (
+                  <>
+                    <div className="admin-field-row" style={{ marginTop: "1rem", alignItems: "flex-end" }}>
+                      <div className="admin-field">
+                        <label htmlFor="p-moq">MOQ (packets)</label>
+                        <input
+                          id="p-moq"
+                          name="moq"
+                          className="admin-input"
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          value={form.moq ?? ""}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, "");
+                            setForm((f) => ({ ...f, moq: digits }));
+                          }}
+                          placeholder="e.g. 65"
+                        />
+                      </div>
+                      <div className="admin-field">
+                        <label htmlFor="p-moq-bags">MOQ (bags)</label>
+                        <input
+                          id="p-moq-bags"
+                          name="moqBags"
+                          className="admin-input"
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          value={form.moqBags ?? ""}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, "");
+                            setForm((f) => ({ ...f, moqBags: digits }));
+                          }}
+                          placeholder="e.g. 2"
+                        />
+                      </div>
+                    </div>
+                    <p className="muted" style={{ fontSize: "0.8rem", margin: "0.35rem 0 0" }}>
+                      Shown only when <strong>packets per master bag</strong> is empty or packet-only. When you add
+                      both packing numbers above, MOQ is not used — packing replaces it.
+                    </p>
+                  </>
+                ) : null}
               </div>
 
               <div className="admin-form-section admin-form-section-inline">
@@ -1179,6 +1173,14 @@ export default function AdminProductsPage() {
                     onChange={(e) => setForm((f) => ({ ...f, isNew: e.target.checked }))}
                   />
                   Mark as new
+                </label>
+                <label className="admin-check admin-check-pill">
+                  <input
+                    type="checkbox"
+                    checked={form.isIsiCertified}
+                    onChange={(e) => setForm((f) => ({ ...f, isIsiCertified: e.target.checked }))}
+                  />
+                  Show “ISI Certified” on product page
                 </label>
               </div>
               <div className="admin-modal-actions">

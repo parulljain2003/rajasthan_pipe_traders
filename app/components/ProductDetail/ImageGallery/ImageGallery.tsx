@@ -91,12 +91,14 @@ export default function ImageGallery({ product }: ImageGalleryProps) {
 
       {/* Trust badges */}
       <div className={styles.trustBadges}>
-        <div className={styles.trustItem}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
-          <span>ISI Certified</span>
-        </div>
+        {product.isIsiCertified && (
+          <div className={styles.trustItem}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            <span>ISI Certified</span>
+          </div>
+        )}
         <div className={styles.trustItem}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2">
             <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
