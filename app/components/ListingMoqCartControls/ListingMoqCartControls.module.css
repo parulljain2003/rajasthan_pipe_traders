@@ -395,3 +395,47 @@
     font-size: 0.78rem;
   }
 }
+
+/* Hero carousel product card only: bag + packet steppers on one row (two columns) */
+.heroSlideBulk .bulkRows {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem 0.65rem;
+  flex-wrap: nowrap;
+}
+
+.heroSlideBulk .bulkRows .row {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Wider “bags” / “pkts” unit chips (hero slide only) */
+.heroSlideBulk .stepper .unit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.25rem;
+  margin-left: 0.35rem;
+  padding: 0.28rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #0369a1;
+  background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%);
+  border: 1px solid #7dd3fc;
+  box-sizing: border-box;
+}
+
+@media (max-width: 360px) {
+  .heroSlideBulk .bulkRows {
+    flex-direction: column;
+    flex-wrap: wrap;
+  }
+
+  .heroSlideBulk .bulkRows .row {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+}
