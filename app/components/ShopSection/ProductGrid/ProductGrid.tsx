@@ -12,13 +12,15 @@ import ListingMoqCartControls, { listingEntryToModel } from '@/app/components/Li
 interface ProductGridProps {
   /** One row per product × seller (already filtered/sorted when applicable). */
   listingEntries: ProductListingEntry[];
+  /** Home “All Products”: label left, quantity box right. */
+  cardListingLayout?: boolean;
 }
 
 function listingKey(productId: number, sellerId: string) {
   return `${productId}:${sellerId}`;
 }
 
-export default function ProductGrid({ listingEntries: entries }: ProductGridProps) {
+export default function ProductGrid({ listingEntries: entries, cardListingLayout = false }: ProductGridProps) {
   if (entries.length === 0) {
     return (
       <div className={styles.empty}>
@@ -71,10 +73,17 @@ export default function ProductGrid({ listingEntries: entries }: ProductGridProp
               </div>
 
               <h3 className={styles.title}>{productHeading(product.name, size0.size)}</h3>
+              <div className={styles.cardPriceBlock}>
+                <p className={styles.cardPriceGst}>
+                  ₹{size0.withGST.toFixed(2)} incl. GST / {listLabels.inner}
+                </p>
+                <p className={styles.cardPriceBasic}>₹{size0.basicPrice.toFixed(2)} basic</p>
+              </div>
               <ListingMoqCartControls
                 model={listingEntryToModel(entry)}
                 labels={listLabels}
                 className={styles.listingMoqWrap}
+                cardListingLayout={cardListingLayout}
               />
             </div>
           </Link>

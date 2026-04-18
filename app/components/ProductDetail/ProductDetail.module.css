@@ -88,6 +88,7 @@
   font-size: 0.92rem;
   color: #475569;
   line-height: 1.75;
+  white-space: pre-line;
 }
 
 /* ── Company Banner ── */

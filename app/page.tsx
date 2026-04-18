@@ -5,12 +5,19 @@ import HomeProductsSection from './components/HomeProductsSection/HomeProductsSe
 
 export const revalidate = 60;
 
-export default function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const sp = await searchParams;
+  const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
+
   return (
     <div className="home-root">
       <HeroBanner />
       <HomeCategoryGrid />
-      <HomeProductsSection />
+      <HomeProductsSection page={page} />
     </div>
   );
 }

@@ -59,6 +59,18 @@ const catalogSellerOfferSchema = new Schema(
   { _id: false }
 );
 
+const keyFeatureLineSchema = new Schema(
+  {
+    text: { type: String, required: true, trim: true },
+    icon: {
+      type: String,
+      enum: ["check", "material", "dot"],
+      default: "check",
+    },
+  },
+  { _id: false }
+);
+
 const packagingSchema = new Schema(
   {
     innerBoxPacking: Number,
@@ -85,6 +97,10 @@ const packagingSchema = new Schema(
       default: "per_piece",
     },
     notes: { type: String, trim: true },
+    /** Admin: outer sell options (bags / carton), order preserved */
+    bulkUnitChoices: { type: [String], default: undefined },
+    /** Admin: inner sell options (packet / box), order preserved */
+    innerUnitChoices: { type: [String], default: undefined },
   },
   { _id: false }
 );
@@ -103,8 +119,7 @@ const productSchema = new Schema(
   {
     sku: {
       type: String,
-      required: true,
-      unique: true,
+      required: false,
       trim: true,
       uppercase: true,
     },
@@ -130,15 +145,21 @@ const productSchema = new Schema(
     productLine: { type: String, trim: true },
     sizeOrModel: { type: String, trim: true },
     features: [{ type: String, trim: true }],
+    /** PDP key features — optional; **bold** / newlines in text; icon per row */
+    keyFeatures: { type: [keyFeatureLineSchema], default: undefined },
     image: { type: String, trim: true },
     images: [{ type: String, trim: true }],
     isNew: { type: Boolean, default: false },
+    /** PDP trust bar: show “ISI Certified” when true (optional; default false) */
+    isIsiCertified: { type: Boolean, default: false },
     isBestseller: { type: Boolean },
     tags: [{ type: String, trim: true }],
     certifications: [{ type: String, trim: true }],
     material: { type: String, trim: true },
     minOrder: { type: String, trim: true },
     moq: { type: Number },
+    /** Minimum order in master bags (optional; enforced with `moq` in packet terms on storefront) */
+    moqBags: { type: Number },
     note: { type: String, trim: true },
     discountTiers: { type: [discountTierSchema], default: undefined },
     sizes: { type: [catalogSizeSchema], default: undefined },
@@ -161,10 +182,17 @@ const productSchema = new Schema(
 
 productSchema.index({ isEligibleForCombo: 1 });
 
+/** Non-empty SKUs must be unique; omitted / null allows multiple products without a SKU. */
+productSchema.index({ sku: 1 }, { unique: true, sparse: true });
 productSchema.index({ category: 1, sku: 1 });
 productSchema.index({ brand: 1 });
 productSchema.index({ slug: 1 }, { unique: true, sparse: true });
 productSchema.index({ productKind: 1, slug: 1 });
 productSchema.index({ name: "text", sku: "text", description: "text" });
 
-export const ProductModel = models.Product ?? model("Product", productSchema);
+// Next.js hot reload keeps `mongoose.models.Product` with the first-loaded schema;
+// delete so optional `sku` and index changes apply after edits (avoids "sku is required" from stale cache).
+if (models.Product) {
+  mongoose.deleteModel("Product");
+}
+export const ProductModel = model("Product", productSchema);

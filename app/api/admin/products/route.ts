@@ -4,6 +4,7 @@ import { connectDb } from "@/lib/db/connect";
 import { ProductModel } from "@/lib/db/models/Product";
 import { CategoryModel } from "@/lib/db/models/Category";
 import { serializeProductLean } from "@/lib/db/serialize";
+import { sanitizeKeyFeaturesInput } from "@/app/lib/sanitizeKeyFeatures";
 
 function err(message: string, status: number) {
   return NextResponse.json({ message }, { status });
@@ -53,11 +54,12 @@ export async function POST(req: NextRequest) {
   try {
     await connectDb();
     const body = (await req.json()) as Record<string, unknown>;
-    const sku = typeof body.sku === "string" ? body.sku.trim().toUpperCase() : "";
+    const skuRaw = typeof body.sku === "string" ? body.sku.trim().toUpperCase() : "";
+    const sku = skuRaw || undefined;
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const categoryId = typeof body.category === "string" ? body.category : "";
-    if (!sku || !name || !mongoose.Types.ObjectId.isValid(categoryId)) {
-      return err("sku, name, and valid category (ObjectId) are required", 400);
+    if (!name || !mongoose.Types.ObjectId.isValid(categoryId)) {
+      return err("name and valid category (ObjectId) are required", 400);
     }
     const cat = await CategoryModel.findById(categoryId).lean();
     if (!cat) return err("Category not found", 400);
@@ -74,8 +76,9 @@ export async function POST(req: NextRequest) {
       typeof body.slug === "string" && body.slug.trim()
         ? body.slug.trim().toLowerCase()
         : undefined;
+    const kf = sanitizeKeyFeaturesInput(body.keyFeatures);
     const doc = await ProductModel.create({
-      sku,
+      ...(sku ? { sku } : {}),
       name,
       productKind,
       slug,
@@ -87,16 +90,20 @@ export async function POST(req: NextRequest) {
       brandCode: typeof body.brandCode === "string" ? body.brandCode : undefined,
       productLine: typeof body.productLine === "string" ? body.productLine : undefined,
       sizeOrModel: typeof body.sizeOrModel === "string" ? body.sizeOrModel : undefined,
-      features: Array.isArray(body.features) ? body.features : undefined,
+      features:
+        kf && kf.length > 0 ? [] : Array.isArray(body.features) ? body.features : undefined,
+      ...(kf && kf.length > 0 ? { keyFeatures: kf } : {}),
       image: typeof body.image === "string" ? body.image : undefined,
       images: Array.isArray(body.images) ? body.images : undefined,
       isNew: typeof body.isNew === "boolean" ? body.isNew : false,
+      isIsiCertified: typeof body.isIsiCertified === "boolean" ? body.isIsiCertified : false,
       isBestseller: typeof body.isBestseller === "boolean" ? body.isBestseller : undefined,
       tags: Array.isArray(body.tags) ? body.tags : undefined,
       certifications: Array.isArray(body.certifications) ? body.certifications : undefined,
       material: typeof body.material === "string" ? body.material : undefined,
       minOrder: typeof body.minOrder === "string" ? body.minOrder : undefined,
       moq: typeof body.moq === "number" ? body.moq : undefined,
+      moqBags: typeof body.moqBags === "number" ? body.moqBags : undefined,
       note: typeof body.note === "string" ? body.note : undefined,
       listNotes: typeof body.listNotes === "string" ? body.listNotes : undefined,
       alternateSkus: Array.isArray(body.alternateSkus) ? body.alternateSkus : undefined,

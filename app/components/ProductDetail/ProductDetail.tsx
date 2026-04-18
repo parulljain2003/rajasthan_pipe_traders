@@ -16,6 +16,8 @@ export default function ProductDetail({
   product,
   relatedProducts,
 }: ProductDetailProps) {
+  const aboutText = (product.longDescription || product.description || "").trim();
+
   return (
     <div className={styles.page}>
       {/* ── Breadcrumb ── */}
@@ -45,11 +47,13 @@ export default function ProductDetail({
           <ProductInfo key={product.slug} product={product} />
         </div>
 
-        {/* Description Block */}
-        <div className={styles.descriptionBlock}>
-          <h2 className={styles.descTitle}>About This Product</h2>
-          <p className={styles.descText}>{product.longDescription}</p>
-        </div>
+        {/* Description — long text, or short description when long is empty (matches admin “Description” field) */}
+        {aboutText ? (
+          <div className={styles.descriptionBlock}>
+            <h2 className={styles.descTitle}>About This Product</h2>
+            <p className={styles.descText}>{aboutText}</p>
+          </div>
+        ) : null}
 
         {/* Specs Table (Tabs) */}
         <SpecsTable product={product} />

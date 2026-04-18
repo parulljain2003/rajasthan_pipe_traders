@@ -20,6 +20,8 @@ interface ListingMoqCartControlsViewProps {
   labelOuter?: string;
   labelInner?: string;
   labelSingle?: string;
+  /** Home listing cards: headings + stepper (− qty +); no trailing unit text. */
+  cardListingLayout?: boolean;
 }
 
 /** Presentational MOQ steppers; pass `moq` from `useMoqCartForModel` (e.g. product detail shares state with summary). */
@@ -32,6 +34,7 @@ export function ListingMoqCartControlsView({
   labelOuter,
   labelInner,
   labelSingle,
+  cardListingLayout = false,
 }: ListingMoqCartControlsViewProps) {
   const {
     hasBulk,
@@ -61,60 +64,136 @@ export function ListingMoqCartControlsView({
 
   return (
     <div
-      className={`${styles.root} ${compact ? styles.compact : ""} ${stackRows ? styles.stackRows : ""} ${className ?? ""}`}
+      className={`${styles.root} ${compact ? styles.compact : ""} ${stackRows ? styles.stackRows : ""} ${cardListingLayout ? styles.cardListingLayout : ""} ${className ?? ""}`}
       onClick={stop}
     >
       {hasBulk ? (
         <>
           <div className={styles.bulkRows}>
-            <div className={styles.row}>
-              <span className={styles.rowLabel}>{outerRowText}</span>
-              <div className={styles.stepper}>
-                <button type="button" className={styles.stepBtn} disabled={bagQty <= 0} onClick={(e) => { stop(e); onBagDelta(-1); }} aria-label={`Decrease ${labels.outerPlural}`}>
-                  −
-                </button>
-                <span className={styles.stepValue} aria-live="polite">
-                  {bagQty}
-                </span>
-                <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onBagDelta(1); }} aria-label={`Increase ${labels.outerPlural}`}>
-                  +
-                </button>
-                <span className={styles.unit}>{labels.outerPlural}</span>
-              </div>
-            </div>
-            <div className={styles.row}>
-              <span className={styles.rowLabel}>{innerRowText}</span>
-              <div className={styles.stepper}>
-                <button
-                  type="button"
-                  className={styles.stepBtn}
-                  disabled={pktQty <= 0}
-                  onClick={(e) => {
-                    stop(e);
-                    onPacketDelta(-1);
-                  }}
-                  aria-label="Decrease packet MOQ step"
-                >
-                  −
-                </button>
-                <input
-                  type="number"
-                  className={styles.stepInput}
-                  value={pktQty}
-                  min={0}
-                  onChange={(e) => onPacketInput(e.target.value)}
-                  onClick={stop}
-                  onFocus={(e) => e.currentTarget.select()}
-                  aria-label={`${labels.innerHeading} quantity in ${labels.innerPlural} (adds ${qpb} per click)`}
-                />
-                <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onPacketDelta(1); }} aria-label="Increase packet MOQ step">
-                  +
-                </button>
-                <span className={styles.unit}>{labels.innerPlural}</span>
-              </div>
-            </div>
+            {cardListingLayout ? (
+              <>
+                <div className={`${styles.row} ${styles.cardListingRow}`}>
+                  <span className={styles.cardListingLabel}>{labels.outerHeading}</span>
+                  <div className={`${styles.stepper} ${styles.stepperCardListing}`}>
+                    <button type="button" className={styles.stepBtn} disabled={bagQty <= 0} onClick={(e) => { stop(e); onBagDelta(-1); }} aria-label={`Decrease ${labels.outerPlural}`}>
+                      −
+                    </button>
+                    <span className={styles.stepValue} aria-live="polite">
+                      {bagQty}
+                    </span>
+                    <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onBagDelta(1); }} aria-label={`Increase ${labels.outerPlural}`}>
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div className={`${styles.row} ${styles.cardListingRow}`}>
+                  <span className={styles.cardListingLabel}>{labels.innerHeading}</span>
+                  <div className={`${styles.stepper} ${styles.stepperCardListing}`}>
+                    <button
+                      type="button"
+                      className={styles.stepBtn}
+                      disabled={pktQty <= 0}
+                      onClick={(e) => {
+                        stop(e);
+                        onPacketDelta(-1);
+                      }}
+                      aria-label="Decrease packet MOQ step"
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      className={styles.stepInput}
+                      value={pktQty}
+                      min={0}
+                      onChange={(e) => onPacketInput(e.target.value)}
+                      onClick={stop}
+                      onFocus={(e) => e.currentTarget.select()}
+                      aria-label={`${labels.innerHeading} quantity in ${labels.innerPlural} (adds ${qpb} per click)`}
+                    />
+                    <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onPacketDelta(1); }} aria-label="Increase packet MOQ step">
+                      +
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={styles.row}>
+                  <span className={styles.rowLabel}>{outerRowText}</span>
+                  <div className={styles.stepper}>
+                    <button type="button" className={styles.stepBtn} disabled={bagQty <= 0} onClick={(e) => { stop(e); onBagDelta(-1); }} aria-label={`Decrease ${labels.outerPlural}`}>
+                      −
+                    </button>
+                    <span className={styles.stepValue} aria-live="polite">
+                      {bagQty}
+                    </span>
+                    <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onBagDelta(1); }} aria-label={`Increase ${labels.outerPlural}`}>
+                      +
+                    </button>
+                    <span className={styles.unit}>{labels.outerPlural}</span>
+                  </div>
+                </div>
+                <div className={styles.row}>
+                  <span className={styles.rowLabel}>{innerRowText}</span>
+                  <div className={styles.stepper}>
+                    <button
+                      type="button"
+                      className={styles.stepBtn}
+                      disabled={pktQty <= 0}
+                      onClick={(e) => {
+                        stop(e);
+                        onPacketDelta(-1);
+                      }}
+                      aria-label="Decrease packet MOQ step"
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      className={styles.stepInput}
+                      value={pktQty}
+                      min={0}
+                      onChange={(e) => onPacketInput(e.target.value)}
+                      onClick={stop}
+                      onFocus={(e) => e.currentTarget.select()}
+                      aria-label={`${labels.innerHeading} quantity in ${labels.innerPlural} (adds ${qpb} per click)`}
+                    />
+                    <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onPacketDelta(1); }} aria-label="Increase packet MOQ step">
+                      +
+                    </button>
+                    <span className={styles.unit}>{labels.innerPlural}</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </>
+      ) : cardListingLayout ? (
+        <div className={`${styles.row} ${styles.cardListingRow}`}>
+          <span className={styles.cardListingLabel}>{labels.innerHeading}</span>
+          <div className={`${styles.stepper} ${styles.stepperCardListing}`}>
+            <button type="button" className={styles.stepBtn} disabled={pktQty <= 0} onClick={(e) => { stop(e); onPacketDelta(-1); }} aria-label="Decrease quantity">
+              −
+            </button>
+            <input
+              type="number"
+              className={styles.stepInput}
+              value={pktQty}
+              min={0}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10);
+                if (!Number.isNaN(n) && n >= 0) setPacketStepsFromInput(n);
+              }}
+              onClick={stop}
+              onFocus={(e) => e.currentTarget.select()}
+              aria-label={`Quantity in ${labels.innerPlural}`}
+            />
+            <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onPacketDelta(1); }} aria-label="Increase quantity">
+              +
+            </button>
+          </div>
+        </div>
       ) : (
         <div className={styles.row}>
           <span className={styles.rowLabel}>{singleRowText}</span>

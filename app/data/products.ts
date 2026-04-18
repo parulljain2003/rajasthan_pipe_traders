@@ -29,6 +29,14 @@ export interface DiscountTier {
   discount: string;
 }
 
+/** PDP key features row — optional; supports `**bold**` and newlines in `text`. */
+export type KeyFeatureIcon = "check" | "material" | "dot";
+
+export interface KeyFeatureLine {
+  text: string;
+  icon: KeyFeatureIcon;
+}
+
 /** One seller’s price list for a catalog product (same SKU, different supplier). */
 export interface ProductSellerOffer {
   sellerId: string;
@@ -53,10 +61,15 @@ export interface Product {
   subCategory: string;
   description: string;
   longDescription: string;
+  /** Legacy simple bullet list; used when `keyFeatures` is absent or empty */
   features: string[];
+  /** Rich key features (per-line icon, **bold**, newlines); takes precedence over `features` */
+  keyFeatures?: KeyFeatureLine[];
   image: string;
   images: string[];
   isNew: boolean;
+  /** Trust bar on PDP — optional; when true shows “ISI Certified” */
+  isIsiCertified?: boolean;
   isBestseller?: boolean;
   tags: string[];
   sizes: ProductSize[];
@@ -68,8 +81,19 @@ export interface Product {
   certifications?: string[];
   material?: string;
   moq?: number;
+  /** Minimum bags when ordering by master bag (optional; see storefront MOQ logic) */
+  moqBags?: number;
   /** Price-list wording for outer/inner pack (defaults by category; see `resolvePackingUnitLabels`) */
   packingUnitLabels?: Partial<PackingUnitLabels>;
+  /**
+   * Mongo catalog packaging choices — derive carton/box vs bag/packet labels for grids when
+   * `packingUnitLabels` is not set (see `resolvePackingUnitLabels`).
+   */
+  packaging?: {
+    bulkUnitChoices?: string[];
+    innerUnitChoices?: string[];
+    pricingUnit?: string;
+  };
   /** Eligible toward combo pool (Mongo-backed products) */
   isEligibleForCombo?: boolean;
 }
@@ -154,6 +178,7 @@ export const products: Product[] = [
     image: "/Cable_Clip.png",
     images: ["/Cable_Clip.png", "/Nail_Cable_Clip.png"],
     isNew: true,
+    isIsiCertified: true,
     isBestseller: true,
     tags: ["cable-clip", "nail-clip", "wire-management", "electrical"],
     certifications: ["ISI Certified"],
@@ -638,6 +663,14 @@ export const products: Product[] = [
     minOrder: "₹25,000 (Including GST)",
   },
 ];
+
+/** PDP “Key features” lines — prefers rich `keyFeatures`, else legacy `features` as checkmark bullets. */
+export function resolveKeyFeaturesForDisplay(product: Product): KeyFeatureLine[] {
+  if (product.keyFeatures && product.keyFeatures.length > 0) {
+    return product.keyFeatures;
+  }
+  return product.features.map((text) => ({ text, icon: "check" as KeyFeatureIcon }));
+}
 
 export function getProductBySlug(slug: string): Product | undefined {
   return products.find((p) => p.slug === slug);
