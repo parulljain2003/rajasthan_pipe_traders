@@ -254,7 +254,7 @@ export default function AdminProductsPage() {
 
   const loadCategories = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/categories?includeInactive=true");
+      const res = await fetch("/api/admin/categories?includeInactive=true", { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) return;
       setCategories(json.data as AdminCategory[]);
@@ -268,7 +268,7 @@ export default function AdminProductsPage() {
     setError(null);
     try {
       const q = new URLSearchParams({ limit: String(pageSize), skip: String(skip) });
-      const res = await fetch(`/api/admin/products?${q}`);
+      const res = await fetch(`/api/admin/products?${q}`, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
       setList(json.data as AdminProduct[]);
@@ -301,7 +301,7 @@ export default function AdminProductsPage() {
   async function openEdit(id: string) {
     setError(null);
     try {
-      const res = await fetch(`/api/admin/products/${id}`);
+      const res = await fetch(`/api/admin/products/${id}`, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
       const p = json.data as ProductFromApi;
@@ -486,6 +486,7 @@ export default function AdminProductsPage() {
 
         const res = await fetch(`/api/admin/products/${editingId}`, {
           method: "PATCH",
+          cache: "no-store",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
@@ -532,6 +533,7 @@ export default function AdminProductsPage() {
 
         const res = await fetch("/api/admin/products", {
           method: "POST",
+          cache: "no-store",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
@@ -551,7 +553,7 @@ export default function AdminProductsPage() {
     if (!confirm("Delete this product?")) return;
     setError(null);
     try {
-      const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE", cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
       await loadProducts(meta.skip);

@@ -112,6 +112,7 @@ const Header = () => {
       void (async () => {
         try {
           const res = await fetch(`/api/products?q=${encodeURIComponent(q)}&limit=8`, {
+            cache: "no-store",
             signal: ac.signal,
           });
           if (!res.ok) throw new Error("search failed");

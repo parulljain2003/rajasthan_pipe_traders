@@ -3,6 +3,10 @@ import mongoose from "mongoose";
 import { connectDb } from "@/lib/db/connect";
 import { CategoryModel } from "@/lib/db/models/Category";
 import { serializeCategoryLean } from "@/lib/db/serialize";
+import { serverFetchError } from "@/lib/http/apiError";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function err(message: string, status: number) {
   return NextResponse.json({ message }, { status });
@@ -20,8 +24,7 @@ export async function GET(req: NextRequest) {
     const data = rows.map((r) => serializeCategoryLean(r as Parameters<typeof serializeCategoryLean>[0])!);
     return NextResponse.json({ data });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Server error";
-    return err(message, 500);
+    return serverFetchError(e);
   }
 }
 
@@ -60,7 +63,6 @@ export async function POST(req: NextRequest) {
     if (e instanceof mongoose.mongo.MongoServerError && e.code === 11000) {
       return err("A category with this slug already exists", 409);
     }
-    const message = e instanceof Error ? e.message : "Server error";
-    return err(message, 500);
+    return serverFetchError(e);
   }
 }

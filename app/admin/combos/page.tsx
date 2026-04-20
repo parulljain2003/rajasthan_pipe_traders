@@ -22,10 +22,11 @@ type ProductOption = {
 };
 
 async function fetchCategoryOptions(): Promise<CategoryOption[]> {
-  const res = await fetch("/api/admin/categories?includeInactive=true");
+  const res = await fetch("/api/admin/categories?includeInactive=true", { cache: "no-store" });
   if (!res.ok) {
-    const j = await res.json().catch(() => ({}));
-    throw new Error(typeof j.message === "string" ? j.message : "Failed to load categories");
+    const j = (await res.json().catch(() => ({}))) as { message?: string; details?: string };
+    const msg = typeof j.details === "string" ? j.details : typeof j.message === "string" ? j.message : "Failed to load categories";
+    throw new Error(msg);
   }
   const json = (await res.json()) as { data?: { _id: string; name: string }[] };
   const rows = json.data ?? [];
@@ -38,10 +39,11 @@ async function fetchAllProductOptions(): Promise<ProductOption[]> {
   let skip = 0;
   let total = 0;
   do {
-    const res = await fetch(`/api/admin/products?limit=${limit}&skip=${skip}`);
+    const res = await fetch(`/api/admin/products?limit=${limit}&skip=${skip}`, { cache: "no-store" });
     if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      throw new Error(typeof j.message === "string" ? j.message : "Failed to load products");
+      const j = (await res.json().catch(() => ({}))) as { message?: string; details?: string };
+      const msg = typeof j.details === "string" ? j.details : typeof j.message === "string" ? j.message : "Failed to load products";
+      throw new Error(msg);
     }
     const json = (await res.json()) as {
       data?: Array<{

@@ -11,12 +11,14 @@ function idString(id: unknown): string {
 export function serializeCategoryLean(doc: LeanDoc | null): Record<string, unknown> | null {
   if (!doc) return null;
   const out: Record<string, unknown> = { ...doc, _id: idString(doc._id) };
-  const parent = doc.parent as LeanDoc | null | undefined;
-  if (parent && typeof parent === "object" && parent._id) {
+  const rawParent = doc.parent as LeanDoc | mongoose.Types.ObjectId | null | undefined;
+  if (rawParent instanceof mongoose.Types.ObjectId) {
+    out.parent = { _id: idString(rawParent), name: "", slug: "" };
+  } else if (rawParent && typeof rawParent === "object" && rawParent._id) {
     out.parent = {
-      _id: idString(parent._id),
-      name: parent.name,
-      slug: parent.slug,
+      _id: idString(rawParent._id),
+      name: typeof rawParent.name === "string" ? rawParent.name : "",
+      slug: typeof rawParent.slug === "string" ? rawParent.slug : "",
     };
   } else {
     out.parent = null;
@@ -28,13 +30,17 @@ export function serializeCategoryLean(doc: LeanDoc | null): Record<string, unkno
 export function serializeProductLean(doc: LeanDoc | null): Record<string, unknown> | null {
   if (!doc) return null;
   const out: Record<string, unknown> = { ...doc, _id: idString(doc._id) };
-  const cat = doc.category as LeanDoc | null | undefined;
-  if (cat && typeof cat === "object" && cat._id) {
+  const rawCat = doc.category as LeanDoc | mongoose.Types.ObjectId | null | undefined;
+  if (rawCat instanceof mongoose.Types.ObjectId) {
+    out.category = { _id: idString(rawCat), name: "", slug: "" };
+  } else if (rawCat && typeof rawCat === "object" && rawCat._id) {
     out.category = {
-      _id: idString(cat._id),
-      name: cat.name,
-      slug: cat.slug,
+      _id: idString(rawCat._id),
+      name: typeof rawCat.name === "string" ? rawCat.name : "",
+      slug: typeof rawCat.slug === "string" ? rawCat.slug : "",
     };
+  } else {
+    out.category = null;
   }
   return out;
 }

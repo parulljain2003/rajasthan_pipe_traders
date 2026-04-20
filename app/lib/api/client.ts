@@ -19,11 +19,13 @@ async function readJson<T>(res: Response): Promise<T> {
 export async function fetchCategoriesList(init?: RequestInit): Promise<ApiCategoriesResponse> {
   const res = await fetch("/api/categories", {
     ...init,
+    cache: "no-store",
     headers: { Accept: "application/json", ...init?.headers },
   });
   const body = await readJson<ApiCategoriesResponse & ApiErrorBody>(res);
   if (!res.ok) {
-    throw new Error(body.message ?? `Categories request failed (${res.status})`);
+    const msg = body.details ?? body.message ?? `Categories request failed (${res.status})`;
+    throw new Error(msg);
   }
   return body;
 }
@@ -39,11 +41,13 @@ export async function fetchProductsList(
   }
   const res = await fetch(`/api/products?${q.toString()}`, {
     ...init,
+    cache: "no-store",
     headers: { Accept: "application/json", ...init?.headers },
   });
   const body = await readJson<ApiProductsListResponse & ApiErrorBody>(res);
   if (!res.ok) {
-    throw new Error(body.message ?? `Products request failed (${res.status})`);
+    const msg = body.details ?? body.message ?? `Products request failed (${res.status})`;
+    throw new Error(msg);
   }
   return body;
 }

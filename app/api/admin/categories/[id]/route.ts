@@ -4,6 +4,10 @@ import { connectDb } from "@/lib/db/connect";
 import { CategoryModel } from "@/lib/db/models/Category";
 import { ProductModel } from "@/lib/db/models/Product";
 import { serializeCategoryLean } from "@/lib/db/serialize";
+import { serverFetchError } from "@/lib/http/apiError";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function err(message: string, status: number) {
   return NextResponse.json({ message }, { status });
@@ -24,8 +28,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       data: serializeCategoryLean(row as Parameters<typeof serializeCategoryLean>[0]),
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Server error";
-    return err(message, 500);
+    return serverFetchError(e);
   }
 }
 
@@ -80,8 +83,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (e instanceof mongoose.mongo.MongoServerError && e.code === 11000) {
       return err("A category with this slug already exists", 409);
     }
-    const message = e instanceof Error ? e.message : "Server error";
-    return err(message, 500);
+    return serverFetchError(e);
   }
 }
 
@@ -105,7 +107,6 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     if (!deleted) return err("Category not found", 404);
     return NextResponse.json({ data: { _id: id, deleted: true } });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Server error";
-    return err(message, 500);
+    return serverFetchError(e);
   }
 }

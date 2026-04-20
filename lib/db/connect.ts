@@ -1,4 +1,10 @@
 import mongoose from "mongoose";
+import { ProductModel } from "@/lib/db/models/Product";
+import { CategoryModel } from "@/lib/db/models/Category";
+import { CouponModel } from "@/lib/db/models/Coupon";
+import { ComboRuleModel } from "@/lib/db/models/ComboRule";
+import { BannerSettingsModel } from "@/lib/db/models/BannerSettings";
+import { AppSettingsModel } from "@/lib/db/models/AppSettings";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -49,6 +55,14 @@ export async function connectDb(): Promise<typeof mongoose> {
 
   try {
     cached.conn = await cached.promise;
+    await Promise.all([
+      ProductModel.syncIndexes(),
+      CategoryModel.syncIndexes(),
+      CouponModel.syncIndexes(),
+      ComboRuleModel.syncIndexes(),
+      BannerSettingsModel.syncIndexes(),
+      AppSettingsModel.syncIndexes(),
+    ]);
     return cached.conn;
   } catch (e) {
     cached.conn = null;

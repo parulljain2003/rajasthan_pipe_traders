@@ -5,6 +5,11 @@ import { ProductModel } from "@/lib/db/models/Product";
 import { CategoryModel } from "@/lib/db/models/Category";
 import { serializeProductLean } from "@/lib/db/serialize";
 import { sanitizeKeyFeaturesInput } from "@/app/lib/sanitizeKeyFeatures";
+import { serverFetchError } from "@/lib/http/apiError";
+import { ensureUniqueProductSlug } from "@/lib/product/ensureUniqueProductSlug";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function err(message: string, status: number) {
   return NextResponse.json({ message }, { status });
@@ -25,8 +30,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       data: serializeProductLean(row as Parameters<typeof serializeProductLean>[0]),
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Server error";
-    return err(message, 500);
+    return serverFetchError(e);
   }
 }
 
@@ -166,6 +170,15 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
         }
       }
     }
+    if (typeof $set.slug === "string") {
+      const resolved = await ensureUniqueProductSlug($set.slug, { excludeProductId: id });
+      if (resolved === undefined) {
+        delete $set.slug;
+        $unset.slug = 1;
+      } else {
+        $set.slug = resolved;
+      }
+    }
     const mongoUpdate: { $set?: Record<string, unknown>; $unset?: Record<string, 1> } = {};
     if (Object.keys($set).length) mongoUpdate.$set = $set;
     if (Object.keys($unset).length) mongoUpdate.$unset = $unset;
@@ -185,8 +198,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (e instanceof mongoose.mongo.MongoServerError && e.code === 11000) {
       return err("Duplicate key (e.g. SKU or slug already exists)", 409);
     }
-    const message = e instanceof Error ? e.message : "Server error";
-    return err(message, 500);
+    return serverFetchError(e);
   }
 }
 
@@ -201,7 +213,6 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     if (!deleted) return err("Product not found", 404);
     return NextResponse.json({ data: { _id: id, deleted: true } });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Server error";
-    return err(message, 500);
+    return serverFetchError(e);
   }
 }

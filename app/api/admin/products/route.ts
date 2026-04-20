@@ -5,6 +5,11 @@ import { ProductModel } from "@/lib/db/models/Product";
 import { CategoryModel } from "@/lib/db/models/Category";
 import { serializeProductLean } from "@/lib/db/serialize";
 import { sanitizeKeyFeaturesInput } from "@/app/lib/sanitizeKeyFeatures";
+import { serverFetchError } from "@/lib/http/apiError";
+import { ensureUniqueProductSlug } from "@/lib/product/ensureUniqueProductSlug";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function err(message: string, status: number) {
   return NextResponse.json({ message }, { status });
@@ -45,8 +50,7 @@ export async function GET(req: NextRequest) {
       meta: { total, limit, skip },
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Server error";
-    return err(message, 500);
+    return serverFetchError(e);
   }
 }
 
@@ -72,10 +76,11 @@ export async function POST(req: NextRequest) {
       return err("pricing.basicPrice and pricing.priceWithGst (numbers) are required", 400);
     }
     const productKind = body.productKind === "catalog" ? "catalog" : "sku";
-    const slug =
+    const slugInput =
       typeof body.slug === "string" && body.slug.trim()
         ? body.slug.trim().toLowerCase()
         : undefined;
+    const slug = await ensureUniqueProductSlug(slugInput);
     const kf = sanitizeKeyFeaturesInput(body.keyFeatures);
     const doc = await ProductModel.create({
       ...(sku ? { sku } : {}),
@@ -133,7 +138,6 @@ export async function POST(req: NextRequest) {
     if (e instanceof mongoose.mongo.MongoServerError && e.code === 11000) {
       return err("Duplicate key (e.g. SKU or slug already exists)", 409);
     }
-    const message = e instanceof Error ? e.message : "Server error";
-    return err(message, 500);
+    return serverFetchError(e);
   }
 }

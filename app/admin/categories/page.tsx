@@ -28,7 +28,7 @@ export default function AdminCategoriesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/categories?includeInactive=true");
+      const res = await fetch("/api/admin/categories?includeInactive=true", { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
       setList(json.data as AdminCategory[]);
@@ -85,6 +85,7 @@ export default function AdminCategoriesPage() {
       const url = editingId ? `/api/admin/categories/${editingId}` : "/api/admin/categories";
       const res = await fetch(url, {
         method: editingId ? "PATCH" : "POST",
+        cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
@@ -112,7 +113,7 @@ export default function AdminCategoriesPage() {
     if (!confirm("Delete this category? Products or subcategories may block deletion.")) return;
     setError(null);
     try {
-      const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE", cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
       await load();

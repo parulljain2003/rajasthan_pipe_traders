@@ -17,4 +17,9 @@ const categorySchema = new Schema(
 
 categorySchema.index({ parent: 1, sortOrder: 1 });
 
+/**
+ * `slug` is unique via the field definition (single `slug_1` index). If Atlas still shows an extra
+ * duplicate index on `slug` from an older schema, drop the stale index in the shell/UI — duplicate
+ * unique indexes cause confusing E11000 errors after deletes or re-imports.
+ */
 export const CategoryModel = models.Category ?? model("Category", categorySchema);
