@@ -8,12 +8,20 @@ export function productHeading(name: string, size: string): string {
   return `${name} ${formatSizeForHeading(size)}`.trim();
 }
 
-export type ListingBrandPill = "HiTech" | "Tejas" | "N-Star";
+/** Which color variant to use for the brand pill (keyword-based). */
+export type BrandPillVariant = "hitech" | "tejas" | "nstar" | "default";
 
-/** Card / hero pill — matches sidebar filters (HiTech, Tejas Craft). N-Star for sanitary range. */
-export function listingBrandPill(brand: string): ListingBrandPill {
-  if (brand === "Tejas Craft") return "Tejas";
-  if (brand === "N-Star") return "N-Star";
-  if (brand === "Hitech Square") return "HiTech";
-  return "HiTech";
+export function resolveBrandPillVariant(brand: string | undefined): BrandPillVariant {
+  if (!brand?.trim()) return "default";
+  const n = brand.trim().toLowerCase();
+  if (n.includes("tejas")) return "tejas";
+  if (n.includes("n-star") || n === "nstar") return "nstar";
+  if (n.includes("hitech") || n.includes("hi-tech")) return "hitech";
+  return "default";
+}
+
+/** Trimmed text for the pill, or "" when the tag should be hidden. */
+export function brandPillLabel(brand: string | undefined): string {
+  if (!brand?.trim()) return "";
+  return brand.trim();
 }

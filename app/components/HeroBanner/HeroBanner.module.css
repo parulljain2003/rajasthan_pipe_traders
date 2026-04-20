@@ -838,6 +838,12 @@
   border: 1px solid rgba(45, 212, 191, 0.45);
 }
 
+.slideListingBrandDefault {
+  color: #c4b5fd;
+  background: rgba(124, 58, 237, 0.28);
+  border: 1px solid rgba(167, 139, 250, 0.4);
+}
+
 .slideName {
   font-size: 0.95rem;
   font-weight: 800;

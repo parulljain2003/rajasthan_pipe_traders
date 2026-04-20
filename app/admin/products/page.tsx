@@ -205,6 +205,13 @@ function buildSizesAndSellers(
   };
 }
 
+/** Aligns with API `parseSortOrderInput`; keeps `0` valid (do not use `|| 0` on the number). */
+function sortOrderFromForm(sortOrder: number): number {
+  const n = Number(sortOrder);
+  if (!Number.isFinite(n)) return 0;
+  return Math.trunc(n);
+}
+
 const emptyForm = {
   sku: "",
   name: "",
@@ -228,6 +235,7 @@ const emptyForm = {
   packetsPerBag: "",
   imagesJson: "[]",
   keyFeatureRows: [] as Array<{ text: string; icon: KeyFeatureIcon }>,
+  sortOrder: 0,
 };
 
 export default function AdminProductsPage() {
@@ -240,6 +248,11 @@ export default function AdminProductsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [sortConflict, setSortConflict] = useState<{
+    _id: string;
+    name: string;
+    sortOrder: number;
+  } | null>(null);
 
   /** Both packing fields set → storefront uses packing only; separate MOQ fields hidden and cleared on save */
   const packingReplacesMoq = useMemo(() => {
@@ -254,7 +267,7 @@ export default function AdminProductsPage() {
 
   const loadCategories = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/categories?includeInactive=true");
+      const res = await fetch("/api/admin/categories?includeInactive=true", { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) return;
       setCategories(json.data as AdminCategory[]);
@@ -268,7 +281,7 @@ export default function AdminProductsPage() {
     setError(null);
     try {
       const q = new URLSearchParams({ limit: String(pageSize), skip: String(skip) });
-      const res = await fetch(`/api/admin/products?${q}`);
+      const res = await fetch(`/api/admin/products?${q}`, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
       setList(json.data as AdminProduct[]);
@@ -295,13 +308,14 @@ export default function AdminProductsPage() {
   function openCreate() {
     setEditingId(null);
     setForm(emptyForm);
+    setSortConflict(null);
     setModalOpen(true);
   }
 
   async function openEdit(id: string) {
     setError(null);
     try {
-      const res = await fetch(`/api/admin/products/${id}`);
+      const res = await fetch(`/api/admin/products/${id}`, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
       const p = json.data as ProductFromApi;
@@ -365,17 +379,19 @@ export default function AdminProductsPage() {
         packetsPerBag: packetsPerBagResolved > 0 ? String(packetsPerBagResolved) : "",
         imagesJson: mergedGallery.length ? JSON.stringify(mergedGallery, null, 2) : "[]",
         keyFeatureRows: loadKeyFeatureRowsFromProduct(p),
+        sortOrder: typeof p.sortOrder === "number" ? p.sortOrder : 0,
       });
+      setSortConflict(null);
       setModalOpen(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load product");
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function saveProduct(swapSortOrderWith?: string) {
     setSaving(true);
     setError(null);
+    if (!swapSortOrderWith) setSortConflict(null);
     try {
       const f = { ...emptyForm, ...form };
       const basicPrice = Number(f.basicPrice);
@@ -456,6 +472,7 @@ export default function AdminProductsPage() {
           productKind: f.productKind,
           slug: String(f.slug ?? "").trim().toLowerCase() || undefined,
           category: f.categoryId,
+          sortOrder: sortOrderFromForm(f.sortOrder),
           description: String(f.description ?? "").trim() || undefined,
           brand: String(f.brand ?? "").trim(),
           image: primaryImage,
@@ -477,6 +494,9 @@ export default function AdminProductsPage() {
             ? { keyFeatures: keyRows, features: [] }
             : { keyFeatures: null, features: [] }),
         };
+        if (swapSortOrderWith) {
+          body.swapSortOrderWith = swapSortOrderWith;
+        }
         if (f.productKind === "catalog" && catalog.sizes) {
           body.sizes = catalog.sizes;
         } else {
@@ -486,11 +506,25 @@ export default function AdminProductsPage() {
 
         const res = await fetch(`/api/admin/products/${editingId}`, {
           method: "PATCH",
+          cache: "no-store",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message || res.statusText);
+        const json = (await res.json()) as {
+          message?: string;
+          code?: string;
+          conflict?: { _id: string; name: string; sortOrder: number };
+        };
+        if (!res.ok) {
+          if (res.status === 409 && json.code === "SORT_ORDER_CONFLICT" && json.conflict) {
+            setSortConflict(json.conflict);
+            setError(
+              `Sort order ${json.conflict.sortOrder} is already used by “${json.conflict.name}” in this category.`,
+            );
+            return;
+          }
+          throw new Error(json.message || res.statusText);
+        }
       } else {
         if (!f.categoryId) throw new Error("Category is required");
         const body: Record<string, unknown> = {
@@ -498,6 +532,7 @@ export default function AdminProductsPage() {
           productKind: f.productKind,
           slug: String(f.slug ?? "").trim().toLowerCase() || undefined,
           category: f.categoryId,
+          sortOrder: sortOrderFromForm(f.sortOrder),
           description: String(f.description ?? "").trim() || undefined,
           brand: String(f.brand ?? "").trim() || undefined,
           image: primaryImage,
@@ -529,15 +564,33 @@ export default function AdminProductsPage() {
         body.sellers = [];
         const skuTrim = String(f.sku ?? "").trim().toUpperCase();
         if (skuTrim) body.sku = skuTrim;
+        if (swapSortOrderWith) {
+          body.swapSortOrderWith = swapSortOrderWith;
+        }
 
         const res = await fetch("/api/admin/products", {
           method: "POST",
+          cache: "no-store",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message || res.statusText);
+        const json = (await res.json()) as {
+          message?: string;
+          code?: string;
+          conflict?: { _id: string; name: string; sortOrder: number };
+        };
+        if (!res.ok) {
+          if (res.status === 409 && json.code === "SORT_ORDER_CONFLICT" && json.conflict) {
+            setSortConflict(json.conflict);
+            setError(
+              `Sort order ${json.conflict.sortOrder} is already used by “${json.conflict.name}” in this category.`,
+            );
+            return;
+          }
+          throw new Error(json.message || res.statusText);
+        }
       }
+      setSortConflict(null);
       setModalOpen(false);
       await loadProducts(meta.skip);
     } catch (err) {
@@ -547,11 +600,21 @@ export default function AdminProductsPage() {
     }
   }
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void saveProduct();
+  }
+
+  async function handleSwapSortOrder() {
+    if (!sortConflict) return;
+    await saveProduct(sortConflict._id);
+  }
+
   async function handleDelete(id: string) {
     if (!confirm("Delete this product?")) return;
     setError(null);
     try {
-      const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE", cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
       await loadProducts(meta.skip);
@@ -600,6 +663,7 @@ export default function AdminProductsPage() {
                   <th>SKU</th>
                   <th>Name</th>
                   <th>Category</th>
+                  <th>Order</th>
                   <th>Kind</th>
                   <th>Price (GST)</th>
                   <th>Active</th>
@@ -617,6 +681,7 @@ export default function AdminProductsPage() {
                     </td>
                     <td>{p.name}</td>
                     <td>{p.category?.name ?? "—"}</td>
+                    <td>{p.sortOrder ?? 0}</td>
                     <td>{p.productKind}</td>
                     <td>₹{p.pricing?.priceWithGst ?? "—"}</td>
                     <td>{p.isActive ? "Yes" : "No"}</td>
@@ -677,7 +742,7 @@ export default function AdminProductsPage() {
         >
           <div className="admin-modal wide" role="dialog" aria-labelledby="prod-modal-title">
             <h2 id="prod-modal-title">{editingId ? "Edit product" : "New product"}</h2>
-            <form className="admin-modal-form" onSubmit={(e) => void handleSubmit(e)}>
+            <form className="admin-modal-form" onSubmit={handleSubmit}>
               <div className="admin-form-section">
                 <h3 className="admin-form-section-title">Product details</h3>
                 <div className="admin-field-row">
@@ -735,7 +800,10 @@ export default function AdminProductsPage() {
                     id="p-cat"
                     className="admin-input admin-select"
                     value={form.categoryId}
-                    onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}
+                    onChange={(e) => {
+                      setSortConflict(null);
+                      setForm((f) => ({ ...f, categoryId: e.target.value }));
+                    }}
                     required={!editingId}
                   >
                     <option value="">Select category…</option>
@@ -746,6 +814,47 @@ export default function AdminProductsPage() {
                     ))}
                   </select>
                 </div>
+                <div className="admin-field">
+                  <label htmlFor="p-sort">Sort order</label>
+                  <input
+                    id="p-sort"
+                    type="number"
+                    className="admin-input"
+                    inputMode="numeric"
+                    min={0}
+                    step={1}
+                    value={form.sortOrder}
+                    onChange={(e) => {
+                      setSortConflict(null);
+                      const v = e.target.value;
+                      setForm((f) => ({
+                        ...f,
+                        sortOrder: v === "" ? 0 : Number(v),
+                      }));
+                    }}
+                  />
+                  <p className="muted" style={{ marginTop: 6 }}>
+                    Lower numbers appear first within the same category. If this order is taken, save
+                    will offer a swap.
+                  </p>
+                </div>
+                {sortConflict ? (
+                  <div className="admin-banner" role="status" style={{ marginBottom: 12 }}>
+                    <p style={{ margin: "0 0 8px" }}>
+                      {editingId
+                        ? `Swap: this product will take sort order ${sortConflict.sortOrder}, and “${sortConflict.name}” will take your current order.`
+                        : `“${sortConflict.name}” uses this order. Move it to the end of the list and use ${sortConflict.sortOrder} for this product.`}
+                    </p>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-primary"
+                      disabled={saving}
+                      onClick={() => void handleSwapSortOrder()}
+                    >
+                      {editingId ? "Swap sort order" : "Apply and move other product"}
+                    </button>
+                  </div>
+                ) : null}
                 <div className="admin-field">
                   <label htmlFor="p-brand">Brand</label>
                   <input

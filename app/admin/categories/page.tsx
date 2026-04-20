@@ -23,12 +23,17 @@ export default function AdminCategoriesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [sortConflict, setSortConflict] = useState<{
+    _id: string;
+    name: string;
+    sortOrder: number;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/categories?includeInactive=true");
+      const res = await fetch("/api/admin/categories?includeInactive=true", { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
       setList(json.data as AdminCategory[]);
@@ -47,11 +52,13 @@ export default function AdminCategoriesPage() {
   function openCreate() {
     setEditingId(null);
     setForm(emptyForm);
+    setSortConflict(null);
     setModalOpen(true);
   }
 
   function openEdit(c: AdminCategory) {
     setEditingId(c._id);
+    setSortConflict(null);
     setForm({
       name: c.name,
       slug: c.slug,
@@ -65,10 +72,10 @@ export default function AdminCategoriesPage() {
     setModalOpen(true);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function saveCategory(swapSortOrderWith?: string) {
     setSaving(true);
     setError(null);
+    if (!swapSortOrderWith) setSortConflict(null);
     try {
       const parentId = form.parentId.trim() ? form.parentId.trim() : null;
 
@@ -82,15 +89,30 @@ export default function AdminCategoriesPage() {
         isActive: form.isActive,
         parent: parentId,
       };
+      if (swapSortOrderWith) {
+        body.swapSortOrderWith = swapSortOrderWith;
+      }
       const url = editingId ? `/api/admin/categories/${editingId}` : "/api/admin/categories";
       const res = await fetch(url, {
         method: editingId ? "PATCH" : "POST",
+        cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const json = (await res.json()) as { message?: string };
+      const json = (await res.json()) as {
+        message?: string;
+        code?: string;
+        conflict?: { _id: string; name: string; sortOrder: number };
+      };
       if (!res.ok) {
         const base = json.message || res.statusText;
+        if (res.status === 409 && json.code === "SORT_ORDER_CONFLICT" && json.conflict) {
+          setSortConflict(json.conflict);
+          setError(
+            `Sort order ${json.conflict.sortOrder} is already used by “${json.conflict.name}” in this group.`
+          );
+          return;
+        }
         if (res.status === 409 && String(base).toLowerCase().includes("slug")) {
           const s = form.slug.trim().toLowerCase();
           throw new Error(
@@ -99,6 +121,7 @@ export default function AdminCategoriesPage() {
         }
         throw new Error(base);
       }
+      setSortConflict(null);
       setModalOpen(false);
       await load();
     } catch (err) {
@@ -108,11 +131,21 @@ export default function AdminCategoriesPage() {
     }
   }
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void saveCategory();
+  }
+
+  async function handleSwapSortOrder() {
+    if (!sortConflict) return;
+    await saveCategory(sortConflict._id);
+  }
+
   async function handleDelete(id: string) {
     if (!confirm("Delete this category? Products or subcategories may block deletion.")) return;
     setError(null);
     try {
-      const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE", cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
       await load();
@@ -153,6 +186,7 @@ export default function AdminCategoriesPage() {
                 <th>Image</th>
                 <th>Name</th>
                 <th>Slug</th>
+                <th>Order</th>
                 <th>Active</th>
                 <th />
               </tr>
@@ -171,6 +205,7 @@ export default function AdminCategoriesPage() {
                   <td>
                     <span className="muted">{c.slug}</span>
                   </td>
+                  <td>{c.sortOrder ?? 0}</td>
                   <td>{c.isActive ? "Yes" : "No"}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
                     <button
@@ -207,7 +242,7 @@ export default function AdminCategoriesPage() {
         >
           <div className="admin-modal" role="dialog" aria-labelledby="cat-modal-title">
             <h2 id="cat-modal-title">{editingId ? "Edit category" : "New category"}</h2>
-            <form onSubmit={(e) => void handleSubmit(e)}>
+            <form onSubmit={handleSubmit}>
               <div className="admin-field">
                 <label htmlFor="cat-name">Name</label>
                 <input
@@ -242,6 +277,45 @@ export default function AdminCategoriesPage() {
                 onUrlChange={(url) => setForm((f) => ({ ...f, image: url }))}
                 helpText="Uploads to Cloudinary (folder rpt/category/…). Set CLOUDINARY_URL in .env.local."
               />
+              <div className="admin-field">
+                <label htmlFor="cat-sort">Sort order</label>
+                <input
+                  id="cat-sort"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  step={1}
+                  value={form.sortOrder}
+                  onChange={(e) => {
+                    setSortConflict(null);
+                    const v = e.target.value;
+                    setForm((f) => ({
+                      ...f,
+                      sortOrder: v === "" ? 0 : Number(v),
+                    }));
+                  }}
+                />
+                <p className="muted" style={{ marginTop: 6 }}>
+                  Lower numbers appear first within the same parent group. If this order is already taken, you can swap after save.
+                </p>
+              </div>
+              {sortConflict ? (
+                <div className="admin-banner" role="status" style={{ marginBottom: 12 }}>
+                  <p style={{ margin: "0 0 8px" }}>
+                    {editingId
+                      ? `Swap: this category will take sort order ${sortConflict.sortOrder}, and “${sortConflict.name}” will take your current order.`
+                      : `“${sortConflict.name}” uses this order. Move it to the end of the list and use ${sortConflict.sortOrder} for this category.`}
+                  </p>
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-primary"
+                    disabled={saving}
+                    onClick={() => void handleSwapSortOrder()}
+                  >
+                    {editingId ? "Swap sort order" : "Apply and move other category"}
+                  </button>
+                </div>
+              ) : null}
               <div className="admin-field">
                 <label htmlFor="cat-source">Source section label (optional)</label>
                 <input

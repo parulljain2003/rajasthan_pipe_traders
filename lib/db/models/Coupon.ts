@@ -59,6 +59,6 @@ const couponSchema = new Schema(
   { timestamps: true }
 );
 
-couponSchema.index({ isActive: 1, code: 1 });
+/** `code` is already unique on the field; no compound index needed for lookups. */
 
 export const CouponModel = models.Coupon ?? model("Coupon", couponSchema);

@@ -81,7 +81,8 @@ function mapApiKeyFeatures(raw: unknown): KeyFeatureLine[] | undefined {
 function mapSellerOffer(
   s: ApiProductSellerOffer,
   pricing: ApiPricing,
-  packaging: PackagingFields | undefined
+  packaging: PackagingFields | undefined,
+  productBrand?: string
 ): ProductSellerOffer {
   let sizes = (s.sizes ?? []).map((sz) => mapApiSize(enrichSizeFromPackaging(sz, packaging)));
   if (sizes.length === 0) {
@@ -95,10 +96,12 @@ function mapSellerOffer(
       },
     ];
   }
+  const offerBrand =
+    typeof s.brand === "string" && s.brand.trim() ? s.brand.trim() : (productBrand?.trim() ?? "");
   return {
     sellerId: s.sellerId,
     sellerName: s.sellerName,
-    brand: s.brand,
+    brand: offerBrand,
     sizes,
     discountTiers: s.discountTiers ?? [],
     minOrder: s.minOrder ?? "",
@@ -124,7 +127,7 @@ export function apiProductToProduct(p: ApiProduct): Product {
   let sellers: ProductSellerOffer[] | undefined;
 
   if (p.sellers && p.sellers.length > 0) {
-    sellers = p.sellers.map((s) => mapSellerOffer(s, p.pricing, packaging));
+    sellers = p.sellers.map((s) => mapSellerOffer(s, p.pricing, packaging, p.brand));
   } else if (p.sizes && p.sizes.length > 0) {
     sizes = p.sizes.map((s) => mapApiSize(enrichSizeFromPackaging(s, packaging)));
   } else {
@@ -152,14 +155,18 @@ export function apiProductToProduct(p: ApiProduct): Product {
         ? p.sku.toLowerCase()
         : `p-${p._id.toLowerCase()}`);
 
+  const brandTrim =
+    typeof p.brand === "string" && p.brand.trim() ? p.brand.trim() : "";
+
   return {
     id: p.legacyId ?? stableNumericId(p._id),
     mongoProductId: p._id,
     categoryMongoId: p.category?._id,
     slug,
     name: p.name,
-    brand: p.brand ?? "Hitech Square",
+    brand: brandTrim,
     category: categoryName,
+    ...(typeof p.sortOrder === "number" ? { sortOrder: p.sortOrder } : {}),
     subCategory: p.subCategory ?? "",
     description: p.description ?? "",
     /** PDP “About this product” — admin often fills only `description`; use it when `longDescription` is unset */

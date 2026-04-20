@@ -5,6 +5,10 @@ import { getProductBySlug, getRelatedProducts, products } from "../../data/produ
 import { apiProductToProduct } from "../../lib/api/mapApiProduct";
 import type { ApiProduct } from "../../lib/api/types";
 import { getStorefrontProductBySlug, getStorefrontRelatedProducts } from "@/lib/catalog/storefront";
+import { sortProductsForDisplayOrder } from "@/app/lib/sortApiProductsDisplay";
+
+const RELATED_FETCH_LIMIT = 80;
+const RELATED_SHOW_COUNT = 4;
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -67,11 +71,12 @@ export default async function ProductPage({ params }: PageProps) {
   const product = apiProductToProduct(doc as unknown as ApiProduct);
   const cat = doc.category as { _id?: string } | undefined;
   const categoryMongoId = typeof cat?._id === "string" ? cat._id : undefined;
-  const relatedProducts = await getStorefrontRelatedProducts(
+  const relatedCandidates = await getStorefrontRelatedProducts(
     categoryMongoId,
     String(doc._id),
-    4
+    RELATED_FETCH_LIMIT
   );
+  const relatedProducts = sortProductsForDisplayOrder(relatedCandidates).slice(0, RELATED_SHOW_COUNT);
 
   return <ProductDetail product={product} relatedProducts={relatedProducts} />;
 }

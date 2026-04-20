@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { getStorefrontCategories } from "@/lib/catalog/storefront";
+import { serverFetchError } from "@/lib/http/apiError";
 
-function err(message: string, status: number) {
-  return NextResponse.json({ message }, { status });
-}
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 /** Public catalog: active categories only (storefront). */
 export async function GET() {
@@ -11,7 +11,6 @@ export async function GET() {
     const data = await getStorefrontCategories();
     return NextResponse.json({ data });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Server error";
-    return err(message, 500);
+    return serverFetchError(e);
   }
 }

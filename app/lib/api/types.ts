@@ -82,7 +82,8 @@ export interface ApiProduct {
   description?: string;
   longDescription?: string;
   subCategory?: string;
-  category: ApiCategoryRef;
+  /** Populated category; null if the category document was removed but the product still references its id */
+  category: ApiCategoryRef | null;
   brand?: string;
   brandCode?: string;
   productLine?: string;
@@ -120,6 +121,8 @@ export interface ApiProduct {
   sizes?: ApiProductSize[];
   sellers?: ApiProductSellerOffer[];
   pricing: ApiPricing;
+  /** Display order within category (1+); 0 or omitted = unset for storefront sort */
+  sortOrder?: number;
   /** Counts toward eligible packet pool for 20/25MM combo pricing */
   isEligibleForCombo?: boolean;
   isActive?: boolean;
@@ -138,4 +141,6 @@ export interface ApiProductsListResponse {
 
 export interface ApiErrorBody {
   message?: string;
+  error?: string;
+  details?: string;
 }

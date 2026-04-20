@@ -122,13 +122,21 @@ const productSchema = new Schema(
       required: false,
       trim: true,
       uppercase: true,
+      unique: true,
+      sparse: true,
     },
     productKind: {
       type: String,
       enum: ["sku", "catalog"],
       default: "sku",
     },
-    slug: { type: String, trim: true, lowercase: true },
+    slug: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      unique: true,
+      sparse: true,
+    },
     legacyId: { type: Number, sparse: true },
     alternateSkus: [{ type: String, trim: true }],
     name: { type: String, required: true, trim: true },
@@ -140,6 +148,8 @@ const productSchema = new Schema(
       ref: "Category",
       required: true,
     },
+    /** Display order within the same category (admin; lower first). */
+    sortOrder: { type: Number, default: 0 },
     brand: { type: String, trim: true },
     brandCode: { type: String, trim: true },
     productLine: { type: String, trim: true },
@@ -180,15 +190,16 @@ const productSchema = new Schema(
   { timestamps: true, suppressReservedKeysWarning: true }
 );
 
+productSchema.index({ category: 1, sortOrder: 1 });
 productSchema.index({ isEligibleForCombo: 1 });
-
-/** Non-empty SKUs must be unique; omitted / null allows multiple products without a SKU. */
-productSchema.index({ sku: 1 }, { unique: true, sparse: true });
-productSchema.index({ category: 1, sku: 1 });
 productSchema.index({ brand: 1 });
-productSchema.index({ slug: 1 }, { unique: true, sparse: true });
-productSchema.index({ productKind: 1, slug: 1 });
+/** Full-text search for storefront/admin queries */
 productSchema.index({ name: "text", sku: "text", description: "text" });
+
+/**
+ * `sku` and `slug` use field-level `unique` + `sparse` so omitted/null values do not collide.
+ * Do not add duplicate `schema.index({ sku: 1 })` / `{ slug: 1 }` — that would create a second index.
+ */
 
 // Next.js hot reload keeps `mongoose.models.Product` with the first-loaded schema;
 // delete so optional `sku` and index changes apply after edits (avoids "sku is required" from stale cache).

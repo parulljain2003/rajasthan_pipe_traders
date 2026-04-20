@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDb } from "@/lib/db/connect";
+import {
+  findProductSortOrderConflict,
+  maxSortOrderInCategory,
+  parseSortOrderInput,
+  productSortOrderConflictPayload,
+} from "@/lib/db/productSortOrder";
 import { ProductModel } from "@/lib/db/models/Product";
 import { CategoryModel } from "@/lib/db/models/Category";
 import { serializeProductLean } from "@/lib/db/serialize";
 import { sanitizeKeyFeaturesInput } from "@/app/lib/sanitizeKeyFeatures";
+import { serverFetchError } from "@/lib/http/apiError";
+import { ensureUniqueProductSlug } from "@/lib/product/ensureUniqueProductSlug";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function err(message: string, status: number) {
   return NextResponse.json({ message }, { status });
@@ -33,7 +44,7 @@ export async function GET(req: NextRequest) {
     const [rows, total] = await Promise.all([
       ProductModel.find(filter)
         .populate("category", "name slug")
-        .sort({ sku: 1 })
+        .sort({ sortOrder: 1, name: 1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -45,8 +56,7 @@ export async function GET(req: NextRequest) {
       meta: { total, limit, skip },
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Server error";
-    return err(message, 500);
+    return serverFetchError(e);
   }
 }
 
@@ -63,6 +73,125 @@ export async function POST(req: NextRequest) {
     }
     const cat = await CategoryModel.findById(categoryId).lean();
     if (!cat) return err("Category not found", 400);
+    const categoryOid = new mongoose.Types.ObjectId(categoryId);
+    const sortOrder = parseSortOrderInput(body.sortOrder);
+    const swapWithRaw =
+      typeof body.swapSortOrderWith === "string" ? body.swapSortOrderWith.trim() : "";
+
+    const conflict =
+      sortOrder > 0 ? await findProductSortOrderConflict(categoryOid, sortOrder, null) : null;
+    if (conflict) {
+      if (
+        swapWithRaw &&
+        mongoose.Types.ObjectId.isValid(swapWithRaw) &&
+        swapWithRaw === String(conflict._id)
+      ) {
+        const session = await mongoose.startSession();
+        let doc;
+        try {
+          await session.withTransaction(async () => {
+            const maxSo = await maxSortOrderInCategory(categoryOid);
+            await ProductModel.updateOne(
+              { _id: conflict._id },
+              { $set: { sortOrder: maxSo + 1 } },
+              { session }
+            );
+            const pricing = body.pricing as Record<string, unknown> | undefined;
+            if (
+              !pricing ||
+              typeof pricing.basicPrice !== "number" ||
+              typeof pricing.priceWithGst !== "number"
+            ) {
+              throw new Error("pricing.basicPrice and pricing.priceWithGst (numbers) are required");
+            }
+            const productKind = body.productKind === "catalog" ? "catalog" : "sku";
+            const slugInput =
+              typeof body.slug === "string" && body.slug.trim()
+                ? body.slug.trim().toLowerCase()
+                : undefined;
+            const slug = await ensureUniqueProductSlug(slugInput);
+            const kf = sanitizeKeyFeaturesInput(body.keyFeatures);
+            const [created] = await ProductModel.create(
+              [
+                {
+                  ...(sku ? { sku } : {}),
+                  name,
+                  productKind,
+                  slug,
+                  category: categoryOid,
+                  sortOrder,
+                  description: typeof body.description === "string" ? body.description : undefined,
+                  longDescription:
+                    typeof body.longDescription === "string" ? body.longDescription : undefined,
+                  subCategory: typeof body.subCategory === "string" ? body.subCategory : undefined,
+                  brand: typeof body.brand === "string" ? body.brand : undefined,
+                  brandCode: typeof body.brandCode === "string" ? body.brandCode : undefined,
+                  productLine: typeof body.productLine === "string" ? body.productLine : undefined,
+                  sizeOrModel: typeof body.sizeOrModel === "string" ? body.sizeOrModel : undefined,
+                  features:
+                    kf && kf.length > 0 ? [] : Array.isArray(body.features) ? body.features : undefined,
+                  ...(kf && kf.length > 0 ? { keyFeatures: kf } : {}),
+                  image: typeof body.image === "string" ? body.image : undefined,
+                  images: Array.isArray(body.images) ? body.images : undefined,
+                  isNew: typeof body.isNew === "boolean" ? body.isNew : false,
+                  isIsiCertified:
+                    typeof body.isIsiCertified === "boolean" ? body.isIsiCertified : false,
+                  isBestseller: typeof body.isBestseller === "boolean" ? body.isBestseller : undefined,
+                  tags: Array.isArray(body.tags) ? body.tags : undefined,
+                  certifications: Array.isArray(body.certifications) ? body.certifications : undefined,
+                  material: typeof body.material === "string" ? body.material : undefined,
+                  minOrder: typeof body.minOrder === "string" ? body.minOrder : undefined,
+                  moq: typeof body.moq === "number" ? body.moq : undefined,
+                  moqBags: typeof body.moqBags === "number" ? body.moqBags : undefined,
+                  note: typeof body.note === "string" ? body.note : undefined,
+                  listNotes: typeof body.listNotes === "string" ? body.listNotes : undefined,
+                  alternateSkus: Array.isArray(body.alternateSkus) ? body.alternateSkus : undefined,
+                  discountTiers: Array.isArray(body.discountTiers) ? body.discountTiers : undefined,
+                  sizes: Array.isArray(body.sizes) ? body.sizes : undefined,
+                  sellers: Array.isArray(body.sellers) ? body.sellers : undefined,
+                  pricing: {
+                    basicPrice: pricing.basicPrice,
+                    priceWithGst: pricing.priceWithGst,
+                    currency: typeof pricing.currency === "string" ? pricing.currency : "INR",
+                    priceListEffectiveDate: pricing.priceListEffectiveDate
+                      ? new Date(String(pricing.priceListEffectiveDate))
+                      : undefined,
+                  },
+                  packaging:
+                    typeof body.packaging === "object" && body.packaging !== null ? body.packaging : {},
+                  isActive: typeof body.isActive === "boolean" ? body.isActive : true,
+                  isEligibleForCombo:
+                    typeof body.isEligibleForCombo === "boolean" ? body.isEligibleForCombo : false,
+                  sourceDocument:
+                    typeof body.sourceDocument === "string" ? body.sourceDocument : "RPT PRICE LIST",
+                  legacyId: typeof body.legacyId === "number" ? body.legacyId : undefined,
+                },
+              ],
+              { session }
+            );
+            doc = created;
+          });
+        } catch (e) {
+          if (e instanceof Error && e.message.includes("pricing")) {
+            return err(e.message, 400);
+          }
+          throw e;
+        } finally {
+          await session.endSession();
+        }
+        const populated = await ProductModel.findById(doc!._id).populate("category", "name slug").lean();
+        return NextResponse.json({
+          data: serializeProductLean(populated as Parameters<typeof serializeProductLean>[0]),
+        });
+      }
+      return NextResponse.json(
+        productSortOrderConflictPayload(
+          conflict as { _id: mongoose.Types.ObjectId; name: string; sortOrder: number }
+        ),
+        { status: 409 }
+      );
+    }
+
     const pricing = body.pricing as Record<string, unknown> | undefined;
     if (
       !pricing ||
@@ -72,10 +201,11 @@ export async function POST(req: NextRequest) {
       return err("pricing.basicPrice and pricing.priceWithGst (numbers) are required", 400);
     }
     const productKind = body.productKind === "catalog" ? "catalog" : "sku";
-    const slug =
+    const slugInput =
       typeof body.slug === "string" && body.slug.trim()
         ? body.slug.trim().toLowerCase()
         : undefined;
+    const slug = await ensureUniqueProductSlug(slugInput);
     const kf = sanitizeKeyFeaturesInput(body.keyFeatures);
     const doc = await ProductModel.create({
       ...(sku ? { sku } : {}),
@@ -83,6 +213,7 @@ export async function POST(req: NextRequest) {
       productKind,
       slug,
       category: new mongoose.Types.ObjectId(categoryId),
+      sortOrder,
       description: typeof body.description === "string" ? body.description : undefined,
       longDescription: typeof body.longDescription === "string" ? body.longDescription : undefined,
       subCategory: typeof body.subCategory === "string" ? body.subCategory : undefined,
@@ -133,7 +264,6 @@ export async function POST(req: NextRequest) {
     if (e instanceof mongoose.mongo.MongoServerError && e.code === 11000) {
       return err("Duplicate key (e.g. SKU or slug already exists)", 409);
     }
-    const message = e instanceof Error ? e.message : "Server error";
-    return err(message, 500);
+    return serverFetchError(e);
   }
 }

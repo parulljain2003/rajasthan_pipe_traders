@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import styles from './ProductGrid.module.css';
 import type { ProductListingEntry } from '../../../data/products';
-import { productHeading, listingBrandPill } from '../../../lib/productHeading';
+import { productHeading, brandPillLabel, resolveBrandPillVariant } from '../../../lib/productHeading';
 import { resolvePackingUnitLabels } from '@/lib/packingLabels';
 import ListingMoqCartControls, { listingEntryToModel } from '@/app/components/ListingMoqCartControls/ListingMoqCartControls';
 
@@ -38,13 +38,17 @@ export default function ProductGrid({ listingEntries: entries, cardListingLayout
     <div className={styles.grid}>
       {entries.map((entry) => {
         const { product, offer } = entry;
-        const brandPill = listingBrandPill(offer.brand);
+        const brandSource = (product.brand || offer.brand || "").trim();
+        const pillLabel = brandPillLabel(brandSource);
+        const variant = resolveBrandPillVariant(brandSource);
         const pillClass =
-          brandPill === "HiTech"
+          variant === "hitech"
             ? styles.listingBrandHitech
-            : brandPill === "Tejas"
+            : variant === "tejas"
               ? styles.listingBrandTejas
-              : styles.listingBrandNstar;
+              : variant === "nstar"
+                ? styles.listingBrandNstar
+                : styles.listingBrandDefault;
         const size0 = offer.sizes[0];
         const listLabels = resolvePackingUnitLabels(product, size0);
         const lk = listingKey(product.id, offer.sellerId);
@@ -66,11 +70,11 @@ export default function ProductGrid({ listingEntries: entries, cardListingLayout
 
             {/* Card info */}
             <div className={styles.info}>
-              <div className={styles.meta}>
-                <span className={`${styles.listingBrand} ${pillClass}`}>
-                  {brandPill}
-                </span>
-              </div>
+              {pillLabel ? (
+                <div className={styles.meta}>
+                  <span className={`${styles.listingBrand} ${pillClass}`}>{pillLabel}</span>
+                </div>
+              ) : null}
 
               <h3 className={styles.title}>{productHeading(product.name, size0.size)}</h3>
               <div className={styles.cardPriceBlock}>

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import styles from "./HeroBanner.module.css";
-import { productHeading, listingBrandPill } from "../../lib/productHeading";
+import { productHeading, brandPillLabel, resolveBrandPillVariant } from "../../lib/productHeading";
 import { resolvePackingUnitLabels } from "@/lib/packingLabels";
 import type { Product, ProductSize } from "@/app/data/products";
 import ListingMoqCartControls from "@/app/components/ListingMoqCartControls/ListingMoqCartControls";
@@ -197,13 +197,17 @@ function ProductCarousel({ slides }: { slides: HeroSlide[] }) {
     pcsPerPacket: p.pcsPerPacket,
   } as ProductSize;
   const heroLabels = resolvePackingUnitLabels(productMin, sizeMin);
-  const brandPill = listingBrandPill(p.brand);
+  const brandSource = (p.brand || "").trim();
+  const heroPillLabel = brandPillLabel(brandSource);
+  const heroVariant = resolveBrandPillVariant(brandSource);
   const slidePillClass =
-    brandPill === "HiTech"
+    heroVariant === "hitech"
       ? styles.slideListingBrandHitech
-      : brandPill === "Tejas"
+      : heroVariant === "tejas"
         ? styles.slideListingBrandTejas
-        : styles.slideListingBrandNstar;
+        : heroVariant === "nstar"
+          ? styles.slideListingBrandNstar
+          : styles.slideListingBrandDefault;
 
   return (
     <div className={styles.carousel} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
@@ -225,7 +229,9 @@ function ProductCarousel({ slides }: { slides: HeroSlide[] }) {
         </Link>
 
         <div className={styles.slideContent}>
-          <span className={`${styles.slideListingBrand} ${slidePillClass}`}>{brandPill}</span>
+          {heroPillLabel ? (
+            <span className={`${styles.slideListingBrand} ${slidePillClass}`}>{heroPillLabel}</span>
+          ) : null}
           <h3 className={styles.slideName}>{productHeading(p.name, p.firstSize)}</h3>
           <p className={styles.slideDesc}>{p.description}</p>
           <div className={styles.slidePriceRow}>
