@@ -142,6 +142,13 @@
   border: 1px solid color-mix(in srgb, #0d9488 28%, white);
 }
 
+/* Other / unknown brand names — same purple family as HiTech */
+.listingBrandDefault {
+  color: #6d28d9;
+  background: color-mix(in srgb, #7c3aed 12%, white);
+  border: 1px solid color-mix(in srgb, #7c3aed 25%, white);
+}
+
 .title {
   font-size: 0.84rem;
   font-weight: 700;

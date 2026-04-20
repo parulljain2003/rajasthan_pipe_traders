@@ -9,7 +9,7 @@ import {
   products,
   type ProductListingEntry,
 } from '../../data/products';
-import { productHeading, listingBrandPill } from '../../lib/productHeading';
+import { productHeading, brandPillLabel, resolveBrandPillVariant } from '../../lib/productHeading';
 import { resolvePackingUnitLabels } from '@/lib/packingLabels';
 import ListingMoqCartControls, { listingEntryToModel } from '@/app/components/ListingMoqCartControls/ListingMoqCartControls';
 
@@ -60,13 +60,17 @@ export default function Products() {
         <div className="products-grid">
           {filteredEntries.map((entry) => {
             const { product, offer } = entry;
-            const brandPill = listingBrandPill(offer.brand);
+            const brandSource = (product.brand || offer.brand || "").trim();
+            const pillLabel = brandPillLabel(brandSource);
+            const variant = resolveBrandPillVariant(brandSource);
             const pillClass =
-              brandPill === "HiTech"
+              variant === "hitech"
                 ? "listing-brand-pill-hitech"
-                : brandPill === "Tejas"
+                : variant === "tejas"
                   ? "listing-brand-pill-tejas"
-                  : "listing-brand-pill-nstar";
+                  : variant === "nstar"
+                    ? "listing-brand-pill-nstar"
+                    : "listing-brand-pill-default";
             const size0 = offer.sizes[0];
             const lowestPrice = size0.withGST;
             const lowestBasic = size0.basicPrice;
@@ -102,11 +106,11 @@ export default function Products() {
 
                 {/* Card Content */}
                 <div className="product-info">
-                  <div className="info-meta">
-                    <span className={`listing-brand-pill ${pillClass}`}>
-                      {brandPill}
-                    </span>
-                  </div>
+                  {pillLabel ? (
+                    <div className="info-meta">
+                      <span className={`listing-brand-pill ${pillClass}`}>{pillLabel}</span>
+                    </div>
+                  ) : null}
 
                   {/* Name */}
                   <h3 className="product-title">{productHeading(product.name, size0.size)}</h3>

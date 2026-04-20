@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import styles from "./RelatedProducts.module.css";
 import { getSellerOffers, type Product } from "../../../data/products";
-import { productHeading, listingBrandPill } from "../../../lib/productHeading";
+import { productHeading, brandPillLabel, resolveBrandPillVariant } from "../../../lib/productHeading";
 import { resolvePackingUnitLabels } from "@/lib/packingLabels";
 import ListingMoqCartControls, { listingEntryToModel } from "@/app/components/ListingMoqCartControls/ListingMoqCartControls";
 
@@ -36,13 +36,17 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
       <div className={styles.grid}>
         {products.map((product) => {
           const offer = getSellerOffers(product)[0];
-          const brandPill = listingBrandPill(offer.brand);
+          const brandSource = (product.brand || offer.brand || "").trim();
+          const pillLabel = brandPillLabel(brandSource);
+          const variant = resolveBrandPillVariant(brandSource);
           const pillClass =
-            brandPill === "HiTech"
+            variant === "hitech"
               ? styles.listingBrandHitech
-              : brandPill === "Tejas"
+              : variant === "tejas"
                 ? styles.listingBrandTejas
-                : styles.listingBrandNstar;
+                : variant === "nstar"
+                  ? styles.listingBrandNstar
+                  : styles.listingBrandDefault;
           const size = offer.sizes[0];
           const listLabels = resolvePackingUnitLabels(product, size);
           const entry = { product, offer };
@@ -67,9 +71,9 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
 
               <div className={styles.cardInfo}>
                 <Link href={`/products/${product.slug}`} className={styles.titleLink}>
-                  <span className={`${styles.listingBrand} ${pillClass}`}>
-                    {brandPill}
-                  </span>
+                  {pillLabel ? (
+                    <span className={`${styles.listingBrand} ${pillClass}`}>{pillLabel}</span>
+                  ) : null}
                   <h3 className={styles.cardName}>{productHeading(product.name, size.size)}</h3>
                 </Link>
 
