@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { productHeading } from "../../../lib/productHeading";
+import { productHeading, brandPillLabel, resolveBrandPillVariant } from "../../../lib/productHeading";
 import styles from "./ProductInfo.module.css";
 import {
   getSellerOffers,
@@ -43,10 +43,11 @@ function KeyFeatureLineIcon({ icon }: { icon: KeyFeatureIcon }) {
   );
 }
 
-const BRAND_PILL_COLORS: Record<string, string> = {
-  "Hitech Square": "#7c3aed",
-  "Tejas Craft": "#2563eb",
-  "N-Star": "#059669",
+const VARIANT_PILL_COLORS: Record<ReturnType<typeof resolveBrandPillVariant>, string> = {
+  hitech: "#7c3aed",
+  tejas: "#2563eb",
+  nstar: "#059669",
+  default: "#7c3aed",
 };
 
 export default function ProductInfo({ product }: ProductInfoProps) {
@@ -55,7 +56,8 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const [selectedSizeIndex] = useState(0);
 
   const activeOffer = offers[sellerIdx];
-  const brandPillColor = BRAND_PILL_COLORS[activeOffer.brand] ?? "#2563eb";
+  const brandDisplay = brandPillLabel(product.brand || activeOffer.brand);
+  const brandPillColor = VARIANT_PILL_COLORS[resolveBrandPillVariant(brandDisplay)];
   const selectedSize = activeOffer.sizes[selectedSizeIndex];
   const labels = resolvePackingUnitLabels(product, selectedSize);
   const hasBulk = selectedSize.qtyPerBag > 0;
@@ -68,7 +70,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       productSlug: product.slug,
       productImage: product.image,
       productName: product.name,
-      brand: activeOffer.brand,
+      brand: product.brand || activeOffer.brand,
       category: product.category,
       sellerId: activeOffer.sellerId,
       sellerName: activeOffer.sellerName,
@@ -95,14 +97,16 @@ export default function ProductInfo({ product }: ProductInfoProps) {
 
   return (
     <div className={styles.infoPanel}>
-      <div className={styles.metaRow}>
-        <span
-          className={styles.sellerBrandPill}
-          style={{ "--brand-color": brandPillColor } as React.CSSProperties}
-        >
-          {activeOffer.brand}
-        </span>
-      </div>
+      {brandDisplay ? (
+        <div className={styles.metaRow}>
+          <span
+            className={styles.sellerBrandPill}
+            style={{ "--brand-color": brandPillColor } as React.CSSProperties}
+          >
+            {brandDisplay}
+          </span>
+        </div>
+      ) : null}
 
       {/* Product Name */}
       <h1 className={styles.productName}>{productHeading(product.name, selectedSize.size)}</h1>
