@@ -148,6 +148,8 @@ const productSchema = new Schema(
       ref: "Category",
       required: true,
     },
+    /** Display order within the same category (admin; lower first). */
+    sortOrder: { type: Number, default: 0 },
     brand: { type: String, trim: true },
     brandCode: { type: String, trim: true },
     productLine: { type: String, trim: true },
@@ -188,6 +190,7 @@ const productSchema = new Schema(
   { timestamps: true, suppressReservedKeysWarning: true }
 );
 
+productSchema.index({ category: 1, sortOrder: 1 });
 productSchema.index({ isEligibleForCombo: 1 });
 productSchema.index({ brand: 1 });
 /** Full-text search for storefront/admin queries */

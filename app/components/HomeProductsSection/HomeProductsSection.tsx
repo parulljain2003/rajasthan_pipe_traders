@@ -1,10 +1,8 @@
 import React from "react";
 import { getStorefrontProductsFromSearchParams } from "@/lib/catalog/storefront";
 import styles from "./HomeProductsSection.module.css";
-import ProductGrid from "../ShopSection/ProductGrid/ProductGrid";
 import HomeProductsPagination from "./HomeProductsPagination";
-import type { ProductListingEntry } from "../../data/products";
-import { apiProductsToListingEntries } from "../../lib/api/mapApiProduct";
+import HomeProductsSortedGrid from "./HomeProductsSortedGrid";
 import type { ApiProduct } from "../../lib/api/types";
 
 const PAGE_SIZE = 10;
@@ -25,7 +23,7 @@ export default async function HomeProductsSection({ page: pageProp = 1 }: Props)
   };
 
   let result = await getStorefrontProductsFromSearchParams(buildParams(page));
-  let featuredListing: ProductListingEntry[] = [];
+  let pageProducts: ApiProduct[] = [];
   let total = 0;
   let totalPages = 1;
 
@@ -37,7 +35,7 @@ export default async function HomeProductsSection({ page: pageProp = 1 }: Props)
       result = await getStorefrontProductsFromSearchParams(buildParams(page));
     }
     if (result.ok) {
-      featuredListing = apiProductsToListingEntries(result.data as unknown as ApiProduct[]);
+      pageProducts = result.data as unknown as ApiProduct[];
     }
   }
 
@@ -61,7 +59,7 @@ export default async function HomeProductsSection({ page: pageProp = 1 }: Props)
           </p>
         </div>
 
-        <ProductGrid listingEntries={featuredListing} cardListingLayout />
+        <HomeProductsSortedGrid apiProducts={pageProducts} />
 
         <HomeProductsPagination page={page} totalPages={totalPages} />
 

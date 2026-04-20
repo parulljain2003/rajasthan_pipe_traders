@@ -75,7 +75,7 @@ export const getStorefrontProductBySlug = cache(async (slug: string) => {
   if (!row) {
     const rows = await ProductModel.find({ isActive: true })
       .populate("category", "name slug")
-      .sort({ sku: 1 })
+      .sort({ sortOrder: 1, name: 1 })
       .limit(500)
       .lean();
     for (const r of rows) {
@@ -110,7 +110,7 @@ export async function getStorefrontRelatedProducts(
     _id: { $ne: exId },
   })
     .populate("category", "name slug")
-    .sort({ sku: 1 })
+    .sort({ sortOrder: 1, name: 1 })
     .limit(limit)
     .lean();
   return rows
@@ -171,15 +171,38 @@ export async function getStorefrontProductsFromSearchParams(
   }
   const limit = Math.min(500, Math.max(1, Number(sp.get("limit")) || 100));
   const skip = Math.max(0, Number(sp.get("skip")) || 0);
-  const [rows, total] = await Promise.all([
-    ProductModel.find(filter)
-      .populate("category", "name slug")
-      .sort({ sku: 1 })
-      .skip(skip)
-      .limit(limit)
-      .lean(),
+
+  const catColl = CategoryModel.collection.name;
+  const pipeline: mongoose.PipelineStage[] = [
+    { $match: filter },
+    {
+      $lookup: {
+        from: catColl,
+        localField: "category",
+        foreignField: "_id",
+        as: "_catJoin",
+      },
+    },
+    {
+      $addFields: {
+        _catSort: { $ifNull: [{ $arrayElemAt: ["$_catJoin.sortOrder", 0] }, 0] },
+        _pSort: { $ifNull: ["$sortOrder", 0] },
+      },
+    },
+    { $sort: { _catSort: 1, _pSort: 1, name: 1 } },
+    { $skip: skip },
+    { $limit: limit },
+    { $project: { _catJoin: 0, _catSort: 0, _pSort: 0 } },
+  ];
+
+  const [rawRows, total] = await Promise.all([
+    ProductModel.aggregate(pipeline).exec(),
     ProductModel.countDocuments(filter),
   ]);
+  const rows = await ProductModel.populate(rawRows, {
+    path: "category",
+    select: "name slug",
+  });
   const data = rows.map((r) => serializeProductLean(r as LeanDoc)!);
   return { ok: true, data, meta: { total, limit, skip } };
 }

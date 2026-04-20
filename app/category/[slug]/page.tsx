@@ -10,6 +10,7 @@ import {
   getStorefrontCategoryBySlug,
   getStorefrontProductsFromSearchParams,
 } from "@/lib/catalog/storefront";
+import { sortApiProductsForDisplayOrder } from "@/app/lib/sortApiProductsDisplay";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -105,7 +106,8 @@ export default async function CategorySlugPage({ params }: PageProps) {
     const result = await getStorefrontProductsFromSearchParams(sp);
     if (!result.ok) notFound();
 
-    products = result.data.map((doc) => apiProductToProduct(doc as unknown as ApiProduct));
+    const apiProducts = sortApiProductsForDisplayOrder(result.data as unknown as ApiProduct[]);
+    products = apiProducts.map((doc) => apiProductToProduct(doc as unknown as ApiProduct));
   }
 
   return <CategoryPage category={category} products={products} />;
