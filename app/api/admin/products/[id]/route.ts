@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDb } from "@/lib/db/connect";
+import {
+  findProductSortOrderConflict,
+  parseSortOrderInput,
+  productSortOrderConflictPayload,
+} from "@/lib/db/productSortOrder";
 import { ProductModel } from "@/lib/db/models/Product";
 import { CategoryModel } from "@/lib/db/models/Category";
 import { serializeProductLean } from "@/lib/db/serialize";
@@ -41,7 +46,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       return err("Invalid product id", 400);
     }
     await connectDb();
+    const current = await ProductModel.findById(id).lean();
+    if (!current) return err("Product not found", 404);
+
     const body = (await req.json()) as Record<string, unknown>;
+    const swapWithRaw =
+      typeof body.swapSortOrderWith === "string" ? body.swapSortOrderWith.trim() : "";
     const $set: Record<string, unknown> = {};
     const $unset: Record<string, 1> = {};
     const scalarString = [
@@ -105,6 +115,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       }
     }
     if (typeof body.legacyId === "number") $set.legacyId = body.legacyId;
+    if (typeof body.sortOrder !== "undefined") {
+      $set.sortOrder = parseSortOrderInput(body.sortOrder);
+    }
     if ("keyFeatures" in body) {
       if (body.keyFeatures === null) {
         $unset.keyFeatures = 1;
@@ -182,6 +195,84 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const mongoUpdate: { $set?: Record<string, unknown>; $unset?: Record<string, 1> } = {};
     if (Object.keys($set).length) mongoUpdate.$set = $set;
     if (Object.keys($unset).length) mongoUpdate.$unset = $unset;
+
+    let nextCategory = current.category as mongoose.Types.ObjectId;
+    if (typeof body.category === "string" && mongoose.Types.ObjectId.isValid(body.category)) {
+      nextCategory = new mongoose.Types.ObjectId(body.category);
+    }
+    let nextSortOrder = typeof current.sortOrder === "number" ? current.sortOrder : 0;
+    if (typeof body.sortOrder !== "undefined") {
+      nextSortOrder = parseSortOrderInput(body.sortOrder);
+    }
+
+    const norm = (p: unknown) => (p == null ? "" : String(p));
+
+    if (swapWithRaw) {
+      if (typeof body.sortOrder === "undefined") {
+        return err("sortOrder is required when swapping", 400);
+      }
+      if (!mongoose.Types.ObjectId.isValid(swapWithRaw)) {
+        return err("Invalid swapSortOrderWith", 400);
+      }
+      if (swapWithRaw === id) {
+        return err("Cannot swap sort order with itself", 400);
+      }
+      const B = await ProductModel.findById(swapWithRaw).lean();
+      if (!B) return err("Swap target product not found", 404);
+      if (norm(B.category) !== norm(nextCategory)) {
+        return err("Both products must be in the same category to swap sort order", 400);
+      }
+      if (typeof B.sortOrder !== "number" || B.sortOrder !== nextSortOrder) {
+        return err("Sort order conflict no longer matches. Try saving again.", 409);
+      }
+      const oldA = typeof current.sortOrder === "number" ? current.sortOrder : 0;
+      if (!mongoUpdate.$set && !mongoUpdate.$unset) {
+        return err("No fields to update", 400);
+      }
+      const session = await mongoose.startSession();
+      try {
+        await session.withTransaction(async () => {
+          await ProductModel.updateOne({ _id: id }, mongoUpdate, { session });
+          await ProductModel.updateOne(
+            { _id: swapWithRaw },
+            { $set: { sortOrder: oldA } },
+            { session }
+          );
+        });
+      } finally {
+        await session.endSession();
+      }
+      const swapped = await ProductModel.findById(id).populate("category", "name slug").lean();
+      if (!swapped) return err("Product not found", 404);
+      return NextResponse.json({
+        data: serializeProductLean(swapped as Parameters<typeof serializeProductLean>[0]),
+      });
+    }
+
+    const prevSort = typeof current.sortOrder === "number" ? current.sortOrder : 0;
+    const sortOrderChanged =
+      typeof body.sortOrder !== "undefined" &&
+      parseSortOrderInput(body.sortOrder) !== prevSort;
+    const categoryChanged =
+      typeof body.category === "string" &&
+      mongoose.Types.ObjectId.isValid(body.category) &&
+      String(current.category) !== body.category;
+
+    const shouldCheckSortConflict =
+      nextSortOrder > 0 && (sortOrderChanged || categoryChanged);
+
+    if (shouldCheckSortConflict) {
+      const conflict = await findProductSortOrderConflict(nextCategory, nextSortOrder, id);
+      if (conflict) {
+        return NextResponse.json(
+          productSortOrderConflictPayload(
+            conflict as { _id: mongoose.Types.ObjectId; name: string; sortOrder: number }
+          ),
+          { status: 409 }
+        );
+      }
+    }
+
     let row;
     if (!mongoUpdate.$set && !mongoUpdate.$unset) {
       row = await ProductModel.findById(id).populate("category", "name slug").lean();

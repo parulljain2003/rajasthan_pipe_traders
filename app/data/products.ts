@@ -58,6 +58,8 @@ export interface Product {
   brand: string;
   brandCode?: string;
   category: string;
+  /** Admin display order within category (1+); 0 = unset — used for listing/related sort */
+  sortOrder?: number;
   subCategory: string;
   description: string;
   longDescription: string;

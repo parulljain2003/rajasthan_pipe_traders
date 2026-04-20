@@ -121,6 +121,8 @@ export interface ApiProduct {
   sizes?: ApiProductSize[];
   sellers?: ApiProductSellerOffer[];
   pricing: ApiPricing;
+  /** Display order within category (1+); 0 or omitted = unset for storefront sort */
+  sortOrder?: number;
   /** Counts toward eligible packet pool for 20/25MM combo pricing */
   isEligibleForCombo?: boolean;
   isActive?: boolean;

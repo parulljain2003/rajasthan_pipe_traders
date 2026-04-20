@@ -67,6 +67,7 @@ export type AdminProduct = {
   name: string;
   description?: string;
   category: PopulatedCategory;
+  sortOrder?: number;
   brand?: string;
   image?: string;
   images?: string[];
