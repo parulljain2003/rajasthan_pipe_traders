@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { BannerBackgroundCloud } from "@/app/admin/components/cloud";
 
 type StatRow = { value: string; label: string };
 
@@ -85,6 +86,7 @@ export default function AdminBannerPage() {
         fetchAllProductOptions(),
       ]);
       const json = await bannerRes.json();
+      console.log("json", json);
       if (!bannerRes.ok) throw new Error(typeof json.message === "string" ? json.message : bannerRes.statusText);
       const d = json.data as {
         trustBadgeText: string;
@@ -294,17 +296,23 @@ export default function AdminBannerPage() {
           </div>
 
           <p className="admin-form-section-title">Background</p>
-          <div className="admin-field">
-            <label htmlFor="bg">Background image URL</label>
-            <input
-              id="bg"
-              className="admin-input"
-              value={backgroundImageUrl}
-              onChange={(e) => setBackgroundImageUrl(e.target.value)}
-              placeholder="/banner-1.png"
-              autoComplete="off"
-            />
-          </div>
+          <BannerBackgroundCloud
+            value={backgroundImageUrl}
+            onUrlChange={setBackgroundImageUrl}
+            getPatchPayload={() => ({
+              trustBadgeText,
+              headlinePart1,
+              headlinePart2,
+              tagline,
+              subtextHtml,
+              stats,
+              carouselSlides,
+            })}
+            onPersisted={() => {
+              setSaved(true);
+              setError(null);
+            }}
+          />
 
           <p className="admin-form-section-title">Statistics</p>
           {stats.map((s, i) => (

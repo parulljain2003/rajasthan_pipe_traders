@@ -42,6 +42,9 @@ function buildFolder(
   categoryId?: string | null
 ): string {
   const base = getCloudinaryUploadPrefix();
+  if (kind === "banner") {
+    return `${base}/banner`;
+  }
   const k = kind === "category" ? "category" : "product";
   if (k === "product" && productId?.trim()) {
     return `${base}/product/${productId.trim()}`;
@@ -110,6 +113,7 @@ export async function listImages(input: {
   let prefix = `${base}/`;
   if (input.kindPrefix === "product") prefix = `${base}/product/`;
   else if (input.kindPrefix === "category") prefix = `${base}/category/`;
+  else if (input.kindPrefix === "banner") prefix = `${base}/banner/`;
 
   const limit = Math.min(100, Math.max(1, input.limit));
   const result = await cloudinary.api.resources({
