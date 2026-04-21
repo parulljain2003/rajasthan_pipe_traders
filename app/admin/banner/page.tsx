@@ -86,6 +86,7 @@ export default function AdminBannerPage() {
         fetchAllProductOptions(),
       ]);
       const json = await bannerRes.json();
+      console.log("json", json);
       if (!bannerRes.ok) throw new Error(typeof json.message === "string" ? json.message : bannerRes.statusText);
       const d = json.data as {
         trustBadgeText: string;

@@ -397,6 +397,12 @@
   min-height: 490px;
 }
 
+/* No product carousel: single column so copy is not squeezed into half width */
+.innerNoCarousel {
+  grid-template-columns: 1fr;
+  min-height: unset;
+}
+
 /* ═══════════════════════
    LEFT
 ═══════════════════════ */

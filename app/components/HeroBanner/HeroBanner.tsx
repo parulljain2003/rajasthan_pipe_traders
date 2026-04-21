@@ -168,6 +168,10 @@ function ProductCarousel({ slides }: { slides: HeroSlide[] }) {
   const [dir, setDir] = useState<"l" | "r">("l");
   const [paused, setPaused] = useState(false);
 
+  useEffect(() => {
+    console.log("slides", slides);
+  }, [slides]);
+
   const goTo = useCallback((i: number, d: "l" | "r" = "l") => {
     setDir(d);
     setActive(i);
@@ -305,6 +309,7 @@ export default function HeroBanner({ banner }: { banner: HomeBannerPayload }) {
   }, []);
 
   const couponRow = bannerCoupons.length > 0 ? bannerCoupons : FALLBACK_COUPONS;
+  const hasCarouselSlides = banner.slides.length > 0;
 
   return (
     <section className={styles.hero}>
@@ -326,7 +331,7 @@ export default function HeroBanner({ banner }: { banner: HomeBannerPayload }) {
         </div>
       </div>
 
-      <div className={styles.inner}>
+      <div className={`${styles.inner} ${hasCarouselSlides ? "" : styles.innerNoCarousel}`}>
         <div className={styles.left}>
           <div className={styles.trustBadge}>
             <span className={styles.trustDot} />
@@ -355,9 +360,11 @@ export default function HeroBanner({ banner }: { banner: HomeBannerPayload }) {
           </div>
         </div>
 
-        <div className={styles.right}>
-          <ProductCarousel slides={banner.slides} />
-        </div>
+        {hasCarouselSlides ? (
+          <div className={styles.right}>
+            <ProductCarousel slides={banner.slides} />
+          </div>
+        ) : null}
       </div>
 
       <div className={styles.strip} aria-hidden="true">

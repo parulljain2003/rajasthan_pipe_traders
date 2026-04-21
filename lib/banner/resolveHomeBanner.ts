@@ -6,7 +6,7 @@ import { ProductModel } from "@/lib/db/models/Product";
 import { serializeProductLean } from "@/lib/db/serialize";
 import type { ApiProduct } from "@/app/lib/api/types";
 import { buildHeroSlideFromApiProduct, type HeroSlide } from "./heroSlide";
-import { DEFAULT_BANNER_COPY, FALLBACK_HERO_SLIDES } from "./defaults";
+import { DEFAULT_BANNER_COPY } from "./defaults";
 
 const GLOBAL_KEY = "global";
 
@@ -77,7 +77,6 @@ export const getHomeBanner = cache(async (): Promise<HomeBannerPayload> => {
   await connectDb();
   const row = (await BannerSettingsModel.findOne({ key: GLOBAL_KEY }).lean()) as LeanBanner | null;
   const copy = mergeCopy(row);
-  let slides = await resolveSlides(row);
-  if (slides.length === 0) slides = [...FALLBACK_HERO_SLIDES];
+  const slides = await resolveSlides(row);
   return { ...copy, slides };
 });
