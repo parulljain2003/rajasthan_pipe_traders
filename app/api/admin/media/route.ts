@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     const cursor = sp.get("cursor")?.trim() || undefined;
     const kind = sp.get("kind")?.trim();
     const kindPrefix =
-      kind === "product" || kind === "category" ? kind : null;
+      kind === "product" || kind === "category" || kind === "banner" ? kind : null;
     const { items, nextCursor } = await listImages({ limit, cursor, kindPrefix });
     return NextResponse.json({
       data: items,
@@ -47,8 +47,11 @@ export async function POST(req: NextRequest) {
     }
     const kindRaw = formData.get("kind");
     const kind = typeof kindRaw === "string" && kindRaw.trim() ? kindRaw.trim() : "product";
-    if (kind !== "product" && kind !== "category") {
-      return NextResponse.json({ message: "kind must be product or category" }, { status: 400 });
+    if (kind !== "product" && kind !== "category" && kind !== "banner") {
+      return NextResponse.json(
+        { message: "kind must be product, category, or banner" },
+        { status: 400 }
+      );
     }
     const productIdVal = formData.get("productId");
     const categoryIdVal = formData.get("categoryId");
