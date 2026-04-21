@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDb } from "@/lib/db/connect";
 import {
-  findProductSortOrderConflict,
+  findGlobalProductSortOrderConflict,
   parseSortOrderInput,
   productSortOrderConflictPayload,
 } from "@/lib/db/productSortOrder";
@@ -196,16 +196,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (Object.keys($set).length) mongoUpdate.$set = $set;
     if (Object.keys($unset).length) mongoUpdate.$unset = $unset;
 
-    let nextCategory = current.category as mongoose.Types.ObjectId;
-    if (typeof body.category === "string" && mongoose.Types.ObjectId.isValid(body.category)) {
-      nextCategory = new mongoose.Types.ObjectId(body.category);
-    }
     let nextSortOrder = typeof current.sortOrder === "number" ? current.sortOrder : 0;
     if (typeof body.sortOrder !== "undefined") {
       nextSortOrder = parseSortOrderInput(body.sortOrder);
     }
-
-    const norm = (p: unknown) => (p == null ? "" : String(p));
 
     if (swapWithRaw) {
       if (typeof body.sortOrder === "undefined") {
@@ -219,9 +213,6 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       }
       const B = await ProductModel.findById(swapWithRaw).lean();
       if (!B) return err("Swap target product not found", 404);
-      if (norm(B.category) !== norm(nextCategory)) {
-        return err("Both products must be in the same category to swap sort order", 400);
-      }
       if (typeof B.sortOrder !== "number" || B.sortOrder !== nextSortOrder) {
         return err("Sort order conflict no longer matches. Try saving again.", 409);
       }
@@ -253,16 +244,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const sortOrderChanged =
       typeof body.sortOrder !== "undefined" &&
       parseSortOrderInput(body.sortOrder) !== prevSort;
-    const categoryChanged =
-      typeof body.category === "string" &&
-      mongoose.Types.ObjectId.isValid(body.category) &&
-      String(current.category) !== body.category;
 
-    const shouldCheckSortConflict =
-      nextSortOrder > 0 && (sortOrderChanged || categoryChanged);
+    const shouldCheckSortConflict = nextSortOrder > 0 && sortOrderChanged;
 
     if (shouldCheckSortConflict) {
-      const conflict = await findProductSortOrderConflict(nextCategory, nextSortOrder, id);
+      const conflict = await findGlobalProductSortOrderConflict(nextSortOrder, id);
       if (conflict) {
         return NextResponse.json(
           productSortOrderConflictPayload(
