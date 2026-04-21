@@ -7,66 +7,10 @@ import { useRouter, usePathname } from 'next/navigation';
 import './Header.css';
 import { searchData } from '../../data/searchData';
 import { useCartWishlist } from '../../context/CartWishlistContext';
-import { categoryToSlug } from '../../data/categories';
+import { fetchCategoriesList } from '../../lib/api/client';
+import type { ApiCategory } from '../../lib/api/types';
 
 const searchIndex = searchData;
-
-/* ── Mega menu navigation (slug-mapped) ── */
-const coreProducts = [
-  {
-    category: "Cable Clips",
-    items: [
-      { name: "Cable Nail Clips", slug: "cable-nail-clips" },
-      { name: "Double Nail Clamp", slug: "double-nail-clamp" },
-      { name: "Nylon Cable Ties", slug: "nylon-cable-ties" },
-      { name: "UPVC Pipe Clamp", slug: "upvc-pipe-clamp" },
-      { name: "CPVC Pipe Clamp", slug: "cpvc-pipe-clamp" },
-      { name: "Wall Plug (Gitti)", slug: "wall-plug-gitti" },
-    ],
-  },
-  {
-    category: "Electrical Accessories",
-    items: [
-      { name: "FR Insulation Tape", slug: "electric-insulation-tape" },
-      { name: "Plain Modular Gang Box", slug: "plain-modular-gang-box" },
-      { name: "Bulb Holder", slug: null },
-      { name: "2 Pin / 3 Pin Top", slug: null },
-      { name: "MCB Distribution Box", slug: null },
-      { name: "Combined Switch Socket", slug: null },
-    ],
-  },
-  {
-    category: "Ball Valves",
-    items: [
-      { name: "PP White Ball Valve", slug: "ball-valve-white" },
-      { name: "PP Grey Ball Valve", slug: "ball-valve-grey" },
-      { name: "PP Black Ball Valve", slug: "ball-valve-black" },
-      { name: "UPVC Ball Valve", slug: "upvc-ball-valve" },
-      { name: "CPVC Ball Valve", slug: null },
-    ],
-  },
-  {
-    category: "Sanitaryware",
-    items: [
-      { name: "PP Bibcock", slug: null },
-      { name: "PTMT Health Faucet", slug: null },
-      { name: "PTMT Ball Cock", slug: null },
-      { name: "Nani Trap", slug: null },
-      { name: "Back Flow NRV", slug: null },
-      { name: "ABS Square Shower", slug: null },
-    ],
-  },
-  {
-    category: "Fasteners & Hardware",
-    items: [
-      { name: "Concrete Nails", slug: null },
-      { name: "Wall Plugs", slug: "wall-plug-gitti" },
-      { name: "Dry Wall Screw", slug: null },
-      { name: "Metal Gang Boxes", slug: null },
-      { name: "Junction Boxes", slug: null },
-    ],
-  },
-];
 
 import type { SearchEntry } from '../../data/searchData';
 type SearchResult = SearchEntry;
@@ -98,6 +42,22 @@ const Header = () => {
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { cartCount } = useCartWishlist();
+  const [navCategories, setNavCategories] = useState<ApiCategory[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data } = await fetchCategoriesList();
+        if (!cancelled) setNavCategories(data);
+      } catch {
+        if (!cancelled) setNavCategories([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /** Live suggestions: query Mongo catalog via `/api/products?q=` (multi-field match); fallback to static `searchData`. */
   useEffect(() => {
@@ -244,32 +204,29 @@ const Header = () => {
 
             {isMegaMenuOpen && (
               <div className="mega-menu">
-                <div className="mega-menu-content">
-                  {coreProducts.map((group, idx) => (
-                    <div key={idx} className="mega-menu-column">
-                      <Link 
-                        href={`/category/${categoryToSlug(group.category)}`} 
-                        className="column-title-link"
-                        onClick={() => setIsMegaMenuOpen(false)}
-                      >
-                        <h3 className="column-title">{group.category}</h3>
-                      </Link>
-                      <ul className="product-list">
-                        {group.items.map((item, i) => (
-                          <li key={i} className="product-item">
-                            {item.slug ? (
-                              <Link href={`/products/${item.slug}`} onClick={() => setIsMegaMenuOpen(false)}>{item.name}</Link>
-                            ) : (
-                              <a href="#" onClick={e => e.preventDefault()} className="coming-soon-link">
-                                {item.name}
-                                <span className="coming-soon-badge">Soon</span>
-                              </a>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+                <div className="mega-menu-inner">
+                  <p className="mega-menu-eyebrow">Shop by category</p>
+                  <div className="mega-menu-grid">
+                    {navCategories.length === 0 ? (
+                      <span className="mega-menu-empty">Loading categories…</span>
+                    ) : (
+                      navCategories.map((cat) => (
+                        <Link
+                          key={cat._id}
+                          href={`/category/${cat.slug}`}
+                          className="mega-menu-category-card"
+                          onClick={() => setIsMegaMenuOpen(false)}
+                        >
+                          <span className="mega-menu-category-name">{cat.name}</span>
+                          <span className="mega-menu-category-chevron" aria-hidden>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="m9 18 6-6-6-6" />
+                            </svg>
+                          </span>
+                        </Link>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -348,15 +305,15 @@ const Header = () => {
                   </button>
                   {mobileCatOpen && (
                     <div className="mobile-cat-list">
-                      {coreProducts.map((group, gi) => (
-                        <div key={gi} className="mobile-cat-group">
-                          <span className="mobile-cat-group-title">{group.category}</span>
-                          {group.items.filter(item => item.slug).map((item, ii) => (
-                            <Link key={ii} href={`/products/${item.slug}`} className="mobile-cat-link" onClick={() => setMobileMenuOpen(false)}>
-                              {item.name}
-                            </Link>
-                          ))}
-                        </div>
+                      {navCategories.map((cat) => (
+                        <Link
+                          key={cat._id}
+                          href={`/category/${cat.slug}`}
+                          className="mobile-cat-link"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          {cat.name}
+                        </Link>
                       ))}
                     </div>
                   )}
