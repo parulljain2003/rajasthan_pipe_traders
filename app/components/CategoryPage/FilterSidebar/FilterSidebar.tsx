@@ -1,6 +1,10 @@
 import React from 'react';
 import styles from './FilterSidebar.module.css';
 import type { ProductListingEntry } from '../../../data/products';
+import {
+  BRAND_SIDEBAR_FILTERS,
+  displayBrandForListingEntry,
+} from '../../../lib/brandSidebarFilters';
 
 interface FilterSidebarProps {
   listingEntries: ProductListingEntry[];
@@ -23,13 +27,9 @@ export default function FilterSidebar({
   isOpen,
   onClose,
 }: FilterSidebarProps) {
-  const BRAND_FILTERS = [
-    { label: 'HiTech', value: 'Hitech Square' },
-    { label: 'Tejas', value: 'Tejas Craft' },
-  ];
-  const allPrices = listingEntries.map((e) => e.offer.sizes[0].withGST);
-  const globalMin = Math.floor(Math.min(...allPrices));
-  const globalMax = Math.ceil(Math.max(...allPrices));
+  const allPrices = listingEntries.map((e) => e.offer.sizes[0]?.withGST).filter((n) => Number.isFinite(n));
+  const globalMin = allPrices.length ? Math.floor(Math.min(...allPrices)) : 0;
+  const globalMax = allPrices.length ? Math.ceil(Math.max(...allPrices)) : 0;
 
   const activeFilterCount =
     selectedBrands.size + (priceRange[0] !== globalMin || priceRange[1] !== globalMax ? 1 : 0);
@@ -70,14 +70,16 @@ export default function FilterSidebar({
           <div className={styles.filterGroup}>
             <h4 className={styles.groupTitle}>Brand / Company</h4>
             <div className={styles.checkList}>
-              {BRAND_FILTERS.map(({ label, value }) => {
-                const count = listingEntries.filter((e) => e.offer.brand === value).length;
+              {BRAND_SIDEBAR_FILTERS.map(({ id, label, matches }) => {
+                const count = listingEntries.filter((e) =>
+                  matches(displayBrandForListingEntry(e))
+                ).length;
                 return (
-                  <label key={value} className={styles.checkItem}>
+                  <label key={id} className={styles.checkItem}>
                     <input
                       type="checkbox"
-                      checked={selectedBrands.has(value)}
-                      onChange={() => onBrandToggle(value)}
+                      checked={selectedBrands.has(id)}
+                      onChange={() => onBrandToggle(id)}
                       className={styles.checkbox}
                     />
                     <span className={styles.checkLabel}>{label}</span>

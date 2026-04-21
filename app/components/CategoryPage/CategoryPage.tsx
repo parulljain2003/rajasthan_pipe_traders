@@ -8,6 +8,10 @@ import FilterSidebar from './FilterSidebar/FilterSidebar';
 import ProductGrid from '../ShopSection/ProductGrid/ProductGrid';
 import { expandProductsForListing, type Product } from '../../data/products';
 import { CategoryConfig } from '../../data/categories';
+import {
+  entryMatchesSelectedBrandFilters,
+  filterLabelForId,
+} from '../../lib/brandSidebarFilters';
 
 interface CategoryPageProps {
   category: CategoryConfig;
@@ -20,9 +24,11 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
     [products]
   );
 
-  const allPrices = listingEntries.map((e) => e.offer.sizes[0].withGST);
-  const globalMin = listingEntries.length ? Math.floor(Math.min(...allPrices)) : 0;
-  const globalMax = listingEntries.length ? Math.ceil(Math.max(...allPrices)) : 100_000;
+  const allPrices = listingEntries
+    .map((e) => e.offer.sizes[0]?.withGST)
+    .filter((n): n is number => typeof n === "number" && Number.isFinite(n));
+  const globalMin = allPrices.length ? Math.floor(Math.min(...allPrices)) : 0;
+  const globalMax = allPrices.length ? Math.ceil(Math.max(...allPrices)) : 100_000;
 
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
   const [priceRange, setPriceRange] = useState<[number, number]>([globalMin, globalMax]);
@@ -46,7 +52,7 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
   const filteredListingEntries = useMemo(() => {
     let list = listingEntries.filter((e) => {
       const price = e.offer.sizes[0].withGST;
-      const brandOk = selectedBrands.size === 0 || selectedBrands.has(e.offer.brand);
+      const brandOk = entryMatchesSelectedBrandFilters(e, selectedBrands);
       const priceOk = price >= priceRange[0] && price <= priceRange[1];
       return brandOk && priceOk;
     });
@@ -162,13 +168,13 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
             {/* Active filter chips */}
             {activeFilterCount > 0 && (
               <div className={styles.activeFilters}>
-                {Array.from(selectedBrands).map(brand => (
+                {Array.from(selectedBrands).map((brandId) => (
                   <button
-                    key={brand}
+                    key={brandId}
                     className={styles.filterChip}
-                    onClick={() => handleBrandToggle(brand)}
+                    onClick={() => handleBrandToggle(brandId)}
                   >
-                    {brand === 'Tejas Craft' ? 'Tejas' : brand === 'Hitech Square' ? 'HiTech' : brand}
+                    {filterLabelForId(brandId)}
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                       <path d="M18 6 6 18M6 6l12 12" />
                     </svg>

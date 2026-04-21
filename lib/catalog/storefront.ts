@@ -169,6 +169,10 @@ export async function getStorefrontProductsFromSearchParams(
   if (q.length >= 2) {
     applyProductTextSearch(filter, q);
   }
+  const brandParam = sp.get("brand")?.trim();
+  if (brandParam) {
+    filter.brand = { $regex: escapeRegex(brandParam), $options: "i" };
+  }
   const limit = Math.min(500, Math.max(1, Number(sp.get("limit")) || 100));
   const skip = Math.max(0, Number(sp.get("skip")) || 0);
 
