@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDb } from "@/lib/db/connect";
 import {
-  findProductSortOrderConflict,
-  maxSortOrderInCategory,
+  findGlobalProductSortOrderConflict,
+  maxSortOrderInProducts,
   parseSortOrderInput,
   productSortOrderConflictPayload,
 } from "@/lib/db/productSortOrder";
@@ -91,8 +91,7 @@ export async function POST(req: NextRequest) {
     const swapWithRaw =
       typeof body.swapSortOrderWith === "string" ? body.swapSortOrderWith.trim() : "";
 
-    const conflict =
-      sortOrder > 0 ? await findProductSortOrderConflict(categoryOid, sortOrder, null) : null;
+    const conflict = sortOrder > 0 ? await findGlobalProductSortOrderConflict(sortOrder, null) : null;
     if (conflict) {
       if (
         swapWithRaw &&
@@ -103,7 +102,7 @@ export async function POST(req: NextRequest) {
         let doc;
         try {
           await session.withTransaction(async () => {
-            const maxSo = await maxSortOrderInCategory(categoryOid);
+            const maxSo = await maxSortOrderInProducts();
             await ProductModel.updateOne(
               { _id: conflict._id },
               { $set: { sortOrder: maxSo + 1 } },

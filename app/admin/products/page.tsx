@@ -256,6 +256,11 @@ export default function AdminProductsPage() {
   } | null>(null);
   const appliedSearchRef = useRef("");
   const [pendingScrollId, setPendingScrollId] = useState<string | null>(null);
+  const [sortChecking, setSortChecking] = useState(false);
+  /** True after “Check” found no conflict for the current category + sort value */
+  const [sortOrderCheckOk, setSortOrderCheckOk] = useState(false);
+  /** Sort order loaded from DB when opening edit (used for swap confirmation) */
+  const [editBaselineSortOrder, setEditBaselineSortOrder] = useState<number | null>(null);
 
   /** Both packing fields set → storefront uses packing only; separate MOQ fields hidden and cleared on save */
   const packingReplacesMoq = useMemo(() => {
@@ -334,6 +339,8 @@ export default function AdminProductsPage() {
     setEditingId(null);
     setForm(emptyForm);
     setSortConflict(null);
+    setSortOrderCheckOk(false);
+    setEditBaselineSortOrder(null);
     setModalOpen(true);
   }
 
@@ -407,9 +414,51 @@ export default function AdminProductsPage() {
         sortOrder: typeof p.sortOrder === "number" ? p.sortOrder : 0,
       });
       setSortConflict(null);
+      setSortOrderCheckOk(false);
+      setEditBaselineSortOrder(typeof p.sortOrder === "number" ? p.sortOrder : 0);
       setModalOpen(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load product");
+    }
+  }
+
+  async function checkSortOrder() {
+    setSortChecking(true);
+    setError(null);
+    setSortConflict(null);
+    setSortOrderCheckOk(false);
+    try {
+      const sortOrder = sortOrderFromForm(form.sortOrder);
+      const res = await fetch("/api/admin/products/check-sort-order", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sortOrder,
+          ...(editingId ? { excludeProductId: editingId } : {}),
+        }),
+      });
+      const json = (await res.json()) as {
+        message?: string;
+        available?: boolean;
+        conflict?: { _id: string; name: string; sortOrder: number };
+      };
+      if (!res.ok) {
+        throw new Error(json.message || res.statusText);
+      }
+      if (json.available) {
+        setSortOrderCheckOk(true);
+        return;
+      }
+      if (json.conflict) {
+        setSortConflict(json.conflict);
+        return;
+      }
+      throw new Error("Unexpected response from sort order check.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sort order check failed");
+    } finally {
+      setSortChecking(false);
     }
   }
 
@@ -543,8 +592,9 @@ export default function AdminProductsPage() {
         if (!res.ok) {
           if (res.status === 409 && json.code === "SORT_ORDER_CONFLICT" && json.conflict) {
             setSortConflict(json.conflict);
+            setSortOrderCheckOk(false);
             setError(
-              `Sort order ${json.conflict.sortOrder} is already used by “${json.conflict.name}” in this category.`,
+              `Sort order ${json.conflict.sortOrder} is already used by “${json.conflict.name}” in the product list. Use Check to verify, then Swap if you want to exchange positions.`,
             );
             return;
           }
@@ -607,8 +657,9 @@ export default function AdminProductsPage() {
         if (!res.ok) {
           if (res.status === 409 && json.code === "SORT_ORDER_CONFLICT" && json.conflict) {
             setSortConflict(json.conflict);
+            setSortOrderCheckOk(false);
             setError(
-              `Sort order ${json.conflict.sortOrder} is already used by “${json.conflict.name}” in this category.`,
+              `Sort order ${json.conflict.sortOrder} is already used by “${json.conflict.name}” in the product list. Use Check to verify, then Swap if you want to resolve the conflict.`,
             );
             return;
           }
@@ -616,6 +667,7 @@ export default function AdminProductsPage() {
         }
       }
       setSortConflict(null);
+      setSortOrderCheckOk(false);
       setModalOpen(false);
       await loadProducts(meta.skip);
     } catch (err) {
@@ -632,6 +684,15 @@ export default function AdminProductsPage() {
 
   async function handleSwapSortOrder() {
     if (!sortConflict) return;
+    const targetOrder = sortOrderFromForm(form.sortOrder);
+    let msg: string;
+    if (editingId) {
+      const from = editBaselineSortOrder ?? 0;
+      msg = `Swap sort orders? This product will move from ${from} to ${targetOrder}, and “${sortConflict.name}” will move from ${targetOrder} to ${from}.`;
+    } else {
+      msg = `“${sortConflict.name}” already uses order ${sortConflict.sortOrder}. This will move that product to the end of the list so the new product can use ${sortConflict.sortOrder}. Continue?`;
+    }
+    if (!confirm(msg)) return;
     await saveProduct(sortConflict._id);
   }
 
@@ -834,6 +895,7 @@ export default function AdminProductsPage() {
                     value={form.categoryId}
                     onChange={(e) => {
                       setSortConflict(null);
+                      setSortOrderCheckOk(false);
                       setForm((f) => ({ ...f, categoryId: e.target.value }));
                     }}
                     required={!editingId}
@@ -848,34 +910,53 @@ export default function AdminProductsPage() {
                 </div>
                 <div className="admin-field">
                   <label htmlFor="p-sort">Sort order</label>
-                  <input
-                    id="p-sort"
-                    type="number"
-                    className="admin-input"
-                    inputMode="numeric"
-                    min={0}
-                    step={1}
-                    value={form.sortOrder}
-                    onChange={(e) => {
-                      setSortConflict(null);
-                      const v = e.target.value;
-                      setForm((f) => ({
-                        ...f,
-                        sortOrder: v === "" ? 0 : Number(v),
-                      }));
-                    }}
-                  />
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-ghost"
+                      disabled={sortChecking || saving}
+                      onClick={() => void checkSortOrder()}
+                      title="Check MongoDB for another product using this order in the full product list"
+                    >
+                      {sortChecking ? "Checking…" : "Check"}
+                    </button>
+                    <input
+                      id="p-sort"
+                      type="number"
+                      className="admin-input"
+                      style={{ flex: "1 1 140px", minWidth: 120, maxWidth: 220 }}
+                      inputMode="numeric"
+                      min={0}
+                      step={1}
+                      value={form.sortOrder}
+                      onChange={(e) => {
+                        setSortConflict(null);
+                        setSortOrderCheckOk(false);
+                        const v = e.target.value;
+                        setForm((f) => ({
+                          ...f,
+                          sortOrder: v === "" ? 0 : Number(v),
+                        }));
+                      }}
+                    />
+                  </div>
                   <p className="muted" style={{ marginTop: 6 }}>
-                    Lower numbers appear first within the same category. If this order is taken, save
-                    will offer a swap.
+                    Lower numbers appear first in ordering. Click Check to see if this number is free
+                    in the full product list; if another product already uses it, you can Swap.
                   </p>
+                  {sortOrderCheckOk ? (
+                    <p className="admin-banner" role="status" style={{ marginTop: 8, marginBottom: 0 }}>
+                      This sort order is available in the full product list. You can save the rest of
+                      the form as usual.
+                    </p>
+                  ) : null}
                 </div>
                 {sortConflict ? (
-                  <div className="admin-banner" role="status" style={{ marginBottom: 12 }}>
+                  <div className="admin-banner warn" role="status" style={{ marginBottom: 12 }}>
                     <p style={{ margin: "0 0 8px" }}>
                       {editingId
-                        ? `Swap: this product will take sort order ${sortConflict.sortOrder}, and “${sortConflict.name}” will take your current order.`
-                        : `“${sortConflict.name}” uses this order. Move it to the end of the list and use ${sortConflict.sortOrder} for this product.`}
+                        ? `Conflict: sort order ${sortConflict.sortOrder} is already used by “${sortConflict.name}”. Click Swap to exchange positions (this product takes ${sortConflict.sortOrder}, the other takes your previous order).`
+                        : `Conflict: sort order ${sortConflict.sortOrder} is already used by “${sortConflict.name}”. Click Swap to move that product to the end of the list and use this order for the new product.`}
                     </p>
                     <button
                       type="button"
@@ -883,7 +964,7 @@ export default function AdminProductsPage() {
                       disabled={saving}
                       onClick={() => void handleSwapSortOrder()}
                     >
-                      {editingId ? "Swap sort order" : "Apply and move other product"}
+                      {editingId ? "Swap" : "Swap"}
                     </button>
                   </div>
                 ) : null}
