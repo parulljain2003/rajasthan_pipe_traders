@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { MediaImageField } from "../components/MediaImageField";
+import AdminCategorySearchBar from "../components/AdminCategorySearchBar";
 import type { AdminCategory } from "../types";
+
+const CATEGORY_PAGE_SIZE = 20;
 
 const emptyForm = {
   name: "",
@@ -28,6 +31,7 @@ export default function AdminCategoriesPage() {
     name: string;
     sortOrder: number;
   } | null>(null);
+  const [page, setPage] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,6 +52,21 @@ export default function AdminCategoriesPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const total = list.length;
+  const pageSlice = useMemo(
+    () => list.slice(page * CATEGORY_PAGE_SIZE, page * CATEGORY_PAGE_SIZE + CATEGORY_PAGE_SIZE),
+    [list, page],
+  );
+
+  useEffect(() => {
+    const maxPage = Math.max(0, Math.ceil(total / CATEGORY_PAGE_SIZE) - 1);
+    if (total === 0) setPage(0);
+    else if (page > maxPage) setPage(maxPage);
+  }, [total, page]);
+
+  const canPrevPage = page > 0;
+  const canNextPage = (page + 1) * CATEGORY_PAGE_SIZE < total;
 
   function openCreate() {
     setEditingId(null);
@@ -162,18 +181,21 @@ export default function AdminCategoriesPage() {
         </div>
       ) : null}
 
-      <div className="admin-toolbar">
-        <button type="button" className="admin-btn admin-btn-primary" onClick={openCreate}>
-          New category
-        </button>
-        <button
-          type="button"
-          className="admin-btn admin-btn-ghost"
-          onClick={() => void load()}
-          disabled={loading}
-        >
-          Refresh
-        </button>
+      <div className="admin-toolbar admin-toolbar-with-search">
+        <div className="admin-toolbar-left">
+          <button type="button" className="admin-btn admin-btn-primary" onClick={openCreate}>
+            New category
+          </button>
+          <button
+            type="button"
+            className="admin-btn admin-btn-ghost"
+            onClick={() => void load()}
+            disabled={loading}
+          >
+            Refresh
+          </button>
+        </div>
+        {!loading ? <AdminCategorySearchBar categories={list} /> : null}
       </div>
 
       {loading ? (
@@ -183,6 +205,7 @@ export default function AdminCategoriesPage() {
           <table className="admin-table">
             <thead>
               <tr>
+                <th>S.No</th>
                 <th>Image</th>
                 <th>Name</th>
                 <th>Slug</th>
@@ -192,8 +215,9 @@ export default function AdminCategoriesPage() {
               </tr>
             </thead>
             <tbody>
-              {list.map((c) => (
-                <tr key={c._id}>
+              {pageSlice.map((c, index) => (
+                <tr key={c._id} id={`admin-row-${c._id}`}>
+                  <td>{page * CATEGORY_PAGE_SIZE + index + 1}</td>
                   <td>
                     {c.image ? (
                       <img src={c.image} alt="" className="admin-thumb" />
@@ -231,6 +255,31 @@ export default function AdminCategoriesPage() {
           {list.length === 0 ? <p className="muted" style={{ padding: "1rem" }}>No categories.</p> : null}
         </div>
       )}
+
+      {!loading && total > 0 ? (
+        <div className="admin-pagination">
+          <button
+            type="button"
+            className="admin-btn admin-btn-ghost"
+            disabled={!canPrevPage || loading}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          >
+            Previous
+          </button>
+          <span>
+            Showing {page * CATEGORY_PAGE_SIZE + 1}–{Math.min((page + 1) * CATEGORY_PAGE_SIZE, total)} of{" "}
+            {total}
+          </span>
+          <button
+            type="button"
+            className="admin-btn admin-btn-ghost"
+            disabled={!canNextPage || loading}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
 
       {modalOpen ? (
         <div

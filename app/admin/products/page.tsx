@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ApiProductSize } from "@/app/lib/api/types";
 import type { KeyFeatureIcon } from "@/app/data/products";
 import { normalizeKeyFeatureIcon } from "@/app/lib/sanitizeKeyFeatures";
 import { MediaImageField } from "../components/MediaImageField";
+import AdminProductSearchBar from "../components/AdminProductSearchBar";
 import type { AdminCategory, AdminProduct } from "../types";
 
-const pageSize = 50;
+const pageSize = 25;
 
 /** Primary cart unit — derived from inner (packet/box) first, then bulk (bags/carton) */
 type PackagingPricingUnit =
@@ -253,6 +254,8 @@ export default function AdminProductsPage() {
     name: string;
     sortOrder: number;
   } | null>(null);
+  const appliedSearchRef = useRef("");
+  const [pendingScrollId, setPendingScrollId] = useState<string | null>(null);
   const [sortChecking, setSortChecking] = useState(false);
   /** True after “Check” found no conflict for the current category + sort value */
   const [sortOrderCheckOk, setSortOrderCheckOk] = useState(false);
@@ -281,12 +284,16 @@ export default function AdminProductsPage() {
     }
   }, []);
 
-  const loadProducts = useCallback(async (skip: number) => {
+  const loadProducts = useCallback(async (skip: number, nextSearch?: string, scrollToId?: string) => {
+    const searchTerm = nextSearch !== undefined ? nextSearch : appliedSearchRef.current;
     setLoading(true);
     setError(null);
     try {
-      const q = new URLSearchParams({ limit: String(pageSize), skip: String(skip) });
-      const res = await fetch(`/api/admin/products?${q}`, { cache: "no-store" });
+      const params = new URLSearchParams({ limit: String(pageSize), skip: String(skip) });
+      const trimmed = searchTerm.trim();
+      if (trimmed) params.set("q", trimmed);
+      appliedSearchRef.current = trimmed;
+      const res = await fetch(`/api/admin/products?${params}`, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
       setList(json.data as AdminProduct[]);
@@ -294,9 +301,11 @@ export default function AdminProductsPage() {
         total: json.meta?.total ?? 0,
         skip: json.meta?.skip ?? skip,
       });
+      setPendingScrollId(scrollToId ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
       setList([]);
+      setPendingScrollId(null);
     } finally {
       setLoading(false);
     }
@@ -307,8 +316,24 @@ export default function AdminProductsPage() {
   }, [loadCategories]);
 
   useEffect(() => {
-    void loadProducts(0);
+    void loadProducts(0, "");
   }, [loadProducts]);
+
+  useEffect(() => {
+    if (!pendingScrollId || loading) return;
+    const id = pendingScrollId;
+    const el = document.getElementById(`admin-row-${id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("admin-row-highlight");
+      window.setTimeout(() => {
+        el.classList.remove("admin-row-highlight");
+        setPendingScrollId(null);
+      }, 2200);
+    } else {
+      setPendingScrollId(null);
+    }
+  }, [list, pendingScrollId, loading]);
 
   function openCreate() {
     setEditingId(null);
@@ -695,21 +720,26 @@ export default function AdminProductsPage() {
         </div>
       ) : null}
 
-      <div className="admin-toolbar">
-        <button type="button" className="admin-btn admin-btn-primary" onClick={openCreate}>
-          New product
-        </button>
-        <button
-          type="button"
-          className="admin-btn admin-btn-ghost"
-          onClick={() => void loadProducts(meta.skip)}
-          disabled={loading}
-        >
-          Refresh
-        </button>
-        <span className="muted" style={{ fontSize: "0.875rem" }}>
-          {meta.total} product(s) total
-        </span>
+      <div className="admin-toolbar admin-toolbar-with-search">
+        <div className="admin-toolbar-left">
+          <button type="button" className="admin-btn admin-btn-primary" onClick={openCreate}>
+            New product
+          </button>
+          <button
+            type="button"
+            className="admin-btn admin-btn-ghost"
+            onClick={() => void loadProducts(meta.skip)}
+            disabled={loading}
+          >
+            Refresh
+          </button>
+          <span className="muted" style={{ fontSize: "0.875rem" }}>
+            {meta.total} product(s) total
+          </span>
+        </div>
+        <AdminProductSearchBar
+          onRunSearch={(query, scrollToId) => void loadProducts(0, query, scrollToId)}
+        />
       </div>
 
       {loading ? (
@@ -720,6 +750,7 @@ export default function AdminProductsPage() {
             <table className="admin-table">
               <thead>
                 <tr>
+                  <th>S.No</th>
                   <th>Img</th>
                   <th>SKU</th>
                   <th>Name</th>
@@ -732,8 +763,9 @@ export default function AdminProductsPage() {
                 </tr>
               </thead>
               <tbody>
-                {list.map((p) => (
-                  <tr key={p._id}>
+                {list.map((p, index) => (
+                  <tr key={p._id} id={`admin-row-${p._id}`}>
+                    <td>{meta.skip + index + 1}</td>
                     <td>
                       {p.image ? <img src={p.image} alt="" className="admin-thumb" /> : "—"}
                     </td>

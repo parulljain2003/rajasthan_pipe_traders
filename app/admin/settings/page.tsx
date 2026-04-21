@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 export default function AdminSettingsPage() {
   const [minimumOrderInclGst, setMinimumOrderInclGst] = useState("");
+  const [pricesEffectiveDate, setPricesEffectiveDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -13,11 +14,15 @@ export default function AdminSettingsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/app-settings");
+      const res = await fetch("/api/admin/app-settings", {
+        credentials: "include",
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
       const n = json.data?.minimumOrderInclGst;
+      const d = json.data?.pricesEffectiveDate;
       setMinimumOrderInclGst(typeof n === "number" ? String(n) : "25000");
+      setPricesEffectiveDate(typeof d === "string" ? d : "");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -29,6 +34,13 @@ export default function AdminSettingsPage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (saved) {
+      const timer = setTimeout(() => setSaved(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [saved]);
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -37,15 +49,24 @@ export default function AdminSettingsPage() {
     try {
       const n = Number(minimumOrderInclGst.trim());
       if (!Number.isFinite(n) || n < 0) throw new Error("Enter a valid minimum order amount");
+      const trimmedDate = pricesEffectiveDate.trim();
       const res = await fetch("/api/admin/app-settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ minimumOrderInclGst: n }),
+        credentials: "include",
+        body: JSON.stringify({ 
+          minimumOrderInclGst: n,
+          pricesEffectiveDate: trimmedDate,
+        }),
       });
+      
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
+      
       setSaved(true);
-      setMinimumOrderInclGst(String(json.data?.minimumOrderInclGst ?? n));
+      // Keep the values the user just saved (don't reload from DB)
+      setMinimumOrderInclGst(String(n));
+      setPricesEffectiveDate(trimmedDate);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -87,6 +108,17 @@ export default function AdminSettingsPage() {
               value={minimumOrderInclGst}
               onChange={(e) => setMinimumOrderInclGst(e.target.value)}
               required
+            />
+          </div>
+          <div className="admin-field">
+            <label htmlFor="ped">Prices effective</label>
+            <input
+              id="ped"
+              className="admin-input"
+              type="text"
+              placeholder="DD-MM-YYYY"
+              value={pricesEffectiveDate}
+              onChange={(e) => setPricesEffectiveDate(e.target.value)}
             />
           </div>
           <button type="submit" className="admin-btn admin-btn-primary" disabled={saving}>

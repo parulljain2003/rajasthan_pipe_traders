@@ -15,6 +15,7 @@ import type { ListingMoqCartModel } from "@/lib/cart/listingMoqModel";
 import { useMoqCartForModel } from "@/lib/cart/useMoqCartForModel";
 import { ListingMoqCartControlsView } from "@/app/components/ListingMoqCartControls/ListingMoqCartControls";
 import listingMoqStyles from "@/app/components/ListingMoqCartControls/ListingMoqCartControls.module.css";
+import { usePricesEffectiveDate } from "@/lib/usePricesEffectiveDate";
 
 interface ProductInfoProps {
   product: Product;
@@ -54,6 +55,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const offers = getSellerOffers(product);
   const [sellerIdx, setSellerIdx] = useState(0);
   const [selectedSizeIndex] = useState(0);
+  const pricesEffectiveDate = usePricesEffectiveDate();
 
   const activeOffer = offers[sellerIdx];
   const brandDisplay = brandPillLabel(product.brand || activeOffer.brand);
@@ -182,6 +184,15 @@ export default function ProductInfo({ product }: ProductInfoProps) {
           </svg>
           GST included in final price
         </div>
+        {pricesEffectiveDate && (
+          <div className={styles.gstNote}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4M12 8h.01" />
+            </svg>
+            Prices effective {pricesEffectiveDate}
+          </div>
+        )}
       </div>
 
       {/* Bulk + inner order (2nd): Best value + quantity — labels from price list / DB */}

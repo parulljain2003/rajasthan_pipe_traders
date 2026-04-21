@@ -25,10 +25,10 @@
 }
 
 @media (min-width: 901px) {
+  /* Stretch with the main column so the navy background fills the full scroll height
+     (sticky + align-self:start left a tall white gap beside long tables). */
   .admin-sidebar {
-    position: sticky;
-    top: 0;
-    align-self: start;
+    align-self: stretch;
     min-height: 100vh;
   }
 }
@@ -223,6 +223,205 @@
   gap: 0.75rem;
   align-items: center;
   margin-bottom: 1rem;
+}
+
+.admin-toolbar-with-search {
+  gap: 0.75rem 1rem;
+  justify-content: space-between;
+}
+
+.admin-toolbar-left {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.admin-toolbar-storefront-search {
+  flex: 0 1 280px;
+  max-width: 100%;
+  min-width: 200px;
+}
+
+.admin-toolbar-storefront-search .search-section {
+  width: 100%;
+  max-width: 280px;
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .admin-toolbar-storefront-search {
+    flex: 1 1 100%;
+  }
+
+  .admin-toolbar-storefront-search .search-section {
+    max-width: none;
+    margin-left: 0;
+  }
+}
+
+/* Admin list search (categories / products) — distinct from storefront header search */
+.admin-toolbar-search {
+  position: relative;
+  flex: 0 1 320px;
+  max-width: 100%;
+  min-width: 200px;
+}
+
+.admin-search-block {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem 0.35rem 0.65rem;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.admin-search-block:focus-within,
+.admin-search-block.is-open {
+  border-color: var(--admin-accent, #0ea5e9);
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
+}
+
+.admin-search-icon {
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+.admin-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: 0.8125rem;
+  color: #0f172a;
+  outline: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.admin-search-input::placeholder {
+  color: #94a3b8;
+  font-family: inherit;
+}
+
+.admin-search-clear {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.admin-search-clear:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.admin-search-go {
+  flex-shrink: 0;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid #bae6fd;
+  background: #f0f9ff;
+  color: #0369a1;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.admin-search-go:hover {
+  background: #e0f2fe;
+}
+
+.admin-search-dropdown {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.admin-search-empty {
+  padding: 0.65rem 0.85rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.admin-search-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  padding: 0.55rem 0.85rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.admin-search-option:hover {
+  background: #f8fafc;
+}
+
+.admin-search-option-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.admin-search-option-meta {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+@keyframes admin-row-highlight-pulse {
+  0% {
+    box-shadow: inset 0 0 0 0 rgba(14, 165, 233, 0);
+  }
+
+  20% {
+    box-shadow: inset 0 0 0 2px rgba(14, 165, 233, 0.65);
+  }
+
+  100% {
+    box-shadow: inset 0 0 0 0 rgba(14, 165, 233, 0);
+  }
+}
+
+.admin-table tbody tr.admin-row-highlight {
+  animation: admin-row-highlight-pulse 0.6s ease-out 2;
+  background: #f0f9ff !important;
+}
+
+@media (max-width: 640px) {
+  .admin-toolbar-with-search {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-toolbar-search {
+    flex: 1 1 auto;
+    max-width: none;
+  }
 }
 
 .admin-btn {

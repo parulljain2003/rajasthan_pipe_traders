@@ -66,18 +66,6 @@ function normalizeBannerCoupon(raw: Record<string, unknown>): BannerCoupon {
   };
 }
 
-const quickLinks = [
-  { label: "Cable Nail Clips", slug: "cable-nail-clips", icon: "🔩" },
-  { label: "Nylon Cable Ties", slug: "nylon-cable-ties", icon: "🔗" },
-  { label: "Double Nail Clamps", slug: "double-nail-clamp", icon: "⚙️" },
-  { label: "Ball Valves", slug: "ball-valve-white", icon: "🔵" },
-  { label: "Modular Boxes", slug: "plain-modular-gang-box", icon: "📦" },
-  { label: "UPVC Clamps", slug: "upvc-pipe-clamp", icon: "🔧" },
-  { label: "CPVC Clamps", slug: "cpvc-pipe-clamp", icon: "🛠️" },
-  { label: "Insulation Tape", slug: "electric-insulation-tape", icon: "🎗️" },
-  { label: "Wall Plugs", slug: "wall-plug-gitti", icon: "🪛" },
-];
-
 /* ════════════════════════════════════
    COUPON CARD COMPONENT
 ════════════════════════════════════ */
@@ -365,21 +353,6 @@ export default function HeroBanner({ banner }: { banner: HomeBannerPayload }) {
             <ProductCarousel slides={banner.slides} />
           </div>
         ) : null}
-      </div>
-
-      <div className={styles.strip} aria-hidden="true">
-        <div className={styles.stripInner}>
-          {[...quickLinks, ...quickLinks].map((l, i) => (
-            <Link
-              key={`${l.slug}-${i}`}
-              href={`/products/${l.slug}`}
-              className={styles.stripItem}
-            >
-              <span className={styles.stripIcon}>{l.icon}</span>
-              {l.label}
-            </Link>
-          ))}
-        </div>
       </div>
     </section>
   );

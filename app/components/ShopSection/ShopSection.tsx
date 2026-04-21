@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import CategoryRow from './CategoryRow/CategoryRow';
 import ProductGrid from './ProductGrid/ProductGrid';
+import StorefrontPolicyFooterNote from '@/app/components/StorefrontPolicyFooterNote';
 import { expandProductsForListing, products } from '../../data/products';
 import styles from './ShopSection.module.css';
 
@@ -64,12 +65,7 @@ export default function ShopSection() {
         <ProductGrid listingEntries={filteredListing} />
 
         <div className={styles.footer}>
-          <p className={styles.footerNote}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            Min. order ₹25,000 (incl. GST) · 100% advance · Prices effective 01-04-2026
-          </p>
+          <StorefrontPolicyFooterNote className={styles.footerNote} />
         </div>
       </div>
     </section>

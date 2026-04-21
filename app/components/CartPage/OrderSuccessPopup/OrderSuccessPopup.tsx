@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import styles from './OrderSuccessPopup.module.css';
 import { CartItem } from '../../../context/CartWishlistContext';
 import { pricedPacketCount } from '@/lib/cart/packetLine';
+import { useStorefrontAppSettings } from '@/lib/useStorefrontAppSettings';
 
 interface OrderSuccessPopupProps {
   isOpen: boolean;
@@ -21,6 +22,8 @@ export default function OrderSuccessPopup({
   onClose,
   onContinue,
 }: OrderSuccessPopupProps) {
+  const { pricesEffectiveDate } = useStorefrontAppSettings();
+
   useEffect(() => {
     if (isOpen) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = '';
@@ -76,7 +79,8 @@ export default function OrderSuccessPopup({
         </div>
 
         <p className={styles.paymentNote}>
-          100% advance payment · Prices effective 01-04-2026
+          100% advance payment
+          {pricesEffectiveDate ? ` · Prices effective ${pricesEffectiveDate}` : ""}
         </p>
 
         {/* Button */}
