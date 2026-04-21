@@ -14,13 +14,23 @@ interface ProductGridProps {
   listingEntries: ProductListingEntry[];
   /** Home “All Products”: label left, quantity box right. */
   cardListingLayout?: boolean;
+  /** `four`: category-style grid — 4 cards per row on large screens (default is 5). */
+  gridDensity?: "default" | "four";
 }
 
 function listingKey(productId: number, sellerId: string) {
   return `${productId}:${sellerId}`;
 }
 
-export default function ProductGrid({ listingEntries: entries, cardListingLayout = false }: ProductGridProps) {
+export default function ProductGrid({
+  listingEntries: entries,
+  cardListingLayout = false,
+  gridDensity = "default",
+}: ProductGridProps) {
+  const imageSizes =
+    gridDensity === "four"
+      ? "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1279px) 25vw, 25vw"
+      : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1279px) 25vw, 20vw";
   if (entries.length === 0) {
     return (
       <div className={styles.empty}>
@@ -35,7 +45,7 @@ export default function ProductGrid({ listingEntries: entries, cardListingLayout
 
 
   return (
-    <div className={styles.grid}>
+    <div className={`${styles.grid} ${gridDensity === "four" ? styles.gridDensityFour : ""}`}>
       {entries.map((entry) => {
         const { product, offer } = entry;
         const brandSource = (product.brand || offer.brand || "").trim();
@@ -62,7 +72,7 @@ export default function ProductGrid({ listingEntries: entries, cardListingLayout
                   src={product.image}
                   alt={product.name}
                   fill
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
+                  sizes={imageSizes}
                   style={{ objectFit: 'contain', padding: '0.8rem' }}
                 />
               </div>

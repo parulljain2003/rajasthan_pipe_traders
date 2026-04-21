@@ -20,7 +20,7 @@ interface ListingMoqCartControlsViewProps {
   labelOuter?: string;
   labelInner?: string;
   labelSingle?: string;
-  /** Home listing cards: headings + stepper (− qty +); no trailing unit text. */
+  /** Home listing cards: outer box + stepper (− qty +) with unit chip. */
   cardListingLayout?: boolean;
 }
 
@@ -72,8 +72,7 @@ export function ListingMoqCartControlsView({
           <div className={styles.bulkRows}>
             {cardListingLayout ? (
               <>
-                <div className={`${styles.row} ${styles.cardListingRow}`}>
-                  <span className={styles.cardListingLabel}>{labels.outerHeading}</span>
+                <div className={styles.cardListingOuterBox}>
                   <div className={`${styles.stepper} ${styles.stepperCardListing}`}>
                     <button type="button" className={styles.stepBtn} disabled={bagQty <= 0} onClick={(e) => { stop(e); onBagDelta(-1); }} aria-label={`Decrease ${labels.outerPlural}`}>
                       −
@@ -84,10 +83,10 @@ export function ListingMoqCartControlsView({
                     <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onBagDelta(1); }} aria-label={`Increase ${labels.outerPlural}`}>
                       +
                     </button>
+                    <span className={styles.cardListingUnitChip}>{labels.outerPlural}</span>
                   </div>
                 </div>
-                <div className={`${styles.row} ${styles.cardListingRow}`}>
-                  <span className={styles.cardListingLabel}>{labels.innerHeading}</span>
+                <div className={styles.cardListingOuterBox}>
                   <div className={`${styles.stepper} ${styles.stepperCardListing}`}>
                     <button
                       type="button"
@@ -114,6 +113,7 @@ export function ListingMoqCartControlsView({
                     <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onPacketDelta(1); }} aria-label="Increase packet MOQ step">
                       +
                     </button>
+                    <span className={styles.cardListingUnitChip}>{labels.innerPlural}</span>
                   </div>
                 </div>
               </>
@@ -170,8 +170,7 @@ export function ListingMoqCartControlsView({
           </div>
         </>
       ) : cardListingLayout ? (
-        <div className={`${styles.row} ${styles.cardListingRow}`}>
-          <span className={styles.cardListingLabel}>{labels.innerHeading}</span>
+        <div className={styles.cardListingOuterBox}>
           <div className={`${styles.stepper} ${styles.stepperCardListing}`}>
             <button type="button" className={styles.stepBtn} disabled={pktQty <= 0} onClick={(e) => { stop(e); onPacketDelta(-1); }} aria-label="Decrease quantity">
               −
@@ -192,6 +191,7 @@ export function ListingMoqCartControlsView({
             <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onPacketDelta(1); }} aria-label="Increase quantity">
               +
             </button>
+            <span className={styles.cardListingUnitChip}>{labels.innerPlural}</span>
           </div>
         </div>
       ) : (

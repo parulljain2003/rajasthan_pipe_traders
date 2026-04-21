@@ -311,8 +311,8 @@ export function toPublicCouponBanner(doc: Record<string, unknown>, index = 0): R
     const maxVal = Math.max(...tiers.map((t) => t.value));
     discountStub =
       dt === "percentage"
-        ? `Up to ${maxVal}%`
-        : `Up to ₹${maxVal.toLocaleString("en-IN")}`;
+        ? `${maxVal}%`
+        : `₹${maxVal.toLocaleString("en-IN")}`;
   }
   const tierUnit = doc.tierUnit === "outer" ? "outer" : "packets";
   return {
