@@ -207,6 +207,6 @@ export async function getStorefrontProductsFromSearchParams(
     path: "category",
     select: "name slug",
   });
-  const data = rows.map((r) => serializeProductLean(r as LeanDoc)!);
+  const data = rows.map((r) => serializeProductLean(r as unknown as LeanDoc)!);
   return { ok: true, data, meta: { total, limit, skip } };
 }
