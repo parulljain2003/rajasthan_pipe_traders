@@ -14,7 +14,7 @@ import type { HomeBannerPayload } from "@/lib/banner/resolveHomeBanner";
 import type { HeroSlide } from "@/lib/banner/heroSlide";
 
 /* ════════════════════════════════════
-   COUPON DATA (fallback if API empty)
+   COUPON DATA (from /api/coupons)
 ════════════════════════════════════ */
 const COUPON_THEMES = new Set(["blue", "indigo", "green", "amber", "brown"]);
 
@@ -26,33 +26,6 @@ type BannerCoupon = {
   desc: string;
   theme: string;
 };
-
-const FALLBACK_COUPONS: BannerCoupon[] = [
-  {
-    code: "BULK7",
-    discount: "Up to 12%",
-    label: "OFF",
-    condition: "Bulk packet tiers",
-    desc: "7%–12% by quantity — see description on live coupons",
-    theme: "blue",
-  },
-  {
-    code: "BULK9",
-    discount: "Up to 12%",
-    label: "OFF",
-    condition: "Mix cart lines",
-    desc: "Thresholds use priced packet totals",
-    theme: "indigo",
-  },
-  {
-    code: "BULK12",
-    discount: "Up to 12%",
-    label: "OFF",
-    condition: "Eligible catalogue lines",
-    desc: "Configure in admin",
-    theme: "green",
-  },
-];
 
 function normalizeBannerCoupon(raw: Record<string, unknown>): BannerCoupon {
   const theme = typeof raw.theme === "string" && COUPON_THEMES.has(raw.theme) ? raw.theme : "blue";
@@ -88,6 +61,7 @@ function CouponCard({ c }: { c: BannerCoupon }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
   return (
     <div className={`${styles.coupon} ${styles[`coupon_${c.theme}`]}`}>
       <div className={styles.couponNotchL} aria-hidden />
@@ -168,9 +142,6 @@ function ProductCarousel({ slides }: { slides: HeroSlide[] }) {
   const [dir, setDir] = useState<"l" | "r">("l");
   const [paused, setPaused] = useState(false);
 
-  useEffect(() => {
-    console.log("slides", slides);
-  }, [slides]);
 
   const goTo = useCallback((i: number, d: "l" | "r" = "l") => {
     setDir(d);
@@ -289,7 +260,7 @@ function ProductCarousel({ slides }: { slides: HeroSlide[] }) {
    MAIN HERO
 ════════════════════════════════════ */
 export default function HeroBanner({ banner }: { banner: HomeBannerPayload }) {
-  const [bannerCoupons, setBannerCoupons] = useState<BannerCoupon[]>(FALLBACK_COUPONS);
+  const [bannerCoupons, setBannerCoupons] = useState<BannerCoupon[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -297,10 +268,11 @@ export default function HeroBanner({ banner }: { banner: HomeBannerPayload }) {
       try {
         const res = await fetch("/api/coupons?banner=1", { cache: "no-store" });
         const json = (await res.json()) as { data?: unknown[] };
-        if (!res.ok || !Array.isArray(json.data) || json.data.length === 0 || cancelled) return;
+        if (cancelled) return;
+        if (!res.ok || !Array.isArray(json.data)) return;
         setBannerCoupons(json.data.map((row) => normalizeBannerCoupon(row as Record<string, unknown>)));
       } catch {
-        /* keep fallback */
+        /* keep empty */
       }
     })();
     return () => {
@@ -308,7 +280,6 @@ export default function HeroBanner({ banner }: { banner: HomeBannerPayload }) {
     };
   }, []);
 
-  const couponRow = bannerCoupons.length > 0 ? bannerCoupons : FALLBACK_COUPONS;
   const hasCarouselSlides = banner.slides.length > 0;
 
   return (
@@ -318,18 +289,20 @@ export default function HeroBanner({ banner }: { banner: HomeBannerPayload }) {
       <div className={styles.overlayFull} aria-hidden />
       <div className={styles.bgGrid} aria-hidden />
 
-      <div className={styles.couponBar}>
-        <div className={styles.couponBarInner}>
-          <div className={styles.couponRow}>
-            {couponRow.map((c, i) => (
-              <CouponCard key={`${c.code}-a-${i}`} c={c} />
-            ))}
-            {couponRow.map((c, i) => (
-              <CouponCard key={`${c.code}-b-${i}`} c={c} />
-            ))}
+      {bannerCoupons.length > 0 ? (
+        <div className={styles.couponBar}>
+          <div className={styles.couponBarInner}>
+            <div className={styles.couponRow}>
+              {bannerCoupons.map((c, i) => (
+                <CouponCard key={`${c.code}-a-${i}`} c={c} />
+              ))}
+              {bannerCoupons.map((c, i) => (
+                <CouponCard key={`${c.code}-b-${i}`} c={c} />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
 
       <div className={`${styles.inner} ${hasCarouselSlides ? "" : styles.innerNoCarousel}`}>
         <div className={styles.left}>
