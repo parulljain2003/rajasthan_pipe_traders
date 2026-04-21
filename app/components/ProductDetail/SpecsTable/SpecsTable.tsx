@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import styles from "./SpecsTable.module.css";
 import { getSellerOffers, type Product } from "../../../data/products";
+import { usePricesEffectiveDate } from "@/lib/usePricesEffectiveDate";
 
 interface SpecsTableProps {
   product: Product;
@@ -18,6 +19,7 @@ const tabs: { key: TabKey; label: string }[] = [
 export default function SpecsTable({ product }: SpecsTableProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("specs");
   const offers = getSellerOffers(product);
+  const pricesEffectiveDate = usePricesEffectiveDate();
 
   return (
     <div className={styles.container}>
@@ -69,7 +71,8 @@ export default function SpecsTable({ product }: SpecsTableProps) {
             </div>
           ))}
           <p className={styles.tableNote}>
-            * All prices are per packet (excluding transport). Prices effective 01-04-2026.
+            * All prices are per packet (excluding transport).
+            {pricesEffectiveDate ? ` Prices effective ${pricesEffectiveDate}.` : null}
           </p>
         </div>
       )}

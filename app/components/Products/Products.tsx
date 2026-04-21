@@ -12,6 +12,7 @@ import {
 import { productHeading, brandPillLabel, resolveBrandPillVariant } from '../../lib/productHeading';
 import { resolvePackingUnitLabels } from '@/lib/packingLabels';
 import ListingMoqCartControls, { listingEntryToModel } from '@/app/components/ListingMoqCartControls/ListingMoqCartControls';
+import StorefrontPolicyFooterNote from '@/app/components/StorefrontPolicyFooterNote';
 
 const CATEGORIES = ['All', 'Cable Clips', 'Fasteners & Hardware', 'Electrical Accessories', 'Boxes & Plates', 'Sanitaryware'];
 
@@ -141,12 +142,7 @@ export default function Products() {
 
         {/* Footer row */}
         <div className="products-footer">
-          <p className="footer-note">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            Min. order ₹25,000 (incl. GST) · 100% advance · Prices effective 01-04-2026
-          </p>
+          <StorefrontPolicyFooterNote className="footer-note" />
           <Link href="/#shop" className="view-catalogue-btn">
             View Full Catalogue
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

@@ -1184,63 +1184,6 @@
   color: #93c5fd;
 }
 
-/* ═══════════════════════════════════════
-   QUICK LINKS STRIP
-═══════════════════════════════════════ */
-.strip {
-  position: relative;
-  z-index: 3;
-  background: rgba(0, 0, 0, 0.35);
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 6%, black 94%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, black 6%, black 94%, transparent 100%);
-}
-
-.stripInner {
-  display: flex;
-  width: max-content;
-  animation: marquee 26s linear infinite;
-  padding: 0.75rem 0;
-}
-
-.stripInner:hover {
-  animation-play-state: paused;
-}
-
-@keyframes marquee {
-  from {
-    transform: translateX(0)
-  }
-
-  to {
-    transform: translateX(-50%)
-  }
-}
-
-.stripItem {
-  display: flex;
-  align-items: center;
-  gap: 0.38rem;
-  font-size: 0.73rem;
-  font-weight: 600;
-  color: #94a3b8;
-  text-decoration: none;
-  white-space: nowrap;
-  padding: 0 1.5rem;
-  border-right: 1px solid rgba(255, 255, 255, 0.07);
-  transition: color 0.2s;
-}
-
-.stripItem:hover {
-  color: #93c5fd;
-}
-
-.stripIcon {
-  font-size: 0.88rem;
-  line-height: 1;
-}
-
 /* ═══════════════════════
    RESPONSIVE
 ═══════════════════════ */

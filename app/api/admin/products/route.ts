@@ -21,6 +21,10 @@ function err(message: string, status: number) {
   return NextResponse.json({ message }, { status });
 }
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export async function GET(req: NextRequest) {
   try {
     await connectDb();
@@ -39,6 +43,15 @@ export async function GET(req: NextRequest) {
     const isActiveParam = sp.get("isActive");
     if (isActiveParam === "true") filter.isActive = true;
     else if (isActiveParam === "false") filter.isActive = false;
+    const q = sp.get("q")?.trim();
+    if (q) {
+      const esc = escapeRegex(q);
+      filter.$or = [
+        { name: { $regex: esc, $options: "i" } },
+        { sku: { $regex: esc, $options: "i" } },
+        { slug: { $regex: esc, $options: "i" } },
+      ];
+    }
     const limit = Math.min(500, Math.max(1, Number(sp.get("limit")) || 100));
     const skip = Math.max(0, Number(sp.get("skip")) || 0);
     const [rows, total] = await Promise.all([

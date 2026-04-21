@@ -6,6 +6,8 @@ const appSettingsSchema = new Schema(
     key: { type: String, required: true, unique: true, default: "global" },
     /** Minimum order value including GST (₹) */
     minimumOrderInclGst: { type: Number, required: true, default: 25_000 },
+    /** Prices effective date (DD-MM-YYYY format) */
+    pricesEffectiveDate: { type: String, default: "" },
   },
   { timestamps: true }
 );

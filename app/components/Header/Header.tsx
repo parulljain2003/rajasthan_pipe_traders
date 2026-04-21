@@ -1,22 +1,19 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import './Header.css';
-import { searchData } from '../../data/searchData';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import { fetchCategoriesList } from '../../lib/api/client';
 import type { ApiCategory } from '../../lib/api/types';
-
-const searchIndex = searchData;
-
-import type { SearchEntry } from '../../data/searchData';
-type SearchResult = SearchEntry;
+import {
+  useStorefrontProductSearch,
+  StorefrontProductSearchView,
+} from '../StorefrontProductSearch/StorefrontProductSearch';
 
 const Header = () => {
-  const router = useRouter();
   const pathname = usePathname();
   const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -35,12 +32,7 @@ const Header = () => {
     }
     return () => { document.body.style.overflow = ''; };
   }, [mobileMenuOpen]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const searchRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const search = useStorefrontProductSearch();
   const { cartCount } = useCartWishlist();
   const [navCategories, setNavCategories] = useState<ApiCategory[]>([]);
 
@@ -58,116 +50,6 @@ const Header = () => {
       cancelled = true;
     };
   }, []);
-
-  /** Live suggestions: query Mongo catalog via `/api/products?q=` (multi-field match); fallback to static `searchData`. */
-  useEffect(() => {
-    const ac = new AbortController();
-    const q = searchQuery.trim();
-    if (q.length < 2) {
-      setSearchResults([]);
-      setActiveIndex(-1);
-      return () => ac.abort();
-    }
-    const t = setTimeout(() => {
-      void (async () => {
-        try {
-          const res = await fetch(`/api/products?q=${encodeURIComponent(q)}&limit=8`, {
-            cache: "no-store",
-            signal: ac.signal,
-          });
-          if (!res.ok) throw new Error("search failed");
-          const json = (await res.json()) as { data?: Record<string, unknown>[] };
-          const rows = Array.isArray(json.data) ? json.data : [];
-          const mapped: SearchResult[] = [];
-          for (const d of rows) {
-            const slug =
-              typeof d.slug === "string" && d.slug.trim() ? d.slug.trim() : "";
-            const name = String(d.name ?? "");
-            if (!slug || !name) continue;
-            const cat = d.category as { name?: string } | undefined;
-            mapped.push({
-              name,
-              slug,
-              category: cat?.name ?? "",
-              brand: String(d.brand ?? ""),
-            });
-          }
-          if (mapped.length > 0) {
-            setSearchResults(mapped.slice(0, 8));
-            setActiveIndex(-1);
-            return;
-          }
-        } catch (e) {
-          if ((e as Error).name === "AbortError") return;
-        }
-        const tokens = q
-          .toLowerCase()
-          .split(/\s+/)
-          .filter((tok) => tok.length >= 2);
-        const fallback = searchIndex.filter((item) => {
-          const hay = `${item.name} ${item.category} ${item.brand}`.toLowerCase();
-          return tokens.every((tok) => hay.includes(tok));
-        });
-        setSearchResults(fallback.slice(0, 8));
-        setActiveIndex(-1);
-      })();
-    }, 200);
-    return () => {
-      clearTimeout(t);
-      ac.abort();
-    };
-  }, [searchQuery]);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setIsSearchFocused(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!searchResults.length) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActiveIndex(prev => Math.min(prev + 1, searchResults.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveIndex(prev => Math.max(prev - 1, -1));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      const target = activeIndex >= 0 ? searchResults[activeIndex] : searchResults[0];
-      if (target) navigateToProduct(target);
-    } else if (e.key === 'Escape') {
-      setIsSearchFocused(false);
-      inputRef.current?.blur();
-    }
-  };
-
-  const navigateToProduct = (result: SearchResult) => {
-    setSearchQuery(result.name);
-    setSearchResults([]);
-    setIsSearchFocused(false);
-    router.push(`/products/${result.slug}`);
-  };
-
-  const highlightMatch = (text: string, query: string) => {
-    if (!query) return text;
-    const idx = text.toLowerCase().indexOf(query.toLowerCase());
-    if (idx === -1) return text;
-    return (
-      <>
-        {text.slice(0, idx)}
-        <mark className="search-highlight">{text.slice(idx, idx + query.length)}</mark>
-        {text.slice(idx + query.length)}
-      </>
-    );
-  };
-
-  const showDropdown =
-    isSearchFocused && (searchResults.length > 0 || searchQuery.trim().length >= 2);
 
   return (
     <header className="main-header">
@@ -279,16 +161,16 @@ const Header = () => {
                   type="text"
                   placeholder="Search products..."
                   className="mobile-search-input"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && searchResults.length > 0) { navigateToProduct(searchResults[0]); setMobileMenuOpen(false); } }}
+                  value={search.searchQuery}
+                  onChange={e => search.setSearchQuery(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && search.searchResults.length > 0) { search.navigateToProduct(search.searchResults[0]); setMobileMenuOpen(false); } }}
                 />
               </div>
 
-              {searchResults.length > 0 && (
+              {search.searchResults.length > 0 && (
                 <ul className="mobile-search-results">
-                  {searchResults.slice(0, 5).map((result, i) => (
-                    <li key={i} onMouseDown={() => { navigateToProduct(result); setMobileMenuOpen(false); }} className="mobile-search-result-item">
+                  {search.searchResults.slice(0, 5).map((result, i) => (
+                    <li key={i} onMouseDown={() => { search.navigateToProduct(result); setMobileMenuOpen(false); }} className="mobile-search-result-item">
                       <span>{result.name}</span>
                       <span className="mobile-result-category">{result.category}</span>
                     </li>
@@ -329,78 +211,7 @@ const Header = () => {
           </div>
         )}
 
-        {/* Search */}
-        <div className="search-section" ref={searchRef}>
-          <div className={`search-bar ${isSearchFocused ? 'focused' : ''}`}>
-            <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-            </svg>
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Search products..."
-              className="search-input"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onFocus={() => setIsSearchFocused(true)}
-              onKeyDown={handleKeyDown}
-              autoComplete="off"
-            />
-            {searchQuery && (
-              <button
-                className="search-clear-btn"
-                onClick={() => { setSearchQuery(''); setSearchResults([]); inputRef.current?.focus(); }}
-                aria-label="Clear search"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-
-          {/* Search Dropdown */}
-          {showDropdown && (
-            <div className="search-dropdown">
-              {searchResults.length > 0 ? (
-                <>
-                  <div className="search-dropdown-header">
-                    <span>{searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for &ldquo;{searchQuery}&rdquo;</span>
-                  </div>
-                  <ul className="search-results-list">
-                    {searchResults.map((result, i) => (
-                      <li
-                        key={i}
-                        className={`search-result-item ${i === activeIndex ? 'active' : ''}`}
-                        onMouseDown={() => navigateToProduct(result)}
-                        onMouseEnter={() => setActiveIndex(i)}
-                      >
-                        <svg className="result-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-                        </svg>
-                        <div className="result-text">
-                          <span className="result-name">{highlightMatch(result.name, searchQuery)}</span>
-                          <span className="result-category">{result.brand} · {result.category}</span>
-                        </div>
-                        <svg className="result-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="m9 18 6-6-6-6" />
-                        </svg>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              ) : searchQuery.trim().length >= 2 ? (
-                <div className="search-no-results">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-                  </svg>
-                  <p>No results for &ldquo;{searchQuery}&rdquo;</p>
-                  <span>Try: Cable Clips, Ball Valve, Nylon Ties…</span>
-                </div>
-              ) : null}
-            </div>
-          )}
-        </div>
+        <StorefrontProductSearchView {...search} />
       </div>
     </header>
   );
