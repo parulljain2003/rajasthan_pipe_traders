@@ -32,6 +32,9 @@ export default function AdminCategoriesPage() {
     sortOrder: number;
   } | null>(null);
   const [page, setPage] = useState(0);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [reordering, setReordering] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -173,6 +176,49 @@ export default function AdminCategoriesPage() {
     }
   }
 
+  async function handleDropRow(dragId: string, targetId: string) {
+    if (!dragId || dragId === targetId || reordering) return;
+
+    const fromIndex = list.findIndex((item) => item._id === dragId);
+    const toIndex = list.findIndex((item) => item._id === targetId);
+    if (fromIndex < 0 || toIndex < 0) return;
+
+    const dragged = list[fromIndex];
+    const target = list[toIndex];
+    const draggedParent = dragged.parent?._id ?? "";
+    const targetParent = target.parent?._id ?? "";
+    if (draggedParent !== targetParent) {
+      setError("You can reorder categories only within the same parent group.");
+      return;
+    }
+
+    setReordering(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/categories/${dragged._id}`, {
+        method: "PATCH",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sortOrder: target.sortOrder ?? 0,
+          swapSortOrderWith: target._id,
+        }),
+      });
+      const json = (await res.json()) as { message?: string };
+      if (!res.ok) {
+        throw new Error(json.message || "Failed to swap category sort order");
+      }
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to swap category sort order");
+      await load();
+    } finally {
+      setReordering(false);
+      setDraggingId(null);
+      setDropTargetId(null);
+    }
+  }
+
   return (
     <div>
       {error ? (
@@ -216,7 +262,37 @@ export default function AdminCategoriesPage() {
             </thead>
             <tbody>
               {pageSlice.map((c, index) => (
-                <tr key={c._id} id={`admin-row-${c._id}`}>
+                <tr
+                  key={c._id}
+                  id={`admin-row-${c._id}`}
+                  draggable={!reordering}
+                  onDragStart={(ev) => {
+                    ev.dataTransfer.effectAllowed = "move";
+                    ev.dataTransfer.setData("text/plain", c._id);
+                    setDraggingId(c._id);
+                    setDropTargetId(null);
+                  }}
+                  onDragOver={(ev) => {
+                    ev.preventDefault();
+                    ev.dataTransfer.dropEffect = "move";
+                    if (dropTargetId !== c._id) setDropTargetId(c._id);
+                  }}
+                  onDrop={(ev) => {
+                    ev.preventDefault();
+                    const dragId = ev.dataTransfer.getData("text/plain") || draggingId || "";
+                    void handleDropRow(dragId, c._id);
+                  }}
+                  onDragEnd={() => {
+                    setDraggingId(null);
+                    setDropTargetId(null);
+                  }}
+                  style={{
+                    cursor: reordering ? "progress" : "grab",
+                    opacity: draggingId === c._id ? 0.45 : 1,
+                    outline: dropTargetId === c._id ? "2px solid #4f46e5" : "none",
+                    outlineOffset: -2,
+                  }}
+                >
                   <td>{page * CATEGORY_PAGE_SIZE + index + 1}</td>
                   <td>
                     {c.image ? (
@@ -237,6 +313,7 @@ export default function AdminCategoriesPage() {
                       className="admin-btn admin-btn-ghost"
                       style={{ marginRight: 6 }}
                       onClick={() => openEdit(c)}
+                      disabled={reordering}
                     >
                       Edit
                     </button>
@@ -244,6 +321,7 @@ export default function AdminCategoriesPage() {
                       type="button"
                       className="admin-btn admin-btn-danger"
                       onClick={() => void handleDelete(c._id)}
+                      disabled={reordering}
                     >
                       Delete
                     </button>
