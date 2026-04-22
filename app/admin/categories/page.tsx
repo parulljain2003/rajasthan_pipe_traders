@@ -407,6 +407,7 @@ export default function AdminCategoriesPage() {
                 onUrlChange={(url) => setForm((f) => ({ ...f, image: url }))}
                 helpText="Uploads to Cloudinary (folder rpt/category/…). Set CLOUDINARY_URL in .env.local."
               />
+              {/*
               <div className="admin-field">
                 <label htmlFor="cat-sort">Sort order</label>
                 <input
@@ -428,6 +429,7 @@ export default function AdminCategoriesPage() {
                   Optional. Leave empty to let the database auto-assign the next order in this parent group.
                 </p>
               </div>
+              */}
               {sortConflict ? (
                 <div className="admin-banner" role="status" style={{ marginBottom: 12 }}>
                   <p style={{ margin: "0 0 8px" }}>
