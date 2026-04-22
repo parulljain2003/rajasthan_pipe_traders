@@ -4,6 +4,25 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { MediaImageField } from "../components/MediaImageField";
 import AdminCategorySearchBar from "../components/AdminCategorySearchBar";
 import type { AdminCategory } from "../types";
+import {
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { restrictToVerticalAxis, restrictToWindowEdges } from "@dnd-kit/modifiers";
+import { SortableCategoryRow } from "./SortableCategoryRow";
 
 const CATEGORY_PAGE_SIZE = 20;
 
@@ -32,6 +51,18 @@ export default function AdminCategoriesPage() {
     sortOrder: number;
   } | null>(null);
   const [page, setPage] = useState(0);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,6 +98,53 @@ export default function AdminCategoriesPage() {
 
   const canPrevPage = page > 0;
   const canNextPage = (page + 1) * CATEGORY_PAGE_SIZE < total;
+  const activeCategory = activeCategoryId
+    ? list.find((category) => category._id === activeCategoryId) ?? null
+    : null;
+
+  useEffect(() => {
+    if (!activeCategoryId) return;
+
+    let frameId = 0;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let pointerY: number | null = null;
+    const PAGE_TURN_ZONE = 120;
+    const PAGE_TURN_DELAY = 250;
+
+    const schedulePageTurn = () => {
+      if (timeoutId || pointerY === null) return;
+
+      if (pointerY >= window.innerHeight - PAGE_TURN_ZONE && canNextPage) {
+        timeoutId = setTimeout(() => {
+          setPage((currentPage) => currentPage + 1);
+          timeoutId = null;
+          frameId = requestAnimationFrame(schedulePageTurn);
+        }, PAGE_TURN_DELAY);
+        return;
+      }
+
+      if (pointerY <= PAGE_TURN_ZONE && canPrevPage) {
+        timeoutId = setTimeout(() => {
+          setPage((currentPage) => Math.max(0, currentPage - 1));
+          timeoutId = null;
+          frameId = requestAnimationFrame(schedulePageTurn);
+        }, PAGE_TURN_DELAY);
+      }
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      pointerY = event.clientY;
+      schedulePageTurn();
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      if (frameId) cancelAnimationFrame(frameId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [activeCategoryId, canNextPage, canPrevPage]);
 
   function openCreate() {
     setEditingId(null);
@@ -173,6 +251,43 @@ export default function AdminCategoriesPage() {
     }
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveCategoryId(String(event.active.id));
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveCategoryId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = list.findIndex((c) => c._id === active.id);
+    const newIndex = list.findIndex((c) => c._id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newList = arrayMove(list, oldIndex, newIndex);
+    setList(newList);
+
+    try {
+      const res = await fetch("/api/admin/categories/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: newList.map((c) => c._id) }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.message || "Failed to save new order");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Reorder failed");
+      void load(); // Rollback on failure
+    }
+  }
+
+  function handleDragCancel() {
+    setActiveCategoryId(null);
+  }
+
   return (
     <div>
       {error ? (
@@ -202,56 +317,98 @@ export default function AdminCategoriesPage() {
         <p className="muted">Loading…</p>
       ) : (
         <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>S.No</th>
-                <th>Image</th>
-                <th>Name</th>
-                <th>Slug</th>
-                <th>Order</th>
-                <th>Active</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {pageSlice.map((c, index) => (
-                <tr key={c._id} id={`admin-row-${c._id}`}>
-                  <td>{page * CATEGORY_PAGE_SIZE + index + 1}</td>
-                  <td>
-                    {c.image ? (
-                      <img src={c.image} alt="" className="admin-thumb" />
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td>{c.name}</td>
-                  <td>
-                    <span className="muted">{c.slug}</span>
-                  </td>
-                  <td>{c.sortOrder ?? 0}</td>
-                  <td>{c.isActive ? "Yes" : "No"}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn-ghost"
-                      style={{ marginRight: 6 }}
-                      onClick={() => openEdit(c)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn-danger"
-                      onClick={() => void handleDelete(c._id)}
-                    >
-                      Delete
-                    </button>
-                  </td>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+            modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+          >
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "40px" }} />
+                  <th>S.No</th>
+                  <th>Image</th>
+                  <th>Name</th>
+                  <th>Slug</th>
+                  <th>Order</th>
+                  <th>Active</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <SortableContext items={pageSlice.map((c) => c._id)} strategy={verticalListSortingStrategy}>
+                <tbody>
+                  {pageSlice.map((c, index) => (
+                    <SortableCategoryRow
+                      key={c._id}
+                      category={c}
+                      index={index}
+                      page={page}
+                      pageSize={CATEGORY_PAGE_SIZE}
+                      onEdit={openEdit}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </tbody>
+              </SortableContext>
+            </table>
+            <DragOverlay>
+              {activeCategory ? (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "56px minmax(0, 1fr)",
+                    gap: 12,
+                    alignItems: "center",
+                    minWidth: 320,
+                    maxWidth: 520,
+                    padding: "12px 16px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(148, 163, 184, 0.4)",
+                    background: "#ffffff",
+                    boxShadow: "0 18px 38px rgba(15, 23, 42, 0.18)",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "var(--admin-muted, #64748b)",
+                    }}
+                  >
+                    #{list.findIndex((category) => category._id === activeCategory._id) + 1}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: "var(--admin-text, #0f172a)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {activeCategory.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "var(--admin-muted, #64748b)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {activeCategory.slug}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
           {list.length === 0 ? <p className="muted" style={{ padding: "1rem" }}>No categories.</p> : null}
         </div>
       )}

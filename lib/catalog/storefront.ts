@@ -189,14 +189,13 @@ export async function getStorefrontProductsFromSearchParams(
     },
     {
       $addFields: {
-        _catSort: { $ifNull: [{ $arrayElemAt: ["$_catJoin.sortOrder", 0] }, 0] },
         _pSort: { $ifNull: ["$sortOrder", 0] },
       },
     },
-    { $sort: { _catSort: 1, _pSort: 1, name: 1 } },
+    { $sort: { _pSort: 1, name: 1 } },
     { $skip: skip },
     { $limit: limit },
-    { $project: { _catJoin: 0, _catSort: 0, _pSort: 0 } },
+    { $project: { _catJoin: 0, _pSort: 0 } },
   ];
 
   const [rawRows, total] = await Promise.all([
