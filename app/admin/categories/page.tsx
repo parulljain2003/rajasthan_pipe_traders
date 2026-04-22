@@ -13,7 +13,7 @@ const emptyForm = {
   description: "",
   image: "",
   parentId: "" as string,
-  sortOrder: 0,
+  sortOrder: "",
   sourceSectionLabel: "",
   isActive: true,
 };
@@ -87,7 +87,7 @@ export default function AdminCategoriesPage() {
       description: c.description ?? "",
       image: c.image ?? "",
       parentId: c.parent?._id ?? "",
-      sortOrder: c.sortOrder ?? 0,
+      sortOrder: typeof c.sortOrder === "number" && c.sortOrder > 0 ? String(c.sortOrder) : "",
       sourceSectionLabel: c.sourceSectionLabel ?? "",
       isActive: c.isActive,
     });
@@ -106,11 +106,14 @@ export default function AdminCategoriesPage() {
         slug: form.slug.trim().toLowerCase(),
         description: form.description.trim() || undefined,
         image: form.image.trim() || null,
-        sortOrder: Number(form.sortOrder) || 0,
         sourceSectionLabel: form.sourceSectionLabel.trim() || undefined,
         isActive: form.isActive,
         parent: parentId,
       };
+      const manualSortOrder = Number(form.sortOrder);
+      if (Number.isFinite(manualSortOrder) && manualSortOrder > 0) {
+        body.sortOrder = Math.trunc(manualSortOrder);
+      }
       if (swapSortOrderWith) {
         body.swapSortOrderWith = swapSortOrderWith;
       }
@@ -415,15 +418,14 @@ export default function AdminCategoriesPage() {
                   value={form.sortOrder}
                   onChange={(e) => {
                     setSortConflict(null);
-                    const v = e.target.value;
                     setForm((f) => ({
                       ...f,
-                      sortOrder: v === "" ? 0 : Number(v),
+                      sortOrder: e.target.value,
                     }));
                   }}
                 />
                 <p className="muted" style={{ marginTop: 6 }}>
-                  Lower numbers appear first within the same parent group. If this order is already taken, you can swap after save.
+                  Optional. Leave empty to let the database auto-assign the next order in this parent group.
                 </p>
               </div>
               {sortConflict ? (

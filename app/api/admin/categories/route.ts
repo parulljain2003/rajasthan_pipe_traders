@@ -51,11 +51,13 @@ export async function POST(req: NextRequest) {
     }
     const image =
       typeof body.image === "string" && body.image.trim() ? body.image.trim() : undefined;
-    const sortOrder = parseSortOrderInput(body.sortOrder);
+    const requestedSortOrder = parseSortOrderInput(body.sortOrder);
+    const sortOrder =
+      requestedSortOrder > 0 ? requestedSortOrder : (await maxSortOrderInParent(parent)) + 1;
     const swapWithRaw =
       typeof body.swapSortOrderWith === "string" ? body.swapSortOrderWith.trim() : "";
 
-    const conflict = await findSortOrderConflict(parent, sortOrder, null);
+    const conflict = requestedSortOrder > 0 ? await findSortOrderConflict(parent, sortOrder, null) : null;
     if (conflict) {
       if (
         swapWithRaw &&

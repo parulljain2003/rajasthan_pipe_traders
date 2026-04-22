@@ -2,12 +2,14 @@ export interface CategoryConfig {
   id: string;
   slug: string;
   name: string;
+  /** Admin display order (1+). If omitted, auto-assigned in declaration order. */
+  sortOrder?: number;
   image: string;
   bgColor: string;
   description: string;
 }
 
-export const categories: CategoryConfig[] = [
+const categorySeed: CategoryConfig[] = [
   {
     id: 'Cable Clips',
     slug: 'cable-clips',
@@ -49,6 +51,28 @@ export const categories: CategoryConfig[] = [
     description: 'PP & UPVC ball valves, bib cocks, health faucets, nani traps, waste couplings and complete plumbing fittings.',
   },
 ];
+
+function withAutoSortOrder(input: CategoryConfig[]): CategoryConfig[] {
+  const highestManualSortOrder = input.reduce((max, category) => {
+    if (typeof category.sortOrder !== "number" || category.sortOrder <= 0) {
+      return max;
+    }
+    return Math.max(max, category.sortOrder);
+  }, 0);
+
+  let nextSortOrder = highestManualSortOrder + 1;
+
+  return input.map((category) => {
+    if (typeof category.sortOrder === "number" && category.sortOrder > 0) {
+      return category;
+    }
+    const assignedSortOrder = nextSortOrder;
+    nextSortOrder += 1;
+    return { ...category, sortOrder: assignedSortOrder };
+  });
+}
+
+export const categories: CategoryConfig[] = withAutoSortOrder(categorySeed);
 
 export function getCategoryBySlug(slug: string): CategoryConfig | undefined {
   return categories.find(c => c.slug === slug);

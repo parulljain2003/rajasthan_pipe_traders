@@ -88,6 +88,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       }
     }
 
+    const hasManualSortOrderInput = typeof body.sortOrder !== "undefined";
     let nextSortOrder = typeof current.sortOrder === "number" ? current.sortOrder : 0;
     if (typeof body.sortOrder !== "undefined") {
       nextSortOrder = parseSortOrderInput(body.sortOrder);
@@ -138,12 +139,14 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       });
     }
 
-    const conflict = await findSortOrderConflict(nextParent, nextSortOrder, id);
-    if (conflict) {
-      return NextResponse.json(
-        sortOrderConflictPayload(conflict as { _id: mongoose.Types.ObjectId; name: string; sortOrder: number }),
-        { status: 409 }
-      );
+    if (hasManualSortOrderInput && nextSortOrder > 0) {
+      const conflict = await findSortOrderConflict(nextParent, nextSortOrder, id);
+      if (conflict) {
+        return NextResponse.json(
+          sortOrderConflictPayload(conflict as { _id: mongoose.Types.ObjectId; name: string; sortOrder: number }),
+          { status: 409 }
+        );
+      }
     }
 
     const update: { $set?: Record<string, unknown>; $unset?: Record<string, 1> } = {};
