@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { FileText } from "lucide-react";
 import AdminLogoutButton from "./AdminLogoutButton";
 
 type NavItem = {
@@ -46,6 +47,11 @@ const navItems: NavItem[] = [
         <path d="M12 22V12" />
       </svg>
     ),
+  },
+  {
+    href: "/admin/blogs",
+    label: "Blogs",
+    icon: <FileText size={20} strokeWidth={1.75} aria-hidden />,
   },
   {
     href: "/admin/coupons",
