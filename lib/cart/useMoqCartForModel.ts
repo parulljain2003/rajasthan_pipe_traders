@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useCartWishlist } from "@/app/context/CartWishlistContext";
+import { useLeadGate } from "@/app/context/LeadPhoneContext";
 import type { AddCartItemInput } from "@/app/context/CartWishlistContext";
 import { cartLineMatches } from "@/lib/cart/matchCartLine";
 import { moqStepsFromPacketQty, packetsFromMoqSteps } from "@/lib/cart/packetLine";
@@ -44,6 +45,15 @@ function basePayload(m: ListingMoqCartModel, orderMode: "packets" | "master_bag"
 
 export function useMoqCartForModel(model: ListingMoqCartModel) {
   const { cartItems, addToCart, updateQuantity, removeFromCart } = useCartWishlist();
+  const { withLead } = useLeadGate();
+  const add = useCallback(
+    (a: AddCartItemInput, b?: number) => {
+      withLead(() => {
+        addToCart(a, b);
+      });
+    },
+    [withLead, addToCart]
+  );
 
   const qpb = Math.max(0, Math.floor(Number(model.qtyPerBag) || 0));
   const hasBulk = qpb > 0;
@@ -85,7 +95,7 @@ export function useMoqCartForModel(model: ListingMoqCartModel) {
           return;
         }
         if (pktQtyRaw === 0) {
-          addToCart(basePayload(model, "packets"), nextPkt);
+          add(basePayload(model, "packets"), nextPkt);
         } else {
           updateQuantity(model.productId, model.size, nextPkt, model.sellerId, "packets");
         }
@@ -99,12 +109,12 @@ export function useMoqCartForModel(model: ListingMoqCartModel) {
         return;
       }
       if (bagQtyRaw === 0) {
-        addToCart(basePayload(model, "master_bag"), next);
+        add(basePayload(model, "master_bag"), next);
       } else {
         updateQuantity(model.productId, model.size, next, model.sellerId, "master_bag");
       }
     },
-    [model, hasBulk, qpb, bagQtyRaw, pktQtyRaw, addToCart, updateQuantity, removeFromCart]
+    [model, hasBulk, qpb, bagQtyRaw, pktQtyRaw, add, updateQuantity, removeFromCart]
   );
 
   const setPacketTarget = useCallback(
@@ -118,7 +128,7 @@ export function useMoqCartForModel(model: ListingMoqCartModel) {
           return;
         }
         if (pktQtyRaw === 0) {
-          addToCart(basePayload(model, "packets"), next);
+          add(basePayload(model, "packets"), next);
         } else {
           updateQuantity(model.productId, model.size, next, model.sellerId, "packets");
         }
@@ -132,12 +142,12 @@ export function useMoqCartForModel(model: ListingMoqCartModel) {
         return;
       }
       if (pktQtyRaw === 0) {
-        addToCart(basePayload(model, "packets"), next);
+        add(basePayload(model, "packets"), next);
       } else {
         updateQuantity(model.productId, model.size, next, model.sellerId, "packets");
       }
     },
-    [model, hasBulk, qpb, pktQtyRaw, bagQtyRaw, minPkt, addToCart, updateQuantity, removeFromCart]
+    [model, hasBulk, qpb, pktQtyRaw, bagQtyRaw, minPkt, add, updateQuantity, removeFromCart]
   );
 
   const onBagDelta = useCallback((delta: number) => {
