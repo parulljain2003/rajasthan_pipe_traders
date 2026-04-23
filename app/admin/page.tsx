@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { getAdminOverviewStats } from "@/lib/db/getAdminOverviewStats";
+import AdminDashboardStats from "./components/AdminDashboardStats";
 
 const cards = [
   {
@@ -105,7 +107,9 @@ const cards = [
   },
 ];
 
-export default function AdminHomePage() {
+export default async function AdminHomePage() {
+  const stats = await getAdminOverviewStats();
+
   return (
     <div>
       <header className="admin-dashboard-header">
@@ -118,6 +122,17 @@ export default function AdminHomePage() {
           <span className="admin-dashboard-code">.env.local</span> so admin routes can connect.
         </p>
       </header>
+
+      <section className="admin-dashboard-analytics" aria-labelledby="admin-analytics-heading">
+        <h2 id="admin-analytics-heading" className="admin-dashboard-analytics-title">
+          Analytics
+        </h2>
+        <AdminDashboardStats
+          totalOrders={stats.totalOrders}
+          totalLeads={stats.totalLeads}
+          totalBlogs={stats.totalBlogs}
+        />
+      </section>
 
       <div className="admin-dashboard-grid">
         {cards.map((c) => (

@@ -14,6 +14,7 @@ import {
 import { resolvePackingLabelsForCartLine } from "@/lib/packingLabels";
 import { productHeading } from "../../../lib/productHeading";
 import listingMoqStyles from "@/app/components/ListingMoqCartControls/ListingMoqCartControls.module.css";
+import { useLeadGate } from "@/app/context/LeadPhoneContext";
 
 interface CartItemCardProps {
   /** One or two lines (packets + optional bulk) merged into one card */
@@ -57,6 +58,15 @@ export default function CartItemCard({
   updateQuantity,
   addToCart,
 }: CartItemCardProps) {
+  const { withLead } = useLeadGate();
+  const add = React.useCallback(
+    (item: AddCartItemInput, qty?: number) => {
+      withLead(() => {
+        addToCart(item, qty);
+      });
+    },
+    [withLead, addToCart]
+  );
   const base = lines[0];
   const labels = resolvePackingLabelsForCartLine(base);
   const hasBulk = Number(base.qtyPerBag) > 0;
@@ -112,7 +122,7 @@ export default function CartItemCard({
         return;
       }
       if (!packetLine) {
-        addToCart(lineToPayload(base, "packets"), next);
+        add(lineToPayload(base, "packets"), next);
       } else {
         updateQuantity(base.productId, base.size, next, base.sellerId, "packets");
       }
@@ -126,7 +136,7 @@ export default function CartItemCard({
       return;
     }
     if (!packetLine) {
-      addToCart(lineToPayload(base, "packets"), next);
+      add(lineToPayload(base, "packets"), next);
     } else {
       updateQuantity(base.productId, base.size, next, base.sellerId, "packets");
     }
@@ -143,7 +153,7 @@ export default function CartItemCard({
       return;
     }
     if (!bagLine) {
-      addToCart(lineToPayload(base, "master_bag"), next);
+      add(lineToPayload(base, "master_bag"), next);
     } else {
       updateQuantity(base.productId, base.size, next, base.sellerId, "master_bag");
     }

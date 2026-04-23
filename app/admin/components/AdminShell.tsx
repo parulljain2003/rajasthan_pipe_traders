@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-import { FileText } from "lucide-react";
+import { FileText, Package, Users } from "lucide-react";
 import AdminLogoutButton from "./AdminLogoutButton";
 
 type NavItem = {
@@ -27,6 +27,16 @@ const navItems: NavItem[] = [
         <rect x="3" y="16" width="7" height="5" rx="1" />
       </svg>
     ),
+  },
+  {
+    href: "/admin/orders",
+    label: "Orders",
+    icon: <Package size={20} strokeWidth={1.75} aria-hidden />,
+  },
+  {
+    href: "/admin/leads",
+    label: "Leads",
+    icon: <Users size={20} strokeWidth={1.75} aria-hidden />,
   },
   {
     href: "/admin/categories",
