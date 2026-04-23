@@ -15,21 +15,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "ids array is required" }, { status: 400 });
     }
 
-    const session = await mongoose.startSession();
-    try {
-      await session.withTransaction(async () => {
-        // Update each category with its new sort order
-        const updates = ids.map((id, index) =>
-          CategoryModel.updateOne(
-            { _id: id },
-            { $set: { sortOrder: index + 1 } },
-            { session }
-          )
-        );
-        await Promise.all(updates);
-      });
-    } finally {
-      await session.endSession();
+    const bulkOps = ids.map((id, index) => ({
+      updateOne: {
+        filter: { _id: id },
+        update: { $set: { sortOrder: index + 1 } },
+      },
+    }));
+
+    if (bulkOps.length > 0) {
+      await CategoryModel.bulkWrite(bulkOps);
     }
 
     return NextResponse.json({ success: true });

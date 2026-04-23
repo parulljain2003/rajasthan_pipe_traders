@@ -15,21 +15,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "updates array is required" }, { status: 400 });
     }
 
-    const session = await mongoose.startSession();
-    try {
-      await session.withTransaction(async () => {
-        // Update each product with its new sort order
-        const updatePromises = updates.map((update) =>
-          ProductModel.updateOne(
-            { _id: update.id },
-            { $set: { sortOrder: update.sortOrder } },
-            { session }
-          )
-        );
-        await Promise.all(updatePromises);
-      });
-    } finally {
-      await session.endSession();
+    const bulkOps = updates.map((update) => ({
+      updateOne: {
+        filter: { _id: update.id },
+        update: { $set: { sortOrder: update.sortOrder } },
+      },
+    }));
+
+    if (bulkOps.length > 0) {
+      await ProductModel.bulkWrite(bulkOps);
     }
 
     return NextResponse.json({ success: true });
