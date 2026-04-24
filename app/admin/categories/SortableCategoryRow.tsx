@@ -14,6 +14,7 @@ interface Props {
   pageSize: number;
   comboCount?: number;
   onOpenCombo?: (c: AdminCategory) => void;
+  onRearrange?: (c: AdminCategory) => void;
 }
 
 export function SortableCategoryRow({
@@ -25,6 +26,7 @@ export function SortableCategoryRow({
   pageSize,
   comboCount = 0,
   onOpenCombo,
+  onRearrange,
 }: Props) {
   const {
     attributes,
@@ -91,6 +93,14 @@ export function SortableCategoryRow({
             Combo products
           </button>
         )}
+        <button
+          type="button"
+          className="admin-btn admin-btn-ghost"
+          style={{ marginRight: 6 }}
+          onClick={() => onRearrange && onRearrange(category)}
+        >
+          Rearrange
+        </button>
         <button
           type="button"
           className="admin-btn admin-btn-ghost"

@@ -60,6 +60,8 @@ export interface Product {
   category: string;
   /** Admin display order within category (1+); 0 = unset — used for listing/related sort */
   sortOrder?: number;
+  /** Custom display order specifically for category pages (separate from global sortOrder) */
+  categorySortOrder?: number;
   subCategory: string;
   description: string;
   longDescription: string;

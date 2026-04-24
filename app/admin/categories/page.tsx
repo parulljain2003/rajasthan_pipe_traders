@@ -20,9 +20,11 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  useSortable,
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis, restrictToWindowEdges } from "@dnd-kit/modifiers";
 import { SortableCategoryRow } from "./SortableCategoryRow";
+import { CSS } from "@dnd-kit/utilities";
 
 const CATEGORY_PAGE_SIZE = 20;
 
@@ -44,6 +46,9 @@ type AdminCategoryProduct = {
   isActive?: boolean;
   isEligibleForCombo?: boolean | null;
   category?: { _id: string; name: string; slug: string } | null;
+  productKind?: "sku" | "catalog";
+  sortOrder?: number;
+  categorySortOrder?: number;
 };
 
 const emptyProductEdit = {
@@ -53,6 +58,63 @@ const emptyProductEdit = {
   isActive: true,
   isEligibleForCombo: false,
 };
+
+function SortableRearrangeRow({
+  product,
+  index,
+}: {
+  product: AdminCategoryProduct;
+  index: number;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: product._id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    backgroundColor: isDragging ? "var(--admin-bg-hover, #f8fafc)" : undefined,
+    zIndex: isDragging ? 1 : undefined,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style}>
+      <td {...attributes} {...listeners} style={{ cursor: "grab", width: "40px" }}>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="muted"
+        >
+          <circle cx="9" cy="5" r="1" />
+          <circle cx="9" cy="12" r="1" />
+          <circle cx="9" cy="19" r="1" />
+          <circle cx="15" cy="5" r="1" />
+          <circle cx="15" cy="12" r="1" />
+          <circle cx="15" cy="19" r="1" />
+        </svg>
+      </td>
+      <td>{index + 1}</td>
+      <td>
+        <div style={{ fontWeight: 500 }}>{product.name}</div>
+        <div className="muted" style={{ fontSize: "0.75rem" }}>
+          {product.productKind === "sku" ? "SKU" : "Catalog"} | 
+          {product.isEligibleForCombo ? " Combo Eligible" : " Std Product"}
+        </div>
+      </td>
+      <td>
+        <span className="muted">{product.slug}</span>
+      </td>
+      <td>{product.categorySortOrder ?? 0}</td>
+    </tr>
+  );
+}
 
 export default function AdminCategoriesPage() {
   const [list, setList] = useState<AdminCategory[]>([]);
@@ -88,6 +150,12 @@ export default function AdminCategoriesPage() {
   const [productEditOpen, setProductEditOpen] = useState(false);
   const [productEditSaving, setProductEditSaving] = useState(false);
   const [productEdit, setProductEdit] = useState(emptyProductEdit);
+
+  const [rearrangeModalOpen, setRearrangeModalOpen] = useState(false);
+  const [rearrangeCategory, setRearrangeCategory] = useState<AdminCategory | null>(null);
+  const [rearrangeProducts, setRearrangeProducts] = useState<AdminCategoryProduct[]>([]);
+  const [rearrangeLoading, setRearrangeLoading] = useState(false);
+  const [activeProductId, setActiveProductId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -412,6 +480,89 @@ export default function AdminCategoriesPage() {
     }
   }
 
+  async function openRearrangeProducts(c: AdminCategory) {
+    setRearrangeCategory(c);
+    setRearrangeModalOpen(true);
+    setRearrangeProducts([]);
+    setRearrangeLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/products?categorySlug=${encodeURIComponent(c.slug)}&limit=500`,
+        { cache: "no-store" }
+      );
+      const json = (await res.json()) as { data?: AdminCategoryProduct[]; message?: string };
+      if (!res.ok) throw new Error(json.message || res.statusText);
+      const rows = Array.isArray(json.data) ? json.data : [];
+      // Sort by current categorySortOrder for initial display
+      const sorted = [...rows].sort((a, b) => (a.categorySortOrder ?? 0) - (b.categorySortOrder ?? 0));
+      setRearrangeProducts(sorted);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load category products");
+      setRearrangeProducts([]);
+    } finally {
+      setRearrangeLoading(false);
+    }
+  }
+
+  function handleRearrangeDragStart(event: DragStartEvent) {
+    setActiveProductId(String(event.active.id));
+  }
+
+  function handleRearrangeDragEnd(event: DragEndEvent) {
+    setActiveProductId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = rearrangeProducts.findIndex((p) => p._id === active.id);
+    const newIndex = rearrangeProducts.findIndex((p) => p._id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    setRearrangeProducts((prev) => arrayMove(prev, oldIndex, newIndex));
+  }
+
+  async function saveRearrange() {
+    if (!rearrangeCategory) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const originalSortOrders = [...rearrangeProducts]
+        .map((p) => p.categorySortOrder ?? 0)
+        .sort((a, b) => a - b);
+
+      // If ranks are missing (0) or have duplicates, generate a fresh unique sequence [1, 2, 3...]
+      // to ensure the manual reordering is actually preserved in the database.
+      const rankedOrders = originalSortOrders.filter((o) => o > 0);
+      const uniqueRankedCount = new Set(rankedOrders).size;
+      const needsFreshSequence = uniqueRankedCount < rearrangeProducts.length;
+
+      const finalOrders = needsFreshSequence
+        ? rearrangeProducts.map((_, i) => i + 1)
+        : originalSortOrders;
+
+      const updates = rearrangeProducts.map((p, index) => ({
+        id: p._id,
+        sortOrder: finalOrders[index],
+      }));
+
+      const res = await fetch("/api/admin/products/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates, field: "categorySortOrder" }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.message || "Failed to save new order");
+      }
+      setRearrangeModalOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div>
       {error ? (
@@ -475,6 +626,7 @@ export default function AdminCategoriesPage() {
                       onDelete={handleDelete}
                       comboCount={comboCountByCategoryId[c._id] ?? 0}
                       onOpenCombo={openComboProducts}
+                      onRearrange={openRearrangeProducts}
                     />
                   ))}
                 </tbody>
@@ -805,6 +957,93 @@ export default function AdminCategoriesPage() {
                 onClick={() => void saveProductEdit()}
               >
                 {productEditSaving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {rearrangeModalOpen ? (
+        <div
+          className="admin-modal-backdrop"
+          role="presentation"
+          onMouseDown={(ev) => {
+            if (ev.target === ev.currentTarget) setRearrangeModalOpen(false);
+          }}
+        >
+          <div className="admin-modal wide" role="dialog" aria-labelledby="rearrange-title">
+            <h2 id="rearrange-title">Rearrange Products in {rearrangeCategory?.name}</h2>
+            <p className="muted" style={{ marginBottom: "1rem" }}>
+              Drag the rows to change the display order on the storefront for this category.
+            </p>
+            {rearrangeLoading ? (
+              <p className="muted">Loading products…</p>
+            ) : rearrangeProducts.length === 0 ? (
+              <p className="muted">No products found in this category.</p>
+            ) : (
+              <div className="admin-table-wrap" style={{ marginBottom: "1.5rem" }}>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleRearrangeDragStart}
+                  onDragEnd={handleRearrangeDragEnd}
+                  onDragCancel={() => setActiveProductId(null)}
+                  modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+                >
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: "40px" }} />
+                        <th>#</th>
+                        <th>Name / Type</th>
+                        <th>Slug</th>
+                        <th>Order</th>
+                      </tr>
+                    </thead>
+                    <SortableContext
+                      items={rearrangeProducts.map((p) => p._id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <tbody>
+                        {rearrangeProducts.map((p, index) => (
+                          <SortableRearrangeRow key={p._id} product={p} index={index} />
+                        ))}
+                      </tbody>
+                    </SortableContext>
+                  </table>
+                  <DragOverlay>
+                    {activeProductId ? (
+                      <div
+                        style={{
+                          padding: "12px 16px",
+                          background: "#fff",
+                          border: "1px solid #ccc",
+                          borderRadius: "8px",
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                        }}
+                      >
+                        {rearrangeProducts.find((p) => p._id === activeProductId)?.name}
+                      </div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
+              </div>
+            )}
+            <div className="admin-modal-actions">
+              <button
+                type="button"
+                className="admin-btn admin-btn-ghost"
+                onClick={() => setRearrangeModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-primary"
+                onClick={() => void saveRearrange()}
+                disabled={saving || rearrangeLoading}
+              >
+                {saving ? "Saving Order…" : "Save Order"}
               </button>
             </div>
           </div>

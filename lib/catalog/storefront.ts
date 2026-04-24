@@ -104,17 +104,25 @@ export async function getStorefrontRelatedProducts(
   await connectDb();
   const catId = new mongoose.Types.ObjectId(categoryMongoId);
   const exId = new mongoose.Types.ObjectId(excludeProductMongoId);
-  const rows = await ProductModel.find({
-    isActive: true,
-    category: catId,
-    _id: { $ne: exId },
-  })
-    .populate("category", "name slug")
-    .sort({ sortOrder: 1, name: 1 })
-    .limit(limit)
-    .lean();
-  return rows
-    .map((r) => serializeProductLean(r as LeanDoc))
+  const rows = await ProductModel.aggregate([
+    { $match: { isActive: true, category: catId, _id: { $ne: exId } } },
+    {
+      $addFields: {
+        _pSort: {
+          $cond: {
+            if: { $gt: [{ $ifNull: ["$categorySortOrder", 0] }, 0] },
+            then: "$categorySortOrder",
+            else: { $ifNull: ["$sortOrder", 0] },
+          },
+        },
+      },
+    },
+    { $sort: { _pSort: 1, name: 1 } },
+    { $limit: limit },
+  ]).exec();
+  const populated = await ProductModel.populate(rows, { path: "category", select: "name slug" });
+  return populated
+    .map((r) => serializeProductLean(r as unknown as LeanDoc))
     .filter(Boolean)
     .map((ser) => apiProductToProduct(ser as unknown as ApiProduct));
 }
@@ -189,7 +197,13 @@ export async function getStorefrontProductsFromSearchParams(
     },
     {
       $addFields: {
-        _pSort: { $ifNull: ["$sortOrder", 0] },
+        _pSort: {
+          $cond: {
+            if: { $gt: [{ $ifNull: ["$categorySortOrder", 0] }, 0] },
+            then: "$categorySortOrder",
+            else: { $ifNull: ["$sortOrder", 0] },
+          },
+        },
       },
     },
     { $sort: { _pSort: 1, name: 1 } },
