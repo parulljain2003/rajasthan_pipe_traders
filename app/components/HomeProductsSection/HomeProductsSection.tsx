@@ -14,30 +14,43 @@ type Props = {
 
 export default async function HomeProductsSection({ page: pageProp = 1 }: Props) {
   let page = Math.max(1, Math.floor(Number(pageProp)) || 1);
+  const sp = new URLSearchParams();
+  sp.set("productKind", "catalog");
+  sp.set("limit", "500");
+  sp.set("skip", "0");
 
-  const buildParams = (p: number) => {
-    const sp = new URLSearchParams();
-    sp.set("productKind", "catalog");
-    sp.set("limit", String(PAGE_SIZE));
-    sp.set("skip", String((p - 1) * PAGE_SIZE));
-    return sp;
-  };
-
-  let result = await getStorefrontProductsFromSearchParams(buildParams(page));
+  const result = await getStorefrontProductsFromSearchParams(sp);
   let pageProducts: ApiProduct[] = [];
   let total = 0;
   let totalPages = 1;
 
   if (result.ok) {
-    total = result.meta.total;
+    const filtered = (result.data as unknown as ApiProduct[]).filter((p) => {
+      const v = (p as { isEligibleForCombo?: unknown }).isEligibleForCombo;
+      return v == null || (typeof v === "string" && v.trim() === "");
+    });
+    const sorted = filtered
+      .map((item, index) => ({ item, index }))
+      .sort((a, b) => {
+        const ar =
+          typeof a.item.sortOrder === "number" && a.item.sortOrder > 0
+            ? a.item.sortOrder
+            : Number.POSITIVE_INFINITY;
+        const br =
+          typeof b.item.sortOrder === "number" && b.item.sortOrder > 0
+            ? b.item.sortOrder
+            : Number.POSITIVE_INFINITY;
+        if (ar !== br) return ar - br;
+        if (ar === Number.POSITIVE_INFINITY) return a.index - b.index;
+        return a.item.name.localeCompare(b.item.name, undefined, { sensitivity: "base" });
+      })
+      .map(({ item }) => item);
+
+    total = sorted.length;
     totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    if (page > totalPages) {
-      page = totalPages;
-      result = await getStorefrontProductsFromSearchParams(buildParams(page));
-    }
-    if (result.ok) {
-      pageProducts = result.data as unknown as ApiProduct[];
-    }
+    if (page > totalPages) page = totalPages;
+    const startIdx = (page - 1) * PAGE_SIZE;
+    pageProducts = sorted.slice(startIdx, startIdx + PAGE_SIZE);
   }
 
   const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;

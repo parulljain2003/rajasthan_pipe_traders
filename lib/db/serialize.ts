@@ -92,11 +92,13 @@ export function serializeComboRuleLean(doc: LeanDoc | null): Record<string, unkn
   if (!doc) return null;
   const triggerSlugs = doc.triggerSlugs;
   const targetSlugs = doc.targetSlugs;
+  const fallbackTargetSlugs = doc.fallbackTargetSlugs;
   return {
     _id: idString(doc._id),
     name: doc.name,
     triggerSlugs: Array.isArray(triggerSlugs) ? [...triggerSlugs] : [],
     targetSlugs: Array.isArray(targetSlugs) ? [...targetSlugs] : [],
+    fallbackTargetSlugs: Array.isArray(fallbackTargetSlugs) ? [...fallbackTargetSlugs] : [],
     triggerCategoryIds: mapIdArray(doc.triggerCategoryIds),
     targetCategoryIds: mapIdArray(doc.targetCategoryIds),
     minTriggerBags: doc.minTriggerBags,

@@ -54,7 +54,8 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
       const price = e.offer.sizes[0].withGST;
       const brandOk = entryMatchesSelectedBrandFilters(e, selectedBrands);
       const priceOk = price >= priceRange[0] && price <= priceRange[1];
-      return brandOk && priceOk;
+      const comboEligibilityOk = (e.product.isEligibleForCombo ?? null) === null;
+      return brandOk && priceOk && comboEligibilityOk;
     });
 
     switch (sortBy) {

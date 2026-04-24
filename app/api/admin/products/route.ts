@@ -43,6 +43,11 @@ export async function GET(req: NextRequest) {
     const isActiveParam = sp.get("isActive");
     if (isActiveParam === "true") filter.isActive = true;
     else if (isActiveParam === "false") filter.isActive = false;
+
+    const comboParam = sp.get("isEligibleForCombo");
+    if (comboParam === "true") filter.isEligibleForCombo = true;
+    else if (comboParam === "false") filter.isEligibleForCombo = false;
+
     const q = sp.get("q")?.trim();
     if (q) {
       const esc = escapeRegex(q);

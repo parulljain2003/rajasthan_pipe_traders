@@ -71,8 +71,8 @@ export async function POST(req: NextRequest) {
     const products =
       ids.length > 0
         ? await ProductModel.find({ _id: { $in: ids } })
-            .select("isEligibleForCombo sizes sellers pricing sizeOrModel slug legacyId category packaging")
-            .lean()
+          .select("isEligibleForCombo sizes sellers pricing sizeOrModel slug legacyId category packaging")
+          .lean()
         : [];
 
     const productByMongoId = new Map<string, LeanProductForCombo>();
@@ -95,6 +95,10 @@ export async function POST(req: NextRequest) {
         cartBasicTotal: result.cartBasicTotal,
         comboSavingsInclGst: result.comboSavingsInclGst,
         smartSuggestion: result.smartSuggestion,
+        comboEligibleTargets: result.comboEligibleTargets ?? [],
+        comboFallbackTargets: result.comboFallbackTargets ?? [],
+        comboSwapTargetSlugs: result.comboSwapTargetSlugs ?? [],
+        comboRemoveWhenNoTriggerSlugs: result.comboRemoveWhenNoTriggerSlugs ?? [],
         minimumOrderInclGst,
         minimumOrderMet: result.cartTotalInclGst >= minimumOrderInclGst,
       },

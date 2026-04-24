@@ -50,6 +50,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
     if (body.triggerSlugs !== undefined) $set.triggerSlugs = parseSlugList(body.triggerSlugs);
     if (body.targetSlugs !== undefined) $set.targetSlugs = parseSlugList(body.targetSlugs);
+    if (body.fallbackTargetSlugs !== undefined) {
+      $set.fallbackTargetSlugs = parseSlugList(body.fallbackTargetSlugs);
+    }
     if (body.triggerCategoryIds !== undefined) {
       $set.triggerCategoryIds = parseObjectIdList(body.triggerCategoryIds).map(
         (id) => new mongoose.Types.ObjectId(id)

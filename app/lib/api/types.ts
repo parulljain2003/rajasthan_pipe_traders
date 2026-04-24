@@ -123,6 +123,8 @@ export interface ApiProduct {
   pricing: ApiPricing;
   /** Display order within category (1+); 0 or omitted = unset for storefront sort */
   sortOrder?: number;
+  /** Custom display order specifically for category pages */
+  categorySortOrder?: number;
   /** Counts toward eligible packet pool for 20/25MM combo pricing */
   isEligibleForCombo?: boolean;
   isActive?: boolean;

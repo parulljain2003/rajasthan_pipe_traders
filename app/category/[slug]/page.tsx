@@ -10,7 +10,10 @@ import {
   getStorefrontCategoryBySlug,
   getStorefrontProductsFromSearchParams,
 } from "@/lib/catalog/storefront";
-import { sortApiProductsForDisplayOrder } from "@/app/lib/sortApiProductsDisplay";
+import {
+  sortApiProductsForDisplayOrder,
+  sortProductsForDisplayOrder,
+} from "@/app/lib/sortApiProductsDisplay";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -93,7 +96,7 @@ export default async function CategorySlugPage({ params }: PageProps) {
   const staticCategory = getCategoryBySlug(slug);
   if (staticCategory) {
     category = staticCategory;
-    products = staticProducts.filter((p) => p.category === category.id);
+    products = sortProductsForDisplayOrder(staticProducts.filter((p) => p.category === category.id));
   } else {
     const row = await getStorefrontCategoryBySlug(slug);
     if (!row) notFound();

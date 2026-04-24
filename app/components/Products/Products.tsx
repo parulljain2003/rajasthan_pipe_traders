@@ -129,11 +129,11 @@ export default function Products() {
                     <span className="original-price">₹{lowestBasic.toFixed(2)}</span>
                   </div>
 
-                  <ListingMoqCartControls
+                  {/* <ListingMoqCartControls
                     model={listingEntryToModel(entry)}
                     labels={listLabels}
                     className="listing-moq-wrap"
-                  />
+                  /> */}
                 </div>
               </Link>
             );
