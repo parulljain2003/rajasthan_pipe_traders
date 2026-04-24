@@ -494,8 +494,10 @@ export default function AdminCategoriesPage() {
       const json = (await res.json()) as { data?: AdminCategoryProduct[]; message?: string };
       if (!res.ok) throw new Error(json.message || res.statusText);
       const rows = Array.isArray(json.data) ? json.data : [];
+      // Rearrange list only for standard products: keep null/empty combo flag, hide true/false.
+      const standardRows = rows.filter((p) => typeof p.isEligibleForCombo !== "boolean");
       // Sort by current categorySortOrder for initial display
-      const sorted = [...rows].sort((a, b) => (a.categorySortOrder ?? 0) - (b.categorySortOrder ?? 0));
+      const sorted = [...standardRows].sort((a, b) => (a.categorySortOrder ?? 0) - (b.categorySortOrder ?? 0));
       setRearrangeProducts(sorted);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load category products");

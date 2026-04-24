@@ -705,25 +705,9 @@ export default function AdminCombosPage() {
     setAddProductModalOpen(true);
   }
 
-  async function markProductComboSpecific(slug: string) {
-    const row = productOptions.find((p) => p.slug === slug);
-    if (!row?.id) return;
-    await fetch(`/api/admin/products/${row.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isEligibleForCombo: true }),
-    });
-  }
-
   async function handleAddProductFromModal() {
     if (!addProductSlug) return;
     setAddProductError(null);
-    try {
-      await markProductComboSpecific(addProductSlug);
-    } catch (e) {
-      setAddProductError(e instanceof Error ? e.message : "Could not mark product as combo-specific");
-      return;
-    }
     setForm((f) => {
       if (addProductTo === "target") {
         return {
@@ -811,7 +795,6 @@ export default function AdminCombosPage() {
         isActive: true,
         isNew: false,
         isIsiCertified: false,
-        isEligibleForCombo: true,
         packaging: {
           pricingUnit: newProductInnerUnit,
           bulkUnitChoices: [newProductBulkUnit],
@@ -1084,7 +1067,7 @@ export default function AdminCombosPage() {
                   type="button"
                   className="admin-btn admin-btn-ghost"
                   onClick={() => openAddProductModal("target")}
-                  disabled={form.triggerCategoryIds.length === 0 || targetProductsForAddModal.length === 0}
+                  disabled={form.triggerCategoryIds.length === 0}
                 >
                   Add Product (Target / Fallback)
                 </button>

@@ -337,13 +337,17 @@ export default function AdminProductsPage() {
       const res = await fetch(`/api/admin/products?${params}`, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
-      const rows = json.data as AdminProduct[];
-      setList(rows);
+      const rows = json.data as Array<AdminProduct & { isEligibleForCombo?: unknown }>;
+      const visibleRows = rows.filter((p) => {
+        const v = p.isEligibleForCombo;
+        return v === null || (typeof v === "string" && v.trim() === "");
+      });
+      setList(visibleRows);
       setMeta({
-        total: json.meta?.total ?? rows.length ?? 0,
+        total: visibleRows.length,
       });
       if (scrollToId) {
-        const index = rows.findIndex((product) => product._id === scrollToId);
+        const index = visibleRows.findIndex((product) => product._id === scrollToId);
         setPage(index >= 0 ? Math.floor(index / pageSize) : 0);
       } else if (nextSearch !== undefined) {
         setPage(0);
