@@ -12,6 +12,8 @@ interface Props {
   onDelete: (id: string) => void;
   page: number;
   pageSize: number;
+  comboCount?: number;
+  onOpenCombo?: (c: AdminCategory) => void;
 }
 
 export function SortableCategoryRow({
@@ -21,6 +23,8 @@ export function SortableCategoryRow({
   onDelete,
   page,
   pageSize,
+  comboCount = 0,
+  onOpenCombo,
 }: Props) {
   const {
     attributes,
@@ -77,6 +81,16 @@ export function SortableCategoryRow({
       <td>{category.sortOrder ?? 0}</td>
       <td>{category.isActive ? "Yes" : "No"}</td>
       <td style={{ whiteSpace: "nowrap" }}>
+        {comboCount > 0 && onOpenCombo && (
+          <button
+            type="button"
+            className="admin-btn admin-btn-ghost"
+            style={{ marginRight: 6 }}
+            onClick={() => onOpenCombo(category)}
+          >
+            Combo products
+          </button>
+        )}
         <button
           type="button"
           className="admin-btn admin-btn-ghost"

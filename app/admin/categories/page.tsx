@@ -329,10 +329,12 @@ export default function AdminCategoriesPage() {
       setError(err instanceof Error ? err.message : "Reorder failed");
       void load(); // Rollback on failure
     }
-  }
+  } 
 
   function handleDragCancel() {
     setActiveCategoryId(null);
+  }
+
   async function openComboProducts(c: AdminCategory) {
     setComboModalCategory(c);
     setComboModalOpen(true);
@@ -458,62 +460,6 @@ export default function AdminCategoriesPage() {
                   <th>Order</th>
                   <th>Active</th>
                   <th />
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>S.No</th>
-                <th>Image</th>
-                <th>Name</th>
-                <th>Slug</th>
-                <th>Order</th>
-                <th>Active</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {pageSlice.map((c, index) => (
-                <tr key={c._id} id={`admin-row-${c._id}`}>
-                  <td>{page * CATEGORY_PAGE_SIZE + index + 1}</td>
-                  <td>
-                    {c.image ? (
-                      <img src={c.image} alt="" className="admin-thumb" />
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td>{c.name}</td>
-                  <td>
-                    <span className="muted">{c.slug}</span>
-                  </td>
-                  <td>{c.sortOrder ?? 0}</td>
-                  <td>{c.isActive ? "Yes" : "No"}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>
-                    {((comboCountByCategoryId[c._id] ?? 0) > 0) ? (
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn-ghost"
-                        style={{ marginRight: 6 }}
-                        onClick={() => void openComboProducts(c)}
-                      >
-                        Combo products
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn-ghost"
-                      style={{ marginRight: 6 }}
-                      onClick={() => openEdit(c)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn-danger"
-                      onClick={() => void handleDelete(c._id)}
-                    >
-                      Delete
-                    </button>
-                  </td>
                 </tr>
               </thead>
               <SortableContext items={pageSlice.map((c) => c._id)} strategy={verticalListSortingStrategy}>
@@ -527,6 +473,8 @@ export default function AdminCategoriesPage() {
                       pageSize={CATEGORY_PAGE_SIZE}
                       onEdit={openEdit}
                       onDelete={handleDelete}
+                      comboCount={comboCountByCategoryId[c._id] ?? 0}
+                      onOpenCombo={openComboProducts}
                     />
                   ))}
                 </tbody>
