@@ -150,6 +150,8 @@ const productSchema = new Schema(
     },
     /** Display order within the same category (admin; lower first). */
     sortOrder: { type: Number, default: 0 },
+    /** Display order specifically within its assigned category (separate from global sortOrder). */
+    categorySortOrder: { type: Number, default: 0 },
     brand: { type: String, trim: true },
     brandCode: { type: String, trim: true },
     productLine: { type: String, trim: true },

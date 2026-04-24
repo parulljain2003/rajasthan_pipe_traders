@@ -4,6 +4,27 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { MediaImageField } from "../components/MediaImageField";
 import AdminCategorySearchBar from "../components/AdminCategorySearchBar";
 import type { AdminCategory } from "../types";
+import {
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { restrictToVerticalAxis, restrictToWindowEdges } from "@dnd-kit/modifiers";
+import { SortableCategoryRow } from "./SortableCategoryRow";
+import { CSS } from "@dnd-kit/utilities";
 
 const CATEGORY_PAGE_SIZE = 20;
 
@@ -17,6 +38,83 @@ const emptyForm = {
   sourceSectionLabel: "",
   isActive: true,
 };
+
+type AdminCategoryProduct = {
+  _id: string;
+  name: string;
+  slug?: string;
+  isActive?: boolean;
+  isEligibleForCombo?: boolean | null;
+  category?: { _id: string; name: string; slug: string } | null;
+  productKind?: "sku" | "catalog";
+  sortOrder?: number;
+  categorySortOrder?: number;
+};
+
+const emptyProductEdit = {
+  id: "",
+  name: "",
+  slug: "",
+  isActive: true,
+  isEligibleForCombo: false,
+};
+
+function SortableRearrangeRow({
+  product,
+  index,
+}: {
+  product: AdminCategoryProduct;
+  index: number;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: product._id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    backgroundColor: isDragging ? "var(--admin-bg-hover, #f8fafc)" : undefined,
+    zIndex: isDragging ? 1 : undefined,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style}>
+      <td {...attributes} {...listeners} style={{ cursor: "grab", width: "40px" }}>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="muted"
+        >
+          <circle cx="9" cy="5" r="1" />
+          <circle cx="9" cy="12" r="1" />
+          <circle cx="9" cy="19" r="1" />
+          <circle cx="15" cy="5" r="1" />
+          <circle cx="15" cy="12" r="1" />
+          <circle cx="15" cy="19" r="1" />
+        </svg>
+      </td>
+      <td>{index + 1}</td>
+      <td>
+        <div style={{ fontWeight: 500 }}>{product.name}</div>
+        <div className="muted" style={{ fontSize: "0.75rem" }}>
+          {product.productKind === "sku" ? "SKU" : "Catalog"} | 
+          {product.isEligibleForCombo ? " Combo Eligible" : " Std Product"}
+        </div>
+      </td>
+      <td>
+        <span className="muted">{product.slug}</span>
+      </td>
+      <td>{product.categorySortOrder ?? 0}</td>
+    </tr>
+  );
+}
 
 export default function AdminCategoriesPage() {
   const [list, setList] = useState<AdminCategory[]>([]);
@@ -32,6 +130,32 @@ export default function AdminCategoriesPage() {
     sortOrder: number;
   } | null>(null);
   const [page, setPage] = useState(0);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+  const [comboCountByCategoryId, setComboCountByCategoryId] = useState<Record<string, number>>({});
+  const [comboModalOpen, setComboModalOpen] = useState(false);
+  const [comboModalCategory, setComboModalCategory] = useState<AdminCategory | null>(null);
+  const [comboProducts, setComboProducts] = useState<AdminCategoryProduct[]>([]);
+  const [comboProductsLoading, setComboProductsLoading] = useState(false);
+  const [productEditOpen, setProductEditOpen] = useState(false);
+  const [productEditSaving, setProductEditSaving] = useState(false);
+  const [productEdit, setProductEdit] = useState(emptyProductEdit);
+
+  const [rearrangeModalOpen, setRearrangeModalOpen] = useState(false);
+  const [rearrangeCategory, setRearrangeCategory] = useState<AdminCategory | null>(null);
+  const [rearrangeProducts, setRearrangeProducts] = useState<AdminCategoryProduct[]>([]);
+  const [rearrangeLoading, setRearrangeLoading] = useState(false);
+  const [activeProductId, setActiveProductId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,6 +177,28 @@ export default function AdminCategoriesPage() {
     void load();
   }, [load]);
 
+  const loadComboCounts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/products?limit=500", { cache: "no-store" });
+      const json = (await res.json()) as { data?: AdminCategoryProduct[] };
+      if (!res.ok || !Array.isArray(json.data)) return;
+      const next: Record<string, number> = {};
+      for (const p of json.data) {
+        if (typeof p.isEligibleForCombo !== "boolean") continue;
+        const cid = p.category?._id;
+        if (!cid) continue;
+        next[cid] = (next[cid] ?? 0) + 1;
+      }
+      setComboCountByCategoryId(next);
+    } catch {
+      // silent: category CRUD should keep working even if this helper fails
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadComboCounts();
+  }, [loadComboCounts]);
+
   const total = list.length;
   const pageSlice = useMemo(
     () => list.slice(page * CATEGORY_PAGE_SIZE, page * CATEGORY_PAGE_SIZE + CATEGORY_PAGE_SIZE),
@@ -67,6 +213,53 @@ export default function AdminCategoriesPage() {
 
   const canPrevPage = page > 0;
   const canNextPage = (page + 1) * CATEGORY_PAGE_SIZE < total;
+  const activeCategory = activeCategoryId
+    ? list.find((category) => category._id === activeCategoryId) ?? null
+    : null;
+
+  useEffect(() => {
+    if (!activeCategoryId) return;
+
+    let frameId = 0;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let pointerY: number | null = null;
+    const PAGE_TURN_ZONE = 120;
+    const PAGE_TURN_DELAY = 250;
+
+    const schedulePageTurn = () => {
+      if (timeoutId || pointerY === null) return;
+
+      if (pointerY >= window.innerHeight - PAGE_TURN_ZONE && canNextPage) {
+        timeoutId = setTimeout(() => {
+          setPage((currentPage) => currentPage + 1);
+          timeoutId = null;
+          frameId = requestAnimationFrame(schedulePageTurn);
+        }, PAGE_TURN_DELAY);
+        return;
+      }
+
+      if (pointerY <= PAGE_TURN_ZONE && canPrevPage) {
+        timeoutId = setTimeout(() => {
+          setPage((currentPage) => Math.max(0, currentPage - 1));
+          timeoutId = null;
+          frameId = requestAnimationFrame(schedulePageTurn);
+        }, PAGE_TURN_DELAY);
+      }
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      pointerY = event.clientY;
+      schedulePageTurn();
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      if (frameId) cancelAnimationFrame(frameId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [activeCategoryId, canNextPage, canPrevPage]);
 
   function openCreate() {
     setEditingId(null);
@@ -173,6 +366,205 @@ export default function AdminCategoriesPage() {
     }
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveCategoryId(String(event.active.id));
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveCategoryId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = list.findIndex((c) => c._id === active.id);
+    const newIndex = list.findIndex((c) => c._id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newList = arrayMove(list, oldIndex, newIndex);
+    setList(newList);
+
+    try {
+      const res = await fetch("/api/admin/categories/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: newList.map((c) => c._id) }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.message || "Failed to save new order");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Reorder failed");
+      void load(); // Rollback on failure
+    }
+  } 
+
+  function handleDragCancel() {
+    setActiveCategoryId(null);
+  }
+
+  async function openComboProducts(c: AdminCategory) {
+    setComboModalCategory(c);
+    setComboModalOpen(true);
+    setComboProducts([]);
+    setComboProductsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/products?categorySlug=${encodeURIComponent(c.slug)}&limit=500`,
+        { cache: "no-store" }
+      );
+      const json = (await res.json()) as { data?: AdminCategoryProduct[]; message?: string };
+      if (!res.ok) throw new Error(json.message || res.statusText);
+      const rows = Array.isArray(json.data) ? json.data : [];
+      setComboProducts(rows.filter((p) => typeof p.isEligibleForCombo === "boolean"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load category products");
+      setComboProducts([]);
+    } finally {
+      setComboProductsLoading(false);
+    }
+  }
+
+  function openProductEdit(p: AdminCategoryProduct) {
+    setProductEdit({
+      id: p._id,
+      name: p.name ?? "",
+      slug: p.slug ?? "",
+      isActive: p.isActive !== false,
+      isEligibleForCombo: p.isEligibleForCombo === true,
+    });
+    setProductEditOpen(true);
+  }
+
+  async function saveProductEdit() {
+    if (!productEdit.id) return;
+    setProductEditSaving(true);
+    setError(null);
+    try {
+      const body = {
+        name: productEdit.name.trim(),
+        slug: productEdit.slug.trim().toLowerCase(),
+        isActive: productEdit.isActive,
+        isEligibleForCombo: productEdit.isEligibleForCombo,
+      };
+      const res = await fetch(`/api/admin/products/${productEdit.id}`, {
+        method: "PATCH",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = (await res.json()) as { message?: string };
+      if (!res.ok) throw new Error(json.message || res.statusText);
+      setProductEditOpen(false);
+      if (comboModalCategory) await openComboProducts(comboModalCategory);
+      await loadComboCounts();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save product");
+    } finally {
+      setProductEditSaving(false);
+    }
+  }
+
+  async function deleteComboProduct(id: string) {
+    if (!confirm("Delete this product?")) return;
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE", cache: "no-store" });
+      const json = (await res.json()) as { message?: string };
+      if (!res.ok) throw new Error(json.message || res.statusText);
+      setComboProducts((prev) => prev.filter((p) => p._id !== id));
+      await loadComboCounts();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed");
+    }
+  }
+
+  async function openRearrangeProducts(c: AdminCategory) {
+    setRearrangeCategory(c);
+    setRearrangeModalOpen(true);
+    setRearrangeProducts([]);
+    setRearrangeLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/products?categorySlug=${encodeURIComponent(c.slug)}&limit=500`,
+        { cache: "no-store" }
+      );
+      const json = (await res.json()) as { data?: AdminCategoryProduct[]; message?: string };
+      if (!res.ok) throw new Error(json.message || res.statusText);
+      const rows = Array.isArray(json.data) ? json.data : [];
+      // Rearrange list only for standard products: keep null/empty combo flag, hide true/false.
+      const standardRows = rows.filter((p) => typeof p.isEligibleForCombo !== "boolean");
+      // Sort by current categorySortOrder for initial display
+      const sorted = [...standardRows].sort((a, b) => (a.categorySortOrder ?? 0) - (b.categorySortOrder ?? 0));
+      setRearrangeProducts(sorted);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load category products");
+      setRearrangeProducts([]);
+    } finally {
+      setRearrangeLoading(false);
+    }
+  }
+
+  function handleRearrangeDragStart(event: DragStartEvent) {
+    setActiveProductId(String(event.active.id));
+  }
+
+  function handleRearrangeDragEnd(event: DragEndEvent) {
+    setActiveProductId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = rearrangeProducts.findIndex((p) => p._id === active.id);
+    const newIndex = rearrangeProducts.findIndex((p) => p._id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    setRearrangeProducts((prev) => arrayMove(prev, oldIndex, newIndex));
+  }
+
+  async function saveRearrange() {
+    if (!rearrangeCategory) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const originalSortOrders = [...rearrangeProducts]
+        .map((p) => p.categorySortOrder ?? 0)
+        .sort((a, b) => a - b);
+
+      // If ranks are missing (0) or have duplicates, generate a fresh unique sequence [1, 2, 3...]
+      // to ensure the manual reordering is actually preserved in the database.
+      const rankedOrders = originalSortOrders.filter((o) => o > 0);
+      const uniqueRankedCount = new Set(rankedOrders).size;
+      const needsFreshSequence = uniqueRankedCount < rearrangeProducts.length;
+
+      const finalOrders = needsFreshSequence
+        ? rearrangeProducts.map((_, i) => i + 1)
+        : originalSortOrders;
+
+      const updates = rearrangeProducts.map((p, index) => ({
+        id: p._id,
+        sortOrder: finalOrders[index],
+      }));
+
+      const res = await fetch("/api/admin/products/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates, field: "categorySortOrder" }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.message || "Failed to save new order");
+      }
+      setRearrangeModalOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div>
       {error ? (
@@ -202,56 +594,101 @@ export default function AdminCategoriesPage() {
         <p className="muted">Loading…</p>
       ) : (
         <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>S.No</th>
-                <th>Image</th>
-                <th>Name</th>
-                <th>Slug</th>
-                <th>Order</th>
-                <th>Active</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {pageSlice.map((c, index) => (
-                <tr key={c._id} id={`admin-row-${c._id}`}>
-                  <td>{page * CATEGORY_PAGE_SIZE + index + 1}</td>
-                  <td>
-                    {c.image ? (
-                      <img src={c.image} alt="" className="admin-thumb" />
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td>{c.name}</td>
-                  <td>
-                    <span className="muted">{c.slug}</span>
-                  </td>
-                  <td>{c.sortOrder ?? 0}</td>
-                  <td>{c.isActive ? "Yes" : "No"}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn-ghost"
-                      style={{ marginRight: 6 }}
-                      onClick={() => openEdit(c)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn-danger"
-                      onClick={() => void handleDelete(c._id)}
-                    >
-                      Delete
-                    </button>
-                  </td>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+            modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+          >
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "40px" }} />
+                  <th>S.No</th>
+                  <th>Image</th>
+                  <th>Name</th>
+                  <th>Slug</th>
+                  <th>Order</th>
+                  <th>Active</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <SortableContext items={pageSlice.map((c) => c._id)} strategy={verticalListSortingStrategy}>
+                <tbody>
+                  {pageSlice.map((c, index) => (
+                    <SortableCategoryRow
+                      key={c._id}
+                      category={c}
+                      index={index}
+                      page={page}
+                      pageSize={CATEGORY_PAGE_SIZE}
+                      onEdit={openEdit}
+                      onDelete={handleDelete}
+                      comboCount={comboCountByCategoryId[c._id] ?? 0}
+                      onOpenCombo={openComboProducts}
+                      onRearrange={openRearrangeProducts}
+                    />
+                  ))}
+                </tbody>
+              </SortableContext>
+            </table>
+            <DragOverlay>
+              {activeCategory ? (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "56px minmax(0, 1fr)",
+                    gap: 12,
+                    alignItems: "center",
+                    minWidth: 320,
+                    maxWidth: 520,
+                    padding: "12px 16px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(148, 163, 184, 0.4)",
+                    background: "#ffffff",
+                    boxShadow: "0 18px 38px rgba(15, 23, 42, 0.18)",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "var(--admin-muted, #64748b)",
+                    }}
+                  >
+                    #{list.findIndex((category) => category._id === activeCategory._id) + 1}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: "var(--admin-text, #0f172a)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {activeCategory.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "var(--admin-muted, #64748b)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {activeCategory.slug}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
           {list.length === 0 ? <p className="muted" style={{ padding: "1rem" }}>No categories.</p> : null}
         </div>
       )}
@@ -392,6 +829,225 @@ export default function AdminCategoriesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {comboModalOpen ? (
+        <div
+          className="admin-modal-backdrop"
+          role="presentation"
+          onMouseDown={(ev) => {
+            if (ev.target === ev.currentTarget) setComboModalOpen(false);
+          }}
+        >
+          <div className="admin-modal" role="dialog" aria-labelledby="combo-products-title">
+            <h2 id="combo-products-title">
+              Combo products in {comboModalCategory?.name ?? "category"}
+            </h2>
+            {comboProductsLoading ? <p className="muted">Loading products…</p> : null}
+            {!comboProductsLoading && comboProducts.length === 0 ? (
+              <p className="muted">No products with combo eligibility set in this category.</p>
+            ) : null}
+            {!comboProductsLoading && comboProducts.length > 0 ? (
+              <div className="admin-table-wrap" style={{ marginBottom: 12 }}>
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Slug</th>
+                      <th>Combo flag</th>
+                      <th>Active</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comboProducts.map((p) => (
+                      <tr key={p._id}>
+                        <td>{p.name}</td>
+                        <td><span className="muted">{p.slug || "—"}</span></td>
+                        <td>{p.isEligibleForCombo === true ? "true" : p.isEligibleForCombo === false ? "false" : "null"}</td>
+                        <td>{p.isActive === false ? "No" : "Yes"}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-ghost"
+                            style={{ marginRight: 6 }}
+                            onClick={() => openProductEdit(p)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-danger"
+                            onClick={() => void deleteComboProduct(p._id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+            <div className="admin-modal-actions">
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setComboModalOpen(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {productEditOpen ? (
+        <div
+          className="admin-modal-backdrop"
+          role="presentation"
+          onMouseDown={(ev) => {
+            if (ev.target === ev.currentTarget) setProductEditOpen(false);
+          }}
+        >
+          <div className="admin-modal" role="dialog" aria-labelledby="combo-product-edit-title">
+            <h2 id="combo-product-edit-title">Edit combo product</h2>
+            <div className="admin-field">
+              <label htmlFor="combo-prod-name">Name</label>
+              <input
+                id="combo-prod-name"
+                value={productEdit.name}
+                onChange={(e) => setProductEdit((p) => ({ ...p, name: e.target.value }))}
+              />
+            </div>
+            <div className="admin-field">
+              <label htmlFor="combo-prod-slug">Slug</label>
+              <input
+                id="combo-prod-slug"
+                value={productEdit.slug}
+                onChange={(e) => setProductEdit((p) => ({ ...p, slug: e.target.value }))}
+              />
+            </div>
+            <div className="admin-field">
+              <label className="admin-check">
+                <input
+                  type="checkbox"
+                  checked={productEdit.isEligibleForCombo}
+                  onChange={(e) =>
+                    setProductEdit((p) => ({ ...p, isEligibleForCombo: e.target.checked }))
+                  }
+                />
+                isEligibleForCombo = true
+              </label>
+            </div>
+            <div className="admin-field">
+              <label className="admin-check">
+                <input
+                  type="checkbox"
+                  checked={productEdit.isActive}
+                  onChange={(e) => setProductEdit((p) => ({ ...p, isActive: e.target.checked }))}
+                />
+                Active
+              </label>
+            </div>
+            <div className="admin-modal-actions">
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setProductEditOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-primary"
+                disabled={productEditSaving}
+                onClick={() => void saveProductEdit()}
+              >
+                {productEditSaving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {rearrangeModalOpen ? (
+        <div
+          className="admin-modal-backdrop"
+          role="presentation"
+          onMouseDown={(ev) => {
+            if (ev.target === ev.currentTarget) setRearrangeModalOpen(false);
+          }}
+        >
+          <div className="admin-modal wide" role="dialog" aria-labelledby="rearrange-title">
+            <h2 id="rearrange-title">Rearrange Products in {rearrangeCategory?.name}</h2>
+            <p className="muted" style={{ marginBottom: "1rem" }}>
+              Drag the rows to change the display order on the storefront for this category.
+            </p>
+            {rearrangeLoading ? (
+              <p className="muted">Loading products…</p>
+            ) : rearrangeProducts.length === 0 ? (
+              <p className="muted">No products found in this category.</p>
+            ) : (
+              <div className="admin-table-wrap" style={{ marginBottom: "1.5rem" }}>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleRearrangeDragStart}
+                  onDragEnd={handleRearrangeDragEnd}
+                  onDragCancel={() => setActiveProductId(null)}
+                  modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+                >
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: "40px" }} />
+                        <th>#</th>
+                        <th>Name / Type</th>
+                        <th>Slug</th>
+                        <th>Order</th>
+                      </tr>
+                    </thead>
+                    <SortableContext
+                      items={rearrangeProducts.map((p) => p._id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <tbody>
+                        {rearrangeProducts.map((p, index) => (
+                          <SortableRearrangeRow key={p._id} product={p} index={index} />
+                        ))}
+                      </tbody>
+                    </SortableContext>
+                  </table>
+                  <DragOverlay>
+                    {activeProductId ? (
+                      <div
+                        style={{
+                          padding: "12px 16px",
+                          background: "#fff",
+                          border: "1px solid #ccc",
+                          borderRadius: "8px",
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                        }}
+                      >
+                        {rearrangeProducts.find((p) => p._id === activeProductId)?.name}
+                      </div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
+              </div>
+            )}
+            <div className="admin-modal-actions">
+              <button
+                type="button"
+                className="admin-btn admin-btn-ghost"
+                onClick={() => setRearrangeModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-primary"
+                onClick={() => void saveRearrange()}
+                disabled={saving || rearrangeLoading}
+              >
+                {saving ? "Saving Order…" : "Save Order"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

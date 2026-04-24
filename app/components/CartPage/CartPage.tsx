@@ -22,6 +22,9 @@ import {
   type PublicCouponBannerJson,
 } from './cartCoupons';
 import { groupCartItemsByProductLine, cartGroupKey } from '@/lib/cart/groupCartLines';
+import { normalizeOrderMode } from '@/lib/cart/packetLine';
+import { apiProductToProduct } from '@/app/lib/api/mapApiProduct';
+import type { ApiProductsListResponse } from '@/app/lib/api/types';
 import type { QuotationPdfOrderData } from '@/lib/utils/generateQuotationPDF';
 
 export default function CartPage() {
@@ -57,10 +60,35 @@ export default function CartPage() {
   >(null);
   const [comboMeta, setComboMeta] = useState({
     suggestion: null as string | null,
+    comboEligibleTargets: [] as { slug: string; name: string }[],
+    comboFallbackTargets: [] as { slug: string; name: string }[],
+    comboSwapTargetSlugs: [] as string[],
+    comboRemoveWhenNoTriggerSlugs: [] as string[],
     minimumOrderInclGst: 25_000,
     minimumOrderMet: true,
     comboSavingsInclGst: 0,
   });
+
+  const cartSlugSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const ci of cartItems) {
+      const slug = typeof ci.productSlug === "string" ? ci.productSlug.trim().toLowerCase() : "";
+      if (slug) s.add(slug);
+    }
+    return s;
+  }, [cartItems]);
+
+  const visibleEligibleTargets = useMemo(
+    () => comboMeta.comboEligibleTargets.filter((t) => !cartSlugSet.has(t.slug)),
+    [comboMeta.comboEligibleTargets, cartSlugSet]
+  );
+  const visibleFallbackTargets = useMemo(
+    () => comboMeta.comboFallbackTargets.filter((t) => !cartSlugSet.has(t.slug)),
+    [comboMeta.comboFallbackTargets, cartSlugSet]
+  );
+
+  const comboShowPromoCards =
+    visibleEligibleTargets.length > 0 || visibleFallbackTargets.length > 0;
 
   const gstTotal = cartTotal - cartBasicTotal;
 
@@ -88,6 +116,132 @@ export default function CartPage() {
         .join("|"),
     [cartItems]
   );
+
+  const fallbackPayloadCacheRef = useRef(new Map<string, Parameters<typeof addToCart>[0] | null>());
+  const swapBusyRef = useRef(false);
+
+  const resolveAddPayloadForSlug = useCallback(async (slug: string) => {
+    const k = slug.trim().toLowerCase();
+    if (!k) return null;
+    if (fallbackPayloadCacheRef.current.has(k)) {
+      return fallbackPayloadCacheRef.current.get(k) ?? null;
+    }
+    try {
+      const res = await fetch(`/api/products?q=${encodeURIComponent(k)}&limit=20`, { cache: "no-store" });
+      const json = (await res.json()) as ApiProductsListResponse;
+      if (!res.ok || !Array.isArray(json.data)) {
+        fallbackPayloadCacheRef.current.set(k, null);
+        return null;
+      }
+      const hit = json.data.find((p) => {
+        const s = typeof p.slug === "string" ? p.slug.trim().toLowerCase() : "";
+        return s === k;
+      });
+      if (!hit) {
+        fallbackPayloadCacheRef.current.set(k, null);
+        return null;
+      }
+      const mapped = apiProductToProduct(hit);
+      const offer = mapped.sellers?.[0] ?? null;
+      const size = offer?.sizes?.[0] ?? mapped.sizes?.[0];
+      if (!size) {
+        fallbackPayloadCacheRef.current.set(k, null);
+        return null;
+      }
+      const payload: Parameters<typeof addToCart>[0] = {
+        productId: mapped.id,
+        mongoProductId: mapped.mongoProductId,
+        categoryMongoId: mapped.categoryMongoId,
+        productSlug: mapped.slug,
+        productImage: mapped.image,
+        productName: mapped.name,
+        brand: offer?.brand ?? mapped.brand,
+        category: mapped.category,
+        sellerId: offer?.sellerId ?? "default",
+        sellerName: offer?.sellerName ?? (mapped.brand || "Default"),
+        size: size.size,
+        pricePerUnit: size.withGST,
+        basicPricePerUnit: size.basicPrice,
+        qtyPerBag: size.qtyPerBag,
+        pcsPerPacket: size.pcsPerPacket,
+        orderMode: "packets",
+      };
+      fallbackPayloadCacheRef.current.set(k, payload);
+      return payload;
+    } catch {
+      fallbackPayloadCacheRef.current.set(k, null);
+      return null;
+    }
+  }, [addToCart]);
+
+  useEffect(() => {
+    if (comboMeta.comboRemoveWhenNoTriggerSlugs.length === 0) return;
+    const kill = new Set(comboMeta.comboRemoveWhenNoTriggerSlugs);
+    const matches = cartItems.filter((ci) => {
+      const s = typeof ci.productSlug === "string" ? ci.productSlug.trim().toLowerCase() : "";
+      return s.length > 0 && kill.has(s);
+    });
+    if (matches.length === 0) return;
+    for (const row of matches) {
+      removeFromCart(row.productId, row.size, row.sellerId, normalizeOrderMode(row.orderMode));
+    }
+  }, [cartItems, comboMeta.comboRemoveWhenNoTriggerSlugs, removeFromCart]);
+
+  useEffect(() => {
+    if (swapBusyRef.current) return;
+    if (comboMeta.comboSwapTargetSlugs.length === 0) return;
+    if (comboMeta.comboFallbackTargets.length === 0) return;
+    const badTargetSet = new Set(comboMeta.comboSwapTargetSlugs);
+    const linesToSwap = cartItems.filter((ci) => {
+      const s = typeof ci.productSlug === "string" ? ci.productSlug.trim().toLowerCase() : "";
+      return s.length > 0 && badTargetSet.has(s);
+    });
+    if (linesToSwap.length === 0) return;
+
+    swapBusyRef.current = true;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const fallbackSlugs = comboMeta.comboFallbackTargets.map((t) => t.slug).filter(Boolean);
+        if (fallbackSlugs.length === 0) return;
+        const queue: Array<{ row: (typeof linesToSwap)[number]; payload: Parameters<typeof addToCart>[0] }> = [];
+        for (let i = 0; i < linesToSwap.length; i++) {
+          const row = linesToSwap[i];
+          const fbSlug = fallbackSlugs[i % fallbackSlugs.length];
+          const payload = await resolveAddPayloadForSlug(fbSlug);
+          if (payload) queue.push({ row, payload });
+        }
+        if (cancelled || queue.length === 0) return;
+
+        for (const q of queue) {
+          removeFromCart(q.row.productId, q.row.size, q.row.sellerId, normalizeOrderMode(q.row.orderMode));
+        }
+        for (const q of queue) {
+          addToCart(
+            {
+              ...q.payload,
+              orderMode: normalizeOrderMode(q.row.orderMode),
+            },
+            q.row.quantity
+          );
+        }
+      } finally {
+        swapBusyRef.current = false;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    addToCart,
+    cartItems,
+    comboMeta.comboFallbackTargets,
+    comboMeta.comboRemoveWhenNoTriggerSlugs,
+    comboMeta.comboSwapTargetSlugs,
+    removeFromCart,
+    resolveAddPayloadForSlug,
+  ]);
 
   useEffect(() => {
     setUserOptedOutCoupon(false);
@@ -407,16 +561,113 @@ export default function CartPage() {
             <ComboCartPricingSync onMeta={setComboMeta} />
             {/* Left: Items list */}
             <div className={styles.itemsCol}>
-              {comboMeta.suggestion ? (
-                <div className={styles.comboSuggestionBanner} role="status" aria-live="polite">
-                  <span className={styles.comboSuggestionIcon} aria-hidden>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="16" x2="12" y2="12" />
-                      <line x1="12" y1="8" x2="12.01" y2="8" />
-                    </svg>
-                  </span>
-                  <p className={styles.comboSuggestionText}>{comboMeta.suggestion}</p>
+              {comboMeta.suggestion ||
+                visibleEligibleTargets.length > 0 ||
+                visibleFallbackTargets.length > 0 ? (
+                <div
+                  className={`${styles.comboSuggestionBanner}${comboShowPromoCards || comboMeta.suggestion
+                      ? ` ${styles.comboSuggestionBannerNoIcon}`
+                      : ""
+                    }`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  {!comboShowPromoCards && !comboMeta.suggestion ? (
+                    <span className={styles.comboSuggestionIcon} aria-hidden>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="16" x2="12" y2="12" />
+                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                      </svg>
+                    </span>
+                  ) : null}
+                  <div className={styles.comboSuggestionBody}>
+                    {comboMeta.suggestion ? (
+                      <div className={styles.comboSuggestionCallout}>
+                        <div className={styles.comboSuggestionCalloutGlow} aria-hidden />
+                        <div className={styles.comboSuggestionCalloutInner}>
+                          <span className={styles.comboSuggestionCalloutBadge}>Add more to unlock</span>
+                          <div className={styles.comboSuggestionCalloutRow}>
+                            <p className={styles.comboSuggestionCalloutText}>{comboMeta.suggestion}</p>
+                            <span className={styles.comboSuggestionCalloutIcon} aria-hidden title="Combo offer">
+                              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="16" x2="12" y2="12" />
+                                <line x1="12" y1="8" x2="12.01" y2="8" />
+                              </svg>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                    {visibleEligibleTargets.length > 0 ? (
+                      <div className={styles.comboEligibleCard}>
+                        <div className={styles.comboEligibleCardGlow} aria-hidden />
+                        <div className={styles.comboEligibleCardInner}>
+                          <span className={styles.comboEligibleBadge}>Combo unlocked</span>
+                          <div className={styles.comboEligibleTitleRow}>
+                            <h3 className={styles.comboEligibleHeadline}>You can add to cart</h3>
+                            <span className={styles.comboEligibleInlineIcon} aria-hidden title="Combo offer">
+                              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="16" x2="12" y2="12" />
+                                <line x1="12" y1="8" x2="12.01" y2="8" />
+                              </svg>
+                            </span>
+                          </div>
+                          <p className={styles.comboEligibleSub}>
+                            Tap a product to open its page — then add to cart for combo net pricing.
+                          </p>
+                          <ul className={styles.comboEligiblePills} role="list">
+                            {visibleEligibleTargets.map((t) => (
+                              <li key={t.slug} className={styles.comboEligiblePillLi}>
+                                <Link
+                                  href={`/products/${encodeURIComponent(t.slug)}`}
+                                  className={styles.comboEligiblePill}
+                                >
+                                  <span className={styles.comboEligiblePillChevron} aria-hidden>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M5 12h14M13 6l6 6-6 6" />
+                                    </svg>
+                                  </span>
+                                  <span className={styles.comboEligiblePillName}>{t.name}</span>
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    ) : null}
+                    {visibleFallbackTargets.length > 0 ? (
+                      <div className={styles.comboFallbackCard}>
+                        <div className={styles.comboFallbackCardGlow} aria-hidden />
+                        <div className={styles.comboFallbackCardInner}>
+                          <span className={styles.comboFallbackBadge}>Until combo unlocks</span>
+                          <h3 className={styles.comboFallbackHeadline}>You can add these (list price)</h3>
+                          <p className={styles.comboFallbackSub}>
+                            Add these products at regular rates while you build the trigger quantity for the combo offer.
+                          </p>
+                          <ul className={styles.comboFallbackPills} role="list">
+                            {visibleFallbackTargets.map((t) => (
+                              <li key={t.slug} className={styles.comboFallbackPillLi}>
+                                <Link
+                                  href={`/products/${encodeURIComponent(t.slug)}`}
+                                  className={styles.comboFallbackPill}
+                                >
+                                  <span className={styles.comboFallbackPillChevron} aria-hidden>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M5 12h14M13 6l6 6-6 6" />
+                                    </svg>
+                                  </span>
+                                  <span className={styles.comboFallbackPillName}>{t.name}</span>
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
 

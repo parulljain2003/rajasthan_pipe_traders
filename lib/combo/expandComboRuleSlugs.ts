@@ -4,6 +4,8 @@ import { ProductModel } from "@/lib/db/models/Product";
 export type ComboRuleSlugSource = {
   triggerSlugs?: unknown;
   targetSlugs?: unknown;
+  /** Explicit fallback targets (not expanded from categories in this helper). */
+  fallbackTargetSlugs?: unknown;
   triggerCategoryIds?: unknown;
   targetCategoryIds?: unknown;
 };
@@ -59,15 +61,23 @@ export async function expandManyComboRulesForRuntime<
   const byCat = await slugSetsByCategoryIds(allCats);
 
   return rules.map((r) => {
-    const trigger = new Set(normSlugs(r.triggerSlugs));
-    const target = new Set(normSlugs(r.targetSlugs));
-    for (const id of toObjectIds(r.triggerCategoryIds)) {
-      const set = byCat.get(id.toString());
-      if (set) set.forEach((s) => trigger.add(s));
+    const explicitTrigger = normSlugs(r.triggerSlugs);
+    const explicitTarget = normSlugs(r.targetSlugs);
+    const trigger = new Set(explicitTrigger);
+    const target = new Set(explicitTarget);
+    // When explicit slugs exist, do not merge category products — same category on trigger + target
+    // would otherwise put every SKU in both pools (wrong guard / pricing).
+    if (explicitTrigger.length === 0) {
+      for (const id of toObjectIds(r.triggerCategoryIds)) {
+        const set = byCat.get(id.toString());
+        if (set) set.forEach((s) => trigger.add(s));
+      }
     }
-    for (const id of toObjectIds(r.targetCategoryIds)) {
-      const set = byCat.get(id.toString());
-      if (set) set.forEach((s) => target.add(s));
+    if (explicitTarget.length === 0) {
+      for (const id of toObjectIds(r.targetCategoryIds)) {
+        const set = byCat.get(id.toString());
+        if (set) set.forEach((s) => target.add(s));
+      }
     }
     return {
       ...r,

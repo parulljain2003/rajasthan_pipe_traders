@@ -27,6 +27,7 @@ export type AdminComboRule = {
   name: string;
   triggerSlugs: string[];
   targetSlugs: string[];
+  fallbackTargetSlugs?: string[];
   triggerCategoryIds?: string[];
   targetCategoryIds?: string[];
   minTriggerBags: number;

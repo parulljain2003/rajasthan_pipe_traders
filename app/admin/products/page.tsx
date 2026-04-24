@@ -7,6 +7,25 @@ import { normalizeKeyFeatureIcon } from "@/app/lib/sanitizeKeyFeatures";
 import { MediaImageField } from "../components/MediaImageField";
 import AdminProductSearchBar from "../components/AdminProductSearchBar";
 import type { AdminCategory, AdminProduct } from "../types";
+import {
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { restrictToVerticalAxis, restrictToWindowEdges } from "@dnd-kit/modifiers";
+import { SortableProductRow } from "./SortableProductRow";
 
 const pageSize = 25;
 
@@ -242,7 +261,7 @@ const emptyForm = {
 export default function AdminProductsPage() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [list, setList] = useState<AdminProduct[]>([]);
-  const [meta, setMeta] = useState({ total: 0, skip: 0 });
+  const [meta, setMeta] = useState({ total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -261,6 +280,28 @@ export default function AdminProductsPage() {
   const [sortOrderCheckOk, setSortOrderCheckOk] = useState(false);
   /** Sort order loaded from DB when opening edit (used for swap confirmation) */
   const [editBaselineSortOrder, setEditBaselineSortOrder] = useState<number | null>(null);
+
+  const [activeProductId, setActiveProductId] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const activeProduct = activeProductId
+    ? list.find((product) => product._id === activeProductId) ?? null
+    : null;
+  const pageSlice = useMemo(
+    () => list.slice(page * pageSize, page * pageSize + pageSize),
+    [list, page]
+  );
 
   /** Both packing fields set → storefront uses packing only; separate MOQ fields hidden and cleared on save */
   const packingReplacesMoq = useMemo(() => {
@@ -284,27 +325,38 @@ export default function AdminProductsPage() {
     }
   }, []);
 
-  const loadProducts = useCallback(async (skip: number, nextSearch?: string, scrollToId?: string) => {
+  const loadProducts = useCallback(async (nextSearch?: string, scrollToId?: string) => {
     const searchTerm = nextSearch !== undefined ? nextSearch : appliedSearchRef.current;
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ limit: String(pageSize), skip: String(skip) });
+      const params = new URLSearchParams({ limit: "500", skip: "0" });
       const trimmed = searchTerm.trim();
       if (trimmed) params.set("q", trimmed);
       appliedSearchRef.current = trimmed;
       const res = await fetch(`/api/admin/products?${params}`, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
-      setList(json.data as AdminProduct[]);
-      setMeta({
-        total: json.meta?.total ?? 0,
-        skip: json.meta?.skip ?? skip,
+      const rows = json.data as Array<AdminProduct & { isEligibleForCombo?: unknown }>;
+      const visibleRows = rows.filter((p) => {
+        const v = p.isEligibleForCombo;
+        return v === null || (typeof v === "string" && v.trim() === "");
       });
+      setList(visibleRows);
+      setMeta({
+        total: visibleRows.length,
+      });
+      if (scrollToId) {
+        const index = visibleRows.findIndex((product) => product._id === scrollToId);
+        setPage(index >= 0 ? Math.floor(index / pageSize) : 0);
+      } else if (nextSearch !== undefined) {
+        setPage(0);
+      }
       setPendingScrollId(scrollToId ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
       setList([]);
+      setMeta({ total: 0 });
       setPendingScrollId(null);
     } finally {
       setLoading(false);
@@ -316,8 +368,14 @@ export default function AdminProductsPage() {
   }, [loadCategories]);
 
   useEffect(() => {
-    void loadProducts(0, "");
+    void loadProducts("");
   }, [loadProducts]);
+
+  useEffect(() => {
+    const maxPage = Math.max(0, Math.ceil(meta.total / pageSize) - 1);
+    if (meta.total === 0) setPage(0);
+    else if (page > maxPage) setPage(maxPage);
+  }, [meta.total, page]);
 
   useEffect(() => {
     if (!pendingScrollId || loading) return;
@@ -669,7 +727,7 @@ export default function AdminProductsPage() {
       setSortConflict(null);
       setSortOrderCheckOk(false);
       setModalOpen(false);
-      await loadProducts(meta.skip);
+      await loadProducts();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -703,14 +761,114 @@ export default function AdminProductsPage() {
       const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE", cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
-      await loadProducts(meta.skip);
+      await loadProducts();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");
     }
   }
 
-  const canPrev = meta.skip > 0;
-  const canNext = meta.skip + list.length < meta.total;
+  const canPrev = page > 0;
+  const canNext = (page + 1) * pageSize < meta.total;
+
+  useEffect(() => {
+    if (!activeProductId) return;
+
+    let frameId = 0;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let pointerY: number | null = null;
+    const PAGE_TURN_ZONE = 120;
+    const PAGE_TURN_DELAY = 250;
+
+    const schedulePageTurn = () => {
+      if (timeoutId || pointerY === null) return;
+
+      if (pointerY >= window.innerHeight - PAGE_TURN_ZONE && canNext) {
+        timeoutId = setTimeout(() => {
+          setPage((currentPage) => currentPage + 1);
+          timeoutId = null;
+          frameId = requestAnimationFrame(schedulePageTurn);
+        }, PAGE_TURN_DELAY);
+        return;
+      }
+
+      if (pointerY <= PAGE_TURN_ZONE && canPrev) {
+        timeoutId = setTimeout(() => {
+          setPage((currentPage) => Math.max(0, currentPage - 1));
+          timeoutId = null;
+          frameId = requestAnimationFrame(schedulePageTurn);
+        }, PAGE_TURN_DELAY);
+      }
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      pointerY = event.clientY;
+      schedulePageTurn();
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      if (frameId) cancelAnimationFrame(frameId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [activeProductId, canNext, canPrev]);
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveProductId(String(event.active.id));
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveProductId(null);
+    if (appliedSearchRef.current.trim()) {
+      setError("Clear product search before drag reordering so the full product list can be renumbered safely.");
+      return;
+    }
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = list.findIndex((p) => p._id === active.id);
+    const newIndex = list.findIndex((p) => p._id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Move the items in local state
+    const newList = arrayMove(list, oldIndex, newIndex);
+
+    const finalSortOrders = newList.map((_, index) => index + 1);
+
+    // Create the updates mapping: id -> new sort order
+    const updates = newList.map((p, index) => ({
+      id: p._id,
+      sortOrder: finalSortOrders[index] ?? 0,
+    }));
+
+    // Optimistically update the list with new sort orders
+    const newlyOrderedList = newList.map((p, index) => ({
+      ...p,
+      sortOrder: finalSortOrders[index] ?? 0,
+    }));
+    setList(newlyOrderedList);
+
+    try {
+      const res = await fetch("/api/admin/products/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.message || "Failed to save new order");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Reorder failed");
+      void loadProducts(); // Rollback on failure
+    }
+  }
+
+  function handleDragCancel() {
+    setActiveProductId(null);
+  }
 
   return (
     <div>
@@ -728,7 +886,7 @@ export default function AdminProductsPage() {
           <button
             type="button"
             className="admin-btn admin-btn-ghost"
-            onClick={() => void loadProducts(meta.skip)}
+            onClick={() => void loadProducts()}
             disabled={loading}
           >
             Refresh
@@ -738,7 +896,7 @@ export default function AdminProductsPage() {
           </span>
         </div>
         <AdminProductSearchBar
-          onRunSearch={(query, scrollToId) => void loadProducts(0, query, scrollToId)}
+          onRunSearch={(query, scrollToId) => void loadProducts(query, scrollToId)}
         />
       </div>
 
@@ -747,77 +905,119 @@ export default function AdminProductsPage() {
       ) : (
         <>
           <div className="admin-table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>S.No</th>
-                  <th>Img</th>
-                  <th>SKU</th>
-                  <th>Name</th>
-                  <th>Category</th>
-                  <th>Order</th>
-                  <th>Kind</th>
-                  <th>Price (GST)</th>
-                  <th>Active</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((p, index) => (
-                  <tr key={p._id} id={`admin-row-${p._id}`}>
-                    <td>{meta.skip + index + 1}</td>
-                    <td>
-                      {p.image ? <img src={p.image} alt="" className="admin-thumb" /> : "—"}
-                    </td>
-                    <td>
-                      <code style={{ fontSize: "0.8rem" }}>{p.sku ?? "—"}</code>
-                    </td>
-                    <td>{p.name}</td>
-                    <td>{p.category?.name ?? "—"}</td>
-                    <td>{p.sortOrder ?? 0}</td>
-                    <td>{p.productKind}</td>
-                    <td>₹{p.pricing?.priceWithGst ?? "—"}</td>
-                    <td>{p.isActive ? "Yes" : "No"}</td>
-                    <td style={{ whiteSpace: "nowrap" }}>
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn-ghost"
-                        style={{ marginRight: 6 }}
-                        onClick={() => void openEdit(p._id)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn-danger"
-                        onClick={() => void handleDelete(p._id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
+              modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+            >
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: "40px" }} />
+                    <th>S.No</th>
+                    <th>Img</th>
+                    <th>SKU</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Order</th>
+                    <th>Kind</th>
+                    <th>Price (GST)</th>
+                    <th>Active</th>
+                    <th />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {list.length === 0 ? <p className="muted" style={{ padding: "1rem" }}>No products.</p> : null}
+                </thead>
+                <SortableContext items={pageSlice.map((p) => p._id)} strategy={verticalListSortingStrategy}>
+                  <tbody>
+                    {pageSlice.map((p, index) => (
+                      <SortableProductRow
+                        key={p._id}
+                        product={p}
+                        index={index}
+                        skip={page * pageSize}
+                        onEdit={openEdit}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </tbody>
+                </SortableContext>
+              </table>
+              <DragOverlay>
+                {activeProduct ? (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "56px minmax(0, 1fr)",
+                      gap: 12,
+                      alignItems: "center",
+                      minWidth: 320,
+                      maxWidth: 520,
+                      padding: "12px 16px",
+                      borderRadius: 12,
+                      border: "1px solid rgba(148, 163, 184, 0.4)",
+                      background: "#ffffff",
+                      boxShadow: "0 18px 38px rgba(15, 23, 42, 0.18)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--admin-muted, #64748b)",
+                      }}
+                    >
+                      #{list.findIndex((product) => product._id === activeProduct._id) + 1}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: "var(--admin-text, #0f172a)",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {activeProduct.name}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "var(--admin-muted, #64748b)",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {activeProduct.sku || activeProduct.slug}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           </div>
+          {list.length === 0 ? <p className="muted" style={{ padding: "1rem" }}>No products.</p> : null}
           <div className="admin-pagination">
             <button
               type="button"
               className="admin-btn admin-btn-ghost"
               disabled={!canPrev || loading}
-              onClick={() => void loadProducts(Math.max(0, meta.skip - pageSize))}
+              onClick={() => setPage((currentPage) => Math.max(0, currentPage - 1))}
             >
               Previous
             </button>
             <span>
-              Showing {list.length ? meta.skip + 1 : 0}–{meta.skip + list.length} of {meta.total}
+              Showing {pageSlice.length ? page * pageSize + 1 : 0}–{page * pageSize + pageSlice.length} of {meta.total}
             </span>
             <button
               type="button"
               className="admin-btn admin-btn-ghost"
               disabled={!canNext || loading}
-              onClick={() => void loadProducts(meta.skip + pageSize)}
+              onClick={() => setPage((currentPage) => currentPage + 1)}
             >
               Next
             </button>

@@ -167,6 +167,7 @@ export function apiProductToProduct(p: ApiProduct): Product {
     brand: brandTrim,
     category: categoryName,
     ...(typeof p.sortOrder === "number" ? { sortOrder: p.sortOrder } : {}),
+    ...(typeof p.categorySortOrder === "number" ? { categorySortOrder: p.categorySortOrder } : {}),
     subCategory: p.subCategory ?? "",
     description: p.description ?? "",
     /** PDP “About this product” — admin often fills only `description`; use it when `longDescription` is unset */

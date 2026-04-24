@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
 
     const triggerSlugs = parseSlugList(body.triggerSlugs);
     const targetSlugs = parseSlugList(body.targetSlugs);
+    const fallbackTargetSlugs = parseSlugList(body.fallbackTargetSlugs);
     const triggerCategoryIds = parseObjectIdList(body.triggerCategoryIds).map(
       (id) => new mongoose.Types.ObjectId(id)
     );
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
       name,
       triggerSlugs,
       targetSlugs,
+      fallbackTargetSlugs,
       triggerCategoryIds,
       targetCategoryIds,
       minTriggerBags,

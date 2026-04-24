@@ -36,6 +36,11 @@ export type ComboPricingResultLine = {
   comboSubtotalInclGst: number;
 };
 
+export type ComboEligibleTargetProduct = {
+  slug: string;
+  name: string;
+};
+
 export type ComboPricingResult = {
   lines: ComboPricingResultLine[];
   /** Sum of packets from eligible products */
@@ -50,6 +55,25 @@ export type ComboPricingResult = {
   comboSavingsInclGst: number;
   /** Hint when user is close to unlocking more combo */
   smartSuggestion: string | null;
+  /**
+   * When trigger threshold is met but the cart has no combo target line yet — slugs/names
+   * for PDP links (from DB).
+   */
+  comboEligibleTargets?: ComboEligibleTargetProduct[];
+  /**
+   * When trigger threshold is not yet met — fallback target slugs from the rule (list-priced alternatives).
+   */
+  comboFallbackTargets?: ComboEligibleTargetProduct[];
+  /**
+   * Target slugs currently present in cart but invalid because trigger threshold is not met.
+   * Client can use this for simple target -> fallback auto-swap.
+   */
+  comboSwapTargetSlugs?: string[];
+  /**
+   * Slugs to remove when a rule has no trigger line in cart:
+   * includes that rule's target slugs + fallback target slugs.
+   */
+  comboRemoveWhenNoTriggerSlugs?: string[];
 };
 
 export type ComputeComboPricingOptions = {
@@ -264,6 +288,8 @@ export function computeComboPricing(
     cartBasicTotal,
     comboSavingsInclGst: roundMoney(Math.max(0, comboSavingsInclGst)),
     smartSuggestion,
+    comboEligibleTargets: undefined,
+    comboFallbackTargets: undefined,
   };
 }
 

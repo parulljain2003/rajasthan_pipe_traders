@@ -10,6 +10,8 @@ const comboRuleSchema = new Schema(
     triggerSlugs: { type: [String], default: [] },
     /** Product slugs that receive combo pricing (explicit picks). */
     targetSlugs: { type: [String], default: [] },
+    /** Product slugs to show when trigger threshold is not met (regular/higher-price alternatives). */
+    fallbackTargetSlugs: { type: [String], default: [] },
     /** Categories whose products all count as triggers (expanded to slugs at runtime). */
     triggerCategoryIds: [{ type: Schema.Types.ObjectId, ref: "Category" }],
     /** Categories whose products all count as targets (expanded to slugs at runtime). */

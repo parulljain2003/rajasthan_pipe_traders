@@ -14,10 +14,16 @@ type ComboApiLine = {
   comboSubtotalInclGst?: number;
 };
 
+type ComboEligibleTarget = { slug: string; name: string };
+
 type ComboPricingResponse = {
   data?: {
     lines: ComboApiLine[];
     smartSuggestion: string | null;
+    comboEligibleTargets?: ComboEligibleTarget[];
+    comboFallbackTargets?: ComboEligibleTarget[];
+    comboSwapTargetSlugs?: string[];
+    comboRemoveWhenNoTriggerSlugs?: string[];
     minimumOrderInclGst: number;
     minimumOrderMet: boolean;
     comboSavingsInclGst?: number;
@@ -45,6 +51,10 @@ export default function ComboCartPricingSync({
 }: {
   onMeta: (meta: {
     suggestion: string | null;
+    comboEligibleTargets: ComboEligibleTarget[];
+    comboFallbackTargets: ComboEligibleTarget[];
+    comboSwapTargetSlugs: string[];
+    comboRemoveWhenNoTriggerSlugs: string[];
     minimumOrderInclGst: number;
     minimumOrderMet: boolean;
     comboSavingsInclGst: number;
@@ -73,9 +83,13 @@ export default function ComboCartPricingSync({
     if (!cartHydrated || cartItems.length === 0) {
       onMetaRef.current({
         suggestion: null,
+        comboEligibleTargets: [],
+        comboFallbackTargets: [],
         minimumOrderInclGst: 25_000,
         minimumOrderMet: true,
         comboSavingsInclGst: 0,
+        comboSwapTargetSlugs: [],
+        comboRemoveWhenNoTriggerSlugs: [],
       });
       return;
     }
@@ -123,11 +137,43 @@ export default function ComboCartPricingSync({
           );
         }
 
+        const rawTargets = Array.isArray(data.comboEligibleTargets) ? data.comboEligibleTargets : [];
+        const comboEligibleTargets = rawTargets
+          .map((t) => {
+            const slug = typeof t.slug === "string" ? t.slug.trim().toLowerCase() : "";
+            const nameRaw = typeof t.name === "string" ? t.name.trim() : "";
+            return { slug, name: nameRaw || slug };
+          })
+          .filter((t) => t.slug.length > 0);
+
+        const rawFallback = Array.isArray(data.comboFallbackTargets) ? data.comboFallbackTargets : [];
+        const comboFallbackTargets = rawFallback
+          .map((t) => {
+            const slug = typeof t.slug === "string" ? t.slug.trim().toLowerCase() : "";
+            const nameRaw = typeof t.name === "string" ? t.name.trim() : "";
+            return { slug, name: nameRaw || slug };
+          })
+          .filter((t) => t.slug.length > 0);
+        const comboSwapTargetSlugs = Array.isArray(data.comboSwapTargetSlugs)
+          ? data.comboSwapTargetSlugs
+              .map((s) => (typeof s === "string" ? s.trim().toLowerCase() : ""))
+              .filter((s) => s.length > 0)
+          : [];
+        const comboRemoveWhenNoTriggerSlugs = Array.isArray(data.comboRemoveWhenNoTriggerSlugs)
+          ? data.comboRemoveWhenNoTriggerSlugs
+              .map((s) => (typeof s === "string" ? s.trim().toLowerCase() : ""))
+              .filter((s) => s.length > 0)
+          : [];
+
         onMetaRef.current({
           suggestion:
             typeof data.smartSuggestion === "string" && data.smartSuggestion.trim() !== ""
               ? data.smartSuggestion.trim()
               : null,
+          comboEligibleTargets,
+          comboFallbackTargets,
+          comboSwapTargetSlugs,
+          comboRemoveWhenNoTriggerSlugs,
           minimumOrderInclGst: data.minimumOrderInclGst ?? 25_000,
           minimumOrderMet: Boolean(data.minimumOrderMet),
           comboSavingsInclGst: data.comboSavingsInclGst ?? 0,
