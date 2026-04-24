@@ -37,6 +37,23 @@ const emptyForm = {
   isActive: true,
 };
 
+type AdminCategoryProduct = {
+  _id: string;
+  name: string;
+  slug?: string;
+  isActive?: boolean;
+  isEligibleForCombo?: boolean | null;
+  category?: { _id: string; name: string; slug: string } | null;
+};
+
+const emptyProductEdit = {
+  id: "",
+  name: "",
+  slug: "",
+  isActive: true,
+  isEligibleForCombo: false,
+};
+
 export default function AdminCategoriesPage() {
   const [list, setList] = useState<AdminCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +80,14 @@ export default function AdminCategoriesPage() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+  const [comboCountByCategoryId, setComboCountByCategoryId] = useState<Record<string, number>>({});
+  const [comboModalOpen, setComboModalOpen] = useState(false);
+  const [comboModalCategory, setComboModalCategory] = useState<AdminCategory | null>(null);
+  const [comboProducts, setComboProducts] = useState<AdminCategoryProduct[]>([]);
+  const [comboProductsLoading, setComboProductsLoading] = useState(false);
+  const [productEditOpen, setProductEditOpen] = useState(false);
+  const [productEditSaving, setProductEditSaving] = useState(false);
+  const [productEdit, setProductEdit] = useState(emptyProductEdit);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,6 +108,28 @@ export default function AdminCategoriesPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const loadComboCounts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/products?limit=500", { cache: "no-store" });
+      const json = (await res.json()) as { data?: AdminCategoryProduct[] };
+      if (!res.ok || !Array.isArray(json.data)) return;
+      const next: Record<string, number> = {};
+      for (const p of json.data) {
+        if (typeof p.isEligibleForCombo !== "boolean") continue;
+        const cid = p.category?._id;
+        if (!cid) continue;
+        next[cid] = (next[cid] ?? 0) + 1;
+      }
+      setComboCountByCategoryId(next);
+    } catch {
+      // silent: category CRUD should keep working even if this helper fails
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadComboCounts();
+  }, [loadComboCounts]);
 
   const total = list.length;
   const pageSlice = useMemo(
@@ -286,6 +333,81 @@ export default function AdminCategoriesPage() {
 
   function handleDragCancel() {
     setActiveCategoryId(null);
+  async function openComboProducts(c: AdminCategory) {
+    setComboModalCategory(c);
+    setComboModalOpen(true);
+    setComboProducts([]);
+    setComboProductsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/products?categorySlug=${encodeURIComponent(c.slug)}&limit=500`,
+        { cache: "no-store" }
+      );
+      const json = (await res.json()) as { data?: AdminCategoryProduct[]; message?: string };
+      if (!res.ok) throw new Error(json.message || res.statusText);
+      const rows = Array.isArray(json.data) ? json.data : [];
+      setComboProducts(rows.filter((p) => typeof p.isEligibleForCombo === "boolean"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load category products");
+      setComboProducts([]);
+    } finally {
+      setComboProductsLoading(false);
+    }
+  }
+
+  function openProductEdit(p: AdminCategoryProduct) {
+    setProductEdit({
+      id: p._id,
+      name: p.name ?? "",
+      slug: p.slug ?? "",
+      isActive: p.isActive !== false,
+      isEligibleForCombo: p.isEligibleForCombo === true,
+    });
+    setProductEditOpen(true);
+  }
+
+  async function saveProductEdit() {
+    if (!productEdit.id) return;
+    setProductEditSaving(true);
+    setError(null);
+    try {
+      const body = {
+        name: productEdit.name.trim(),
+        slug: productEdit.slug.trim().toLowerCase(),
+        isActive: productEdit.isActive,
+        isEligibleForCombo: productEdit.isEligibleForCombo,
+      };
+      const res = await fetch(`/api/admin/products/${productEdit.id}`, {
+        method: "PATCH",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = (await res.json()) as { message?: string };
+      if (!res.ok) throw new Error(json.message || res.statusText);
+      setProductEditOpen(false);
+      if (comboModalCategory) await openComboProducts(comboModalCategory);
+      await loadComboCounts();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save product");
+    } finally {
+      setProductEditSaving(false);
+    }
+  }
+
+  async function deleteComboProduct(id: string) {
+    if (!confirm("Delete this product?")) return;
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE", cache: "no-store" });
+      const json = (await res.json()) as { message?: string };
+      if (!res.ok) throw new Error(json.message || res.statusText);
+      setComboProducts((prev) => prev.filter((p) => p._id !== id));
+      await loadComboCounts();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed");
+    }
   }
 
   return (
@@ -336,6 +458,62 @@ export default function AdminCategoriesPage() {
                   <th>Order</th>
                   <th>Active</th>
                   <th />
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>S.No</th>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Slug</th>
+                <th>Order</th>
+                <th>Active</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {pageSlice.map((c, index) => (
+                <tr key={c._id} id={`admin-row-${c._id}`}>
+                  <td>{page * CATEGORY_PAGE_SIZE + index + 1}</td>
+                  <td>
+                    {c.image ? (
+                      <img src={c.image} alt="" className="admin-thumb" />
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td>{c.name}</td>
+                  <td>
+                    <span className="muted">{c.slug}</span>
+                  </td>
+                  <td>{c.sortOrder ?? 0}</td>
+                  <td>{c.isActive ? "Yes" : "No"}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    {((comboCountByCategoryId[c._id] ?? 0) > 0) ? (
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn-ghost"
+                        style={{ marginRight: 6 }}
+                        onClick={() => void openComboProducts(c)}
+                      >
+                        Combo products
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-ghost"
+                      style={{ marginRight: 6 }}
+                      onClick={() => openEdit(c)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-danger"
+                      onClick={() => void handleDelete(c._id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               </thead>
               <SortableContext items={pageSlice.map((c) => c._id)} strategy={verticalListSortingStrategy}>
@@ -549,6 +727,138 @@ export default function AdminCategoriesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {comboModalOpen ? (
+        <div
+          className="admin-modal-backdrop"
+          role="presentation"
+          onMouseDown={(ev) => {
+            if (ev.target === ev.currentTarget) setComboModalOpen(false);
+          }}
+        >
+          <div className="admin-modal" role="dialog" aria-labelledby="combo-products-title">
+            <h2 id="combo-products-title">
+              Combo products in {comboModalCategory?.name ?? "category"}
+            </h2>
+            {comboProductsLoading ? <p className="muted">Loading products…</p> : null}
+            {!comboProductsLoading && comboProducts.length === 0 ? (
+              <p className="muted">No products with combo eligibility set in this category.</p>
+            ) : null}
+            {!comboProductsLoading && comboProducts.length > 0 ? (
+              <div className="admin-table-wrap" style={{ marginBottom: 12 }}>
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Slug</th>
+                      <th>Combo flag</th>
+                      <th>Active</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comboProducts.map((p) => (
+                      <tr key={p._id}>
+                        <td>{p.name}</td>
+                        <td><span className="muted">{p.slug || "—"}</span></td>
+                        <td>{p.isEligibleForCombo === true ? "true" : p.isEligibleForCombo === false ? "false" : "null"}</td>
+                        <td>{p.isActive === false ? "No" : "Yes"}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-ghost"
+                            style={{ marginRight: 6 }}
+                            onClick={() => openProductEdit(p)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-danger"
+                            onClick={() => void deleteComboProduct(p._id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+            <div className="admin-modal-actions">
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setComboModalOpen(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {productEditOpen ? (
+        <div
+          className="admin-modal-backdrop"
+          role="presentation"
+          onMouseDown={(ev) => {
+            if (ev.target === ev.currentTarget) setProductEditOpen(false);
+          }}
+        >
+          <div className="admin-modal" role="dialog" aria-labelledby="combo-product-edit-title">
+            <h2 id="combo-product-edit-title">Edit combo product</h2>
+            <div className="admin-field">
+              <label htmlFor="combo-prod-name">Name</label>
+              <input
+                id="combo-prod-name"
+                value={productEdit.name}
+                onChange={(e) => setProductEdit((p) => ({ ...p, name: e.target.value }))}
+              />
+            </div>
+            <div className="admin-field">
+              <label htmlFor="combo-prod-slug">Slug</label>
+              <input
+                id="combo-prod-slug"
+                value={productEdit.slug}
+                onChange={(e) => setProductEdit((p) => ({ ...p, slug: e.target.value }))}
+              />
+            </div>
+            <div className="admin-field">
+              <label className="admin-check">
+                <input
+                  type="checkbox"
+                  checked={productEdit.isEligibleForCombo}
+                  onChange={(e) =>
+                    setProductEdit((p) => ({ ...p, isEligibleForCombo: e.target.checked }))
+                  }
+                />
+                isEligibleForCombo = true
+              </label>
+            </div>
+            <div className="admin-field">
+              <label className="admin-check">
+                <input
+                  type="checkbox"
+                  checked={productEdit.isActive}
+                  onChange={(e) => setProductEdit((p) => ({ ...p, isActive: e.target.checked }))}
+                />
+                Active
+              </label>
+            </div>
+            <div className="admin-modal-actions">
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setProductEditOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-primary"
+                disabled={productEditSaving}
+                onClick={() => void saveProductEdit()}
+              >
+                {productEditSaving ? "Saving…" : "Save"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

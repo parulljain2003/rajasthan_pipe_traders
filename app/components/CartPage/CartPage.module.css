@@ -185,6 +185,15 @@
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
 }
 
+/* Combo offer card: drop outer strip + info icon — inner card carries the visual */
+.comboSuggestionBannerNoIcon {
+  padding: 0.65rem 0.75rem;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  gap: 0;
+}
+
 .comboSuggestionIcon {
   flex-shrink: 0;
   width: 2.25rem;
@@ -210,6 +219,392 @@
   color: #0c4a6e;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.comboSuggestionBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+/* Smart combo copy — amber callout (matches fallback card tone), info icon right */
+.comboSuggestionCallout {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: linear-gradient(145deg, #fffbeb 0%, #fef3c7 45%, #fde68a 100%);
+  box-shadow:
+    0 4px 24px rgba(180, 83, 9, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.75) inset;
+}
+
+.comboSuggestionCalloutGlow {
+  position: absolute;
+  inset: -40% -20% auto -20%;
+  height: 70%;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(251, 191, 36, 0.45), transparent 70%);
+  pointer-events: none;
+}
+
+.comboSuggestionCalloutInner {
+  position: relative;
+  padding: 1rem 1.1rem 1.05rem;
+  z-index: 1;
+}
+
+.comboSuggestionCalloutBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.65rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #92400e;
+  background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%);
+  border: 1px solid rgba(217, 119, 6, 0.4);
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(146, 64, 14, 0.12);
+}
+
+.comboSuggestionCalloutRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.comboSuggestionCalloutText {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  font-weight: 700;
+  color: #78350f;
+  overflow-wrap: anywhere;
+}
+
+.comboSuggestionCalloutIcon {
+  flex-shrink: 0;
+  margin-top: 0.06rem;
+  color: #b45309;
+  opacity: 0.92;
+  line-height: 0;
+}
+
+.comboSuggestionCalloutIcon svg {
+  display: block;
+}
+
+/* Combo target upsell — offer-style card inside cart banner */
+.comboEligibleCard {
+  position: relative;
+  margin-top: 0.15rem;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  background: linear-gradient(145deg, #ffffff 0%, #f0f9ff 42%, #e0f2fe 100%);
+  box-shadow:
+    0 4px 24px rgba(37, 99, 235, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+}
+
+.comboEligibleCardGlow {
+  position: absolute;
+  inset: -40% -20% auto -20%;
+  height: 70%;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(56, 189, 248, 0.35), transparent 70%);
+  pointer-events: none;
+}
+
+.comboEligibleCardInner {
+  position: relative;
+  padding: 1rem 1.1rem 1.05rem;
+  z-index: 1;
+}
+
+.comboEligibleBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.65rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #047857;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.12);
+}
+
+.comboEligibleTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 0.35rem;
+}
+
+.comboEligibleTitleRow .comboEligibleHeadline {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.comboEligibleInlineIcon {
+  flex-shrink: 0;
+  margin-top: 0.06rem;
+  color: #0369a1;
+  opacity: 0.88;
+  line-height: 0;
+}
+
+.comboEligibleInlineIcon svg {
+  display: block;
+}
+
+.comboEligibleHeadline {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: #0f172a;
+  background: linear-gradient(120deg, #0f172a 0%, #1d4ed8 55%, #0369a1 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .comboEligibleHeadline {
+    color: #0f172a;
+    background: none;
+    -webkit-text-fill-color: unset;
+  }
+}
+
+.comboEligibleSub {
+  margin: 0 0 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  font-weight: 500;
+  color: #475569;
+  max-width: 28rem;
+}
+
+.comboEligiblePills {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.comboEligiblePillLi {
+  margin: 0;
+}
+
+.comboEligiblePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.95rem 0.55rem 0.65rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e3a8a;
+  text-decoration: none;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  border-radius: 14px;
+  box-shadow:
+    0 2px 8px rgba(15, 23, 42, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.9) inset;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.comboEligiblePill:hover {
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow:
+    0 6px 20px rgba(37, 99, 235, 0.18),
+    0 0 0 1px rgba(255, 255, 255, 0.95) inset;
+  transform: translateY(-1px);
+}
+
+.comboEligiblePill:active {
+  transform: translateY(0);
+}
+
+.comboEligiblePillChevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  flex-shrink: 0;
+  color: #2563eb;
+  background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.comboEligiblePill:hover .comboEligiblePillChevron {
+  color: #1d4ed8;
+  background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%);
+}
+
+.comboEligiblePillName {
+  padding-right: 0.15rem;
+  letter-spacing: -0.01em;
+}
+
+/* Fallback targets — amber theme (trigger not met yet) */
+.comboFallbackCard {
+  position: relative;
+  margin-top: 0.15rem;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: linear-gradient(145deg, #fffbeb 0%, #fef3c7 45%, #fde68a 100%);
+  box-shadow:
+    0 4px 24px rgba(180, 83, 9, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.75) inset;
+}
+
+.comboFallbackCardGlow {
+  position: absolute;
+  inset: -40% -20% auto -20%;
+  height: 70%;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(251, 191, 36, 0.45), transparent 70%);
+  pointer-events: none;
+}
+
+.comboFallbackCardInner {
+  position: relative;
+  padding: 1rem 1.1rem 1.05rem;
+  z-index: 1;
+}
+
+.comboFallbackBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.65rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #92400e;
+  background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%);
+  border: 1px solid rgba(217, 119, 6, 0.4);
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(146, 64, 14, 0.12);
+}
+
+.comboFallbackHeadline {
+  margin: 0 0 0.35rem;
+  font-size: 1.12rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: #78350f;
+}
+
+.comboFallbackSub {
+  margin: 0 0 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  font-weight: 500;
+  color: #92400e;
+  max-width: 28rem;
+}
+
+.comboFallbackPills {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.comboFallbackPillLi {
+  margin: 0;
+}
+
+.comboFallbackPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.95rem 0.55rem 0.65rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #7c2d12;
+  text-decoration: none;
+  background: linear-gradient(180deg, #ffffff 0%, #fffbeb 100%);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 14px;
+  box-shadow:
+    0 2px 8px rgba(124, 45, 18, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.9) inset;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.comboFallbackPill:hover {
+  color: #9a3412;
+  border-color: rgba(234, 88, 12, 0.55);
+  box-shadow:
+    0 6px 20px rgba(234, 88, 12, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.95) inset;
+  transform: translateY(-1px);
+}
+
+.comboFallbackPill:active {
+  transform: translateY(0);
+}
+
+.comboFallbackPillChevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  flex-shrink: 0;
+  color: #c2410c;
+  background: linear-gradient(145deg, #fff7ed 0%, #ffedd5 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(234, 88, 12, 0.25);
+}
+
+.comboFallbackPill:hover .comboFallbackPillChevron {
+  color: #9a3412;
+  background: linear-gradient(145deg, #ffedd5 0%, #fed7aa 100%);
+}
+
+.comboFallbackPillName {
+  padding-right: 0.15rem;
+  letter-spacing: -0.01em;
 }
 
 .itemsHeader {

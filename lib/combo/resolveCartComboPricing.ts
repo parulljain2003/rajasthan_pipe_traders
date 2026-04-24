@@ -5,6 +5,7 @@ import type { ComputeComboPricingOptions } from "@/lib/combo/computeComboPricing
 import { normalizeRptSizeKey } from "@/lib/b2b/combo-logic";
 import { connectDb } from "@/lib/db/connect";
 import { ComboRuleModel } from "@/lib/db/models/ComboRule";
+import { ProductModel } from "@/lib/db/models/Product";
 import { expandManyComboRulesForRuntime } from "@/lib/combo/expandComboRuleSlugs";
 import {
   type ThresholdUnit,
@@ -231,6 +232,7 @@ type LeanComboRule = {
   name: string;
   triggerSlugs: string[];
   targetSlugs: string[];
+  fallbackTargetSlugs?: string[];
   minTriggerBags: number;
   minTargetBags: number;
   triggerThresholdUnit?: string;
@@ -293,6 +295,27 @@ function lineContributionInUnit(pl: PreparedLine, unit: ThresholdUnit): number {
     default:
       return lineBagsTowardThreshold(pl);
   }
+}
+
+/** Display names for combo target slugs (cart upsell when trigger met, no target in cart). */
+async function resolveTargetProductLabelsBySlug(
+  slugs: string[]
+): Promise<Map<string, string>> {
+  const uniq = [...new Set(slugs.map((s) => normalizeSlugToken(s)))].filter(Boolean);
+  const out = new Map<string, string>();
+  if (uniq.length === 0) return out;
+  const rows = await ProductModel.find({ slug: { $in: uniq } }).select("slug name").lean();
+  for (const row of rows) {
+    const slug = typeof row.slug === "string" ? row.slug.trim().toLowerCase() : "";
+    if (!slug) continue;
+    const name =
+      typeof row.name === "string" && row.name.trim().length > 0 ? row.name.trim() : slug;
+    out.set(slug, name);
+  }
+  for (const s of uniq) {
+    if (!out.has(s)) out.set(s, s);
+  }
+  return out;
 }
 
 function resolveRuleTriggerUnit(r: LeanComboRule): ThresholdUnit {
@@ -590,9 +613,127 @@ export async function resolveCartComboPricing(
   }
 
   /**
-   * Step 3 smart messaging (no per-rule DB template): never imply users can add the combo target at list price;
-   * combo targets are separate listings and are guard-blocked without trigger.
+   * Step 3 smart messaging: combo targets are separate listings (guard-blocked without trigger).
+   * When trigger threshold is met but no target line exists, `comboEligibleTargets` carries PDP links;
+   * we intentionally do not push a long duplicate sentence into `smartSuggestion`.
    */
+  const upsellSlugSet = new Set<string>();
+  if (!skipCombo) {
+    for (const r of rules) {
+      const st = statsByRuleId.get(r._id.toString())!;
+      const minTrig = resolveMinTriggerBags(r);
+      const triggerMet = st.triggerAmount >= minTrig;
+      if (triggerMet && !st.hasTargetLine) {
+        for (const s of r.targetSlugs) {
+          const k = normalizeSlugToken(s);
+          if (k) upsellSlugSet.add(k);
+        }
+      }
+    }
+  }
+  /** Fallback PDP links when trigger threshold is not yet met (rule `fallbackTargetSlugs`). */
+  const fallbackUpsellSlugSet = new Set<string>();
+  if (!skipCombo) {
+    for (const r of rules) {
+      const st = statsByRuleId.get(r._id.toString())!;
+      const minTrig = resolveMinTriggerBags(r);
+      const triggerMet = st.triggerAmount >= minTrig;
+      if (st.hasTriggerLine && !triggerMet) {
+        // Swap targets shown in cart when combo condition drops:
+        // prefer explicit fallback targets, otherwise show rule targets as fallback options.
+        const fallbackSource =
+          Array.isArray(r.fallbackTargetSlugs) && r.fallbackTargetSlugs.length > 0
+            ? r.fallbackTargetSlugs
+            : r.targetSlugs;
+        for (const s of fallbackSource) {
+          const k = normalizeSlugToken(s);
+          if (k) fallbackUpsellSlugSet.add(k);
+        }
+      }
+    }
+  }
+
+  /** Resolve display names for every rule’s combo targets (used in banners before unlock too). */
+  const allRuleTargetLabelSlugs = new Set<string>();
+  if (!skipCombo) {
+    for (const r of rules) {
+      for (const s of r.targetSlugs) {
+        const k = normalizeSlugToken(s);
+        if (k) allRuleTargetLabelSlugs.add(k);
+      }
+    }
+  }
+  for (const s of fallbackUpsellSlugSet) {
+    allRuleTargetLabelSlugs.add(s);
+  }
+  const targetLabelBySlug =
+    !skipCombo && allRuleTargetLabelSlugs.size > 0
+      ? await resolveTargetProductLabelsBySlug([...allRuleTargetLabelSlugs])
+      : new Map<string, string>();
+
+  function comboTargetNamesPhrase(rule: LeanComboRule): string {
+    const parts = rule.targetSlugs
+      .map((s) => normalizeSlugToken(s))
+      .filter(Boolean)
+      .map((slug) => targetLabelBySlug.get(slug) ?? slug);
+    const uniq = [...new Set(parts)];
+    if (uniq.length === 0) return "";
+    return uniq.join(", ");
+  }
+
+  const comboEligibleTargets =
+    !skipCombo && upsellSlugSet.size > 0
+      ? [...upsellSlugSet].sort().map((slug) => ({
+        slug,
+        name: targetLabelBySlug.get(slug) ?? slug,
+      }))
+      : undefined;
+  const comboFallbackTargets =
+    !skipCombo && fallbackUpsellSlugSet.size > 0
+      ? [...fallbackUpsellSlugSet].sort().map((slug) => ({
+        slug,
+        name: targetLabelBySlug.get(slug) ?? slug,
+      }))
+      : undefined;
+  const comboSwapTargetSlugs =
+    !skipCombo
+      ? (() => {
+          const bad = new Set<string>();
+          for (const r of rules) {
+            const st = statsByRuleId.get(r._id.toString())!;
+            const minTrig = resolveMinTriggerBags(r);
+            const triggerMet = st.triggerAmount >= minTrig;
+            if (triggerMet || !st.hasTriggerLine || !st.hasTargetLine) continue;
+            for (const s of r.targetSlugs) {
+              const k = normalizeSlugToken(s);
+              if (k) bad.add(k);
+            }
+          }
+          return bad.size > 0 ? [...bad].sort() : undefined;
+        })()
+      : undefined;
+  const comboRemoveWhenNoTriggerSlugs =
+    !skipCombo
+      ? (() => {
+          const toRemove = new Set<string>();
+          for (const r of rules) {
+            const st = statsByRuleId.get(r._id.toString())!;
+            if (st.hasTriggerLine) continue;
+            for (const s of r.targetSlugs) {
+              const k = normalizeSlugToken(s);
+              if (k) toRemove.add(k);
+            }
+            if (Array.isArray(r.fallbackTargetSlugs)) {
+              for (const s of r.fallbackTargetSlugs) {
+                const k = normalizeSlugToken(s);
+                if (k) toRemove.add(k);
+              }
+            }
+          }
+          return toRemove.size > 0 ? [...toRemove].sort() : undefined;
+        })()
+      : undefined;
+
   const suggestionParts: string[] = [];
   if (!skipCombo) {
     for (const r of rules) {
@@ -602,24 +743,27 @@ export async function resolveCartComboPricing(
       const trigUnit = resolveRuleTriggerUnit(r);
       const triggerMet = st.triggerAmount >= minTrig;
 
-      // 1) No trigger (Patti) in cart — block hint (add trigger first; do not upsell the combo SKU here).
+      // 1) No trigger in cart — do not show combo messaging for unrelated products.
       if (!st.hasTriggerLine) {
-        const trigNeed = formatCountWithUnit(minTrig, trigUnit);
-        suggestionParts.push(`${trigNeed} Patti add karein aur payein sasta 20mm Clamp!`);
         continue;
       }
 
-      // 2) Some trigger, but below threshold — only ask for more Patti, never "add more" combo product.
+      // 2) Some trigger, but below threshold — say how much more trigger is needed and which target(s) unlock next.
       if (!triggerMet) {
         const triggerDiff = bagsRemainingToThreshold(minTrig, st.triggerAmount);
         const triggerDiffLabel = formatCountWithUnit(triggerDiff, trigUnit);
-        suggestionParts.push(`Add ${triggerDiffLabel} more to unlock combo.`);
+        const targets = comboTargetNamesPhrase(r);
+        const tail =
+          targets.length > 0
+            ? ` Then add combo target: ${targets} (opens combo net pricing in cart).`
+            : "";
+        suggestionParts.push(`Add ${triggerDiffLabel} more to unlock combo.${tail}`);
         continue;
       }
 
-      // 3) Trigger threshold met and no combo target line — eligible upsell (exact copy per product spec).
+      // 3) Trigger threshold met and no combo target line — no `smartSuggestion` copy here (avoids duplicate
+      // long line); `comboEligibleTargets` still lists slugs/names for cart UI (links / offer popup).
       if (triggerMet && !st.hasTargetLine) {
-        suggestionParts.push("You are now eligible for the 20mm Combo! Add it now to save money.");
         continue;
       }
 
@@ -645,5 +789,9 @@ export async function resolveCartComboPricing(
     cartBasicTotal: roundMoney(cartBasicTotal),
     comboSavingsInclGst: roundMoney(Math.max(0, comboSavingsInclGst)),
     smartSuggestion,
+    comboEligibleTargets,
+    comboFallbackTargets,
+    comboSwapTargetSlugs,
+    comboRemoveWhenNoTriggerSlugs,
   };
 }
