@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { getAdminOverviewStats } from "@/lib/db/getAdminOverviewStats";
+import AdminDashboardStats from "./components/AdminDashboardStats";
 
 const cards = [
   {
@@ -22,6 +24,21 @@ const cards = [
         <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
         <path d="m3.3 7 8.7 5 8.7-5" />
         <path d="M12 22V12" />
+      </svg>
+    ),
+  },
+  {
+    href: "/admin/blogs",
+    title: "Blogs",
+    desc: "Manage company news, industry updates, and blog posts.",
+    cta: "Open blogs",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <path d="M14 2v6h6" />
+        <path d="M8 13h8" />
+        <path d="M8 17h8" />
+        <path d="M8 9h2" />
       </svg>
     ),
   },
@@ -90,7 +107,9 @@ const cards = [
   },
 ];
 
-export default function AdminHomePage() {
+export default async function AdminHomePage() {
+  const stats = await getAdminOverviewStats();
+
   return (
     <div>
       <header className="admin-dashboard-header">
@@ -103,6 +122,17 @@ export default function AdminHomePage() {
           <span className="admin-dashboard-code">.env.local</span> so admin routes can connect.
         </p>
       </header>
+
+      <section className="admin-dashboard-analytics" aria-labelledby="admin-analytics-heading">
+        <h2 id="admin-analytics-heading" className="admin-dashboard-analytics-title">
+          Analytics
+        </h2>
+        <AdminDashboardStats
+          totalOrders={stats.totalOrders}
+          totalLeads={stats.totalLeads}
+          totalBlogs={stats.totalBlogs}
+        />
+      </section>
 
       <div className="admin-dashboard-grid">
         {cards.map((c) => (

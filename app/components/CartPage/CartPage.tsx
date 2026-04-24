@@ -8,6 +8,9 @@ import CartItemCard from './CartItemCard/CartItemCard';
 import OrderSummary from './OrderSummary/OrderSummary';
 import ComboCartPricingSync from './ComboCartPricingSync';
 import OrderSuccessPopup from './OrderSuccessPopup/OrderSuccessPopup';
+import QuotationDetailsModal, {
+  type QuotationFormValues,
+} from './QuotationDetailsModal/QuotationDetailsModal';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import {
   cartLinesForCouponApi,
@@ -22,6 +25,7 @@ import { groupCartItemsByProductLine, cartGroupKey } from '@/lib/cart/groupCartL
 import { normalizeOrderMode } from '@/lib/cart/packetLine';
 import { apiProductToProduct } from '@/app/lib/api/mapApiProduct';
 import type { ApiProductsListResponse } from '@/app/lib/api/types';
+import type { QuotationPdfOrderData } from '@/lib/utils/generateQuotationPDF';
 
 export default function CartPage() {
   const router = useRouter();
@@ -40,6 +44,7 @@ export default function CartPage() {
   } = useCartWishlist();
 
   const [successOpen, setSuccessOpen] = useState(false);
+  const [quotationOpen, setQuotationOpen] = useState(false);
   const [orderedItems, setOrderedItems] = useState(cartItems);
   const [orderedTotal, setOrderedTotal] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
@@ -423,11 +428,81 @@ export default function CartPage() {
     [validateCouponApi, setCouponPricingMode]
   );
 
-  const handlePlaceOrder = () => {
+  const openQuotationModal = () => {
+    setQuotationOpen(true);
+  };
+
+  const submitQuotation = useCallback(
+    async (form: QuotationFormValues): Promise<QuotationPdfOrderData> => {
+      if (cartItems.length === 0) {
+        throw new Error("Your cart is empty.");
+      }
+      const orderSummary = {
+        finalTotal,
+        grandTotalInclGst: finalTotal,
+        basicTotal: cartBasicTotal,
+        gstTotal,
+        itemCount: cartGroups.length,
+        lineCount: cartItems.length,
+        appliedCoupon: appliedCoupon ?? null,
+        couponDiscount,
+        couponPricingMode,
+        minimumOrderInclGst: comboMeta.minimumOrderInclGst,
+        minimumOrderMet: comboMeta.minimumOrderMet,
+        comboSavingsInclGst: comboMeta.comboSavingsInclGst,
+        comboSuggestion: comboMeta.suggestion,
+      };
+      let res: Response;
+      try {
+        res = await fetch("/api/quotation-request", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customerName: form.fullName,
+            customerPhone: form.phone,
+            customerEmail: form.email,
+            cartItems,
+            totalPrice: finalTotal,
+            orderSummary,
+          }),
+        });
+      } catch {
+        throw new Error("Network error. Check your connection and try again.");
+      }
+      const json = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        data?: QuotationPdfOrderData;
+      };
+      if (!res.ok) {
+        throw new Error(json.message ?? "Could not submit quotation. Try again.");
+      }
+      if (!json.data?.id || !json.data.serialNo) {
+        throw new Error("Invalid response from server.");
+      }
+      return json.data;
+    },
+    [
+      appliedCoupon,
+      cartBasicTotal,
+      cartItems,
+      cartGroups.length,
+      comboMeta.minimumOrderInclGst,
+      comboMeta.minimumOrderMet,
+      comboMeta.suggestion,
+      couponDiscount,
+      couponPricingMode,
+      comboMeta.comboSavingsInclGst,
+      finalTotal,
+      gstTotal,
+    ]
+  );
+
+  const onQuotationSuccess = useCallback(() => {
     setOrderedItems([...cartItems]);
     setOrderedTotal(finalTotal);
+    setQuotationOpen(false);
     setSuccessOpen(true);
-  };
+  }, [cartItems, finalTotal]);
 
   const handleContinue = () => {
     clearCart();
@@ -672,7 +747,7 @@ export default function CartPage() {
                 finalTotal={finalTotal}
                 couponBannerError={couponRevalidateError}
                 onCouponChange={handleCouponChange}
-                onPlaceOrder={handlePlaceOrder}
+                onPlaceOrder={openQuotationModal}
                 comboSavingsInclGst={comboMeta.comboSavingsInclGst}
                 couponPricingMode={couponPricingMode}
                 onCouponPricingModeChange={setCouponPricingMode}
@@ -681,6 +756,13 @@ export default function CartPage() {
           </div>
         )}
       </div>
+
+      <QuotationDetailsModal
+        isOpen={quotationOpen}
+        onClose={() => setQuotationOpen(false)}
+        submitQuotation={submitQuotation}
+        onQuotationSuccess={onQuotationSuccess}
+      />
 
       <OrderSuccessPopup
         isOpen={successOpen}
