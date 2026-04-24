@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/lib/db/connect";
+import { MONGO_MAX_TIME_MS } from "@/lib/db/mongoTimeout";
+import { logApiRouteError } from "@/lib/http/apiError";
 import { AppSettingsModel } from "@/lib/db/models/AppSettings";
 
 const GLOBAL_KEY = "global";
@@ -11,7 +13,7 @@ function err(message: string, status: number) {
 export async function GET() {
   try {
     await connectDb();
-    let row = await AppSettingsModel.findOne({ key: GLOBAL_KEY }).lean();
+    let row = await AppSettingsModel.findOne({ key: GLOBAL_KEY }).maxTimeMS(MONGO_MAX_TIME_MS).lean();
     if (!row) {
       row = await AppSettingsModel.create({
         key: GLOBAL_KEY,
@@ -26,6 +28,7 @@ export async function GET() {
       },
     });
   } catch (e) {
+    logApiRouteError("GET /api/admin/app-settings", e);
     const message = e instanceof Error ? e.message : "Server error";
     return err(message, 500);
   }
@@ -54,7 +57,7 @@ export async function PATCH(req: NextRequest) {
     const row = await AppSettingsModel.findOneAndUpdate(
       { key: GLOBAL_KEY },
       { $set: updateData },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
+      { new: true, upsert: true, setDefaultsOnInsert: true, maxTimeMS: MONGO_MAX_TIME_MS }
     ).lean();
     
     return NextResponse.json({
@@ -64,6 +67,7 @@ export async function PATCH(req: NextRequest) {
       },
     });
   } catch (e) {
+    logApiRouteError("PATCH /api/admin/app-settings", e);
     const message = e instanceof Error ? e.message : "Server error";
     return err(message, 500);
   }

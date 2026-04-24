@@ -105,6 +105,8 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
               alt={category.name}
               width={160}
               height={160}
+              sizes="(max-width: 640px) 40vw, 160px"
+              priority
               style={{ objectFit: 'contain' }}
             />
           </div>

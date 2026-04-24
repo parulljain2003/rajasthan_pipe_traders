@@ -3,6 +3,8 @@ import { connectDb } from "@/lib/db/connect";
 import { ComboRuleModel } from "@/lib/db/models/ComboRule";
 import type { ComboRuleGuard } from "@/lib/combo/comboAddGuard";
 import { expandManyComboRulesForRuntime } from "@/lib/combo/expandComboRuleSlugs";
+import { MONGO_MAX_TIME_MS } from "@/lib/db/mongoTimeout";
+import { logApiRouteError } from "@/lib/http/apiError";
 
 type ExpandedGuardRow = {
   _id: unknown;
@@ -22,6 +24,7 @@ export async function GET() {
     const rows = await ComboRuleModel.find({ isActive: true })
       .select("_id triggerSlugs targetSlugs triggerCategoryIds targetCategoryIds minTargetBags targetThresholdUnit")
       .sort({ _id: 1 })
+      .maxTimeMS(MONGO_MAX_TIME_MS)
       .lean();
 
     const expanded = (await expandManyComboRulesForRuntime(
@@ -41,6 +44,7 @@ export async function GET() {
 
     return NextResponse.json({ data: { rules } });
   } catch (e) {
+    logApiRouteError("GET /api/combo/active-guard-rules", e);
     const message = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ message }, { status: 500 });
   }

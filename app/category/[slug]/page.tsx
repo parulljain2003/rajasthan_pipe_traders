@@ -16,6 +16,9 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
+/** ISR: category pages revalidate hourly (Mongo-backed categories + product lists). */
+export const revalidate = 3600;
+
 const CATEGORY_BG_PALETTE = ["#ffccd5", "#b3e5fc", "#c8e6c9", "#e1bee7", "#ffe0b2", "#d7ccc8"];
 
 function hashSlug(slug: string): number {

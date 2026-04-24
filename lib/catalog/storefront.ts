@@ -1,6 +1,7 @@
 import { cache } from "react";
 import mongoose from "mongoose";
 import { connectDb } from "@/lib/db/connect";
+import { MONGO_MAX_TIME_MS } from "@/lib/db/mongoTimeout";
 import { CategoryModel } from "@/lib/db/models/Category";
 import { ProductModel } from "@/lib/db/models/Product";
 import { serializeCategoryLean, serializeProductLean } from "@/lib/db/serialize";
@@ -9,6 +10,43 @@ import type { ApiProduct } from "@/app/lib/api/types";
 import type { Product } from "@/app/data/products";
 
 type LeanDoc = Record<string, unknown> & { _id: mongoose.Types.ObjectId };
+
+/**
+ * Product fields required for category/search listing + `apiProductToProduct` (excludes
+ * long text blobs like longDescription, features, keyFeatures, etc.).
+ */
+const STOREFRONT_LISTING_PRODUCT_FIELDS: Record<string, 1> = {
+  _id: 1,
+  name: 1,
+  slug: 1,
+  sku: 1,
+  legacyId: 1,
+  productKind: 1,
+  brand: 1,
+  subCategory: 1,
+  sortOrder: 1,
+  sizeOrModel: 1,
+  image: 1,
+  images: 1,
+  category: 1,
+  pricing: 1,
+  packaging: 1,
+  sellers: 1,
+  sizes: 1,
+  discountTiers: 1,
+  moq: 1,
+  moqBags: 1,
+  packingUnitLabels: 1,
+  minOrder: 1,
+  note: 1,
+  isNew: 1,
+  isIsiCertified: 1,
+  isBestseller: 1,
+  isActive: 1,
+  isEligibleForCombo: 1,
+};
+
+const LISTING_MONGOOSE_SELECT = Object.keys(STOREFRONT_LISTING_PRODUCT_FIELDS).join(" ");
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -70,6 +108,7 @@ export const getStorefrontProductBySlug = cache(async (slug: string) => {
     slug: { $regex: new RegExp(`^${escapeRegex(s)}$`, "i") },
   })
     .populate("category", "name slug")
+    .maxTimeMS(MONGO_MAX_TIME_MS)
     .lean();
 
   if (!row) {
@@ -77,6 +116,7 @@ export const getStorefrontProductBySlug = cache(async (slug: string) => {
       .populate("category", "name slug")
       .sort({ sortOrder: 1, name: 1 })
       .limit(500)
+      .maxTimeMS(MONGO_MAX_TIME_MS)
       .lean();
     for (const r of rows) {
       const ser = serializeProductLean(r as LeanDoc);
@@ -109,9 +149,11 @@ export async function getStorefrontRelatedProducts(
     category: catId,
     _id: { $ne: exId },
   })
+    .select(LISTING_MONGOOSE_SELECT)
     .populate("category", "name slug")
     .sort({ sortOrder: 1, name: 1 })
     .limit(limit)
+    .maxTimeMS(MONGO_MAX_TIME_MS)
     .lean();
   return rows
     .map((r) => serializeProductLean(r as LeanDoc))
@@ -122,8 +164,10 @@ export async function getStorefrontRelatedProducts(
 export async function getStorefrontCategories() {
   await connectDb();
   const rows = await CategoryModel.find({ isActive: true })
+    .select("name slug image description parent sortOrder isActive")
     .populate("parent", "name slug")
     .sort({ sortOrder: 1, name: 1 })
+    .maxTimeMS(MONGO_MAX_TIME_MS)
     .lean();
   return rows.map((r) => serializeCategoryLean(r as LeanDoc)!);
 }
@@ -134,7 +178,9 @@ export const getStorefrontCategoryBySlug = cache(async (slug: string) => {
   if (!s) return null;
   await connectDb();
   const row = await CategoryModel.findOne({ slug: s, isActive: true })
+    .select("name slug image description parent sortOrder isActive")
     .populate("parent", "name slug")
+    .maxTimeMS(MONGO_MAX_TIME_MS)
     .lean();
   return serializeCategoryLean(row as LeanDoc | null);
 });
@@ -155,7 +201,10 @@ export async function getStorefrontProductsFromSearchParams(
   const filter: Record<string, unknown> = { isActive: true };
   const categorySlug = sp.get("categorySlug")?.trim().toLowerCase();
   if (categorySlug) {
-    const cat = await CategoryModel.findOne({ slug: categorySlug }).select("_id").lean();
+    const cat = await CategoryModel.findOne({ slug: categorySlug })
+      .select("_id")
+      .maxTimeMS(MONGO_MAX_TIME_MS)
+      .lean();
     if (!cat) {
       return { ok: false, status: 404, message: "No category matches categorySlug" };
     }
@@ -196,12 +245,14 @@ export async function getStorefrontProductsFromSearchParams(
     { $sort: { _catSort: 1, _pSort: 1, name: 1 } },
     { $skip: skip },
     { $limit: limit },
-    { $project: { _catJoin: 0, _catSort: 0, _pSort: 0 } },
+    { $project: { ...STOREFRONT_LISTING_PRODUCT_FIELDS } },
   ];
 
   const [rawRows, total] = await Promise.all([
-    ProductModel.aggregate(pipeline).exec(),
-    ProductModel.countDocuments(filter),
+    ProductModel.aggregate(pipeline, { allowDiskUse: true })
+      .option({ maxTimeMS: MONGO_MAX_TIME_MS })
+      .exec(),
+    ProductModel.countDocuments(filter, { maxTimeMS: MONGO_MAX_TIME_MS }),
   ]);
   const rows = await ProductModel.populate(rawRows, {
     path: "category",

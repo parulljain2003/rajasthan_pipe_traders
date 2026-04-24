@@ -11,6 +11,6 @@ export async function GET() {
     const data = await getStorefrontCategories();
     return NextResponse.json({ data });
   } catch (e) {
-    return serverFetchError(e);
+    return serverFetchError(e, 500, { route: "GET /api/categories" });
   }
 }

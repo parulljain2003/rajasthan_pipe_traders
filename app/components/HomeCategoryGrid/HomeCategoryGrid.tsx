@@ -156,6 +156,7 @@ export default function HomeCategoryGrid() {
                         alt={cat.name}
                         fill
                         sizes="(max-width: 640px) 60vw, (max-width: 1280px) 28vw, 20vw"
+                        priority={i < 4}
                         style={{ objectFit: "contain", padding: "1.25rem" }}
                       />
                     </div>

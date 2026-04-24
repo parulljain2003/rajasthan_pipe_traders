@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/http/fetchWithTimeout";
 import type {
   ApiCategoriesResponse,
   ApiErrorBody,
@@ -17,7 +18,7 @@ async function readJson<T>(res: Response): Promise<T> {
 }
 
 export async function fetchCategoriesList(init?: RequestInit): Promise<ApiCategoriesResponse> {
-  const res = await fetch("/api/categories", {
+  const res = await fetchWithTimeout("/api/categories", {
     ...init,
     cache: "no-store",
     headers: { Accept: "application/json", ...init?.headers },
@@ -39,7 +40,7 @@ export async function fetchProductsList(
     if (v === undefined || v === "") continue;
     q.set(k, String(v));
   }
-  const res = await fetch(`/api/products?${q.toString()}`, {
+  const res = await fetchWithTimeout(`/api/products?${q.toString()}`, {
     ...init,
     cache: "no-store",
     headers: { Accept: "application/json", ...init?.headers },

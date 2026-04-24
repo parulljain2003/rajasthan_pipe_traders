@@ -4,6 +4,7 @@ import { CouponModel } from "@/lib/db/models/Coupon";
 import type { CouponLean, ValidateCouponResult } from "@/lib/coupons/evaluate";
 import { validateCouponAgainstCart } from "@/lib/coupons/evaluate";
 import { resolveCartLinesForCoupon, type IncomingCouponLine } from "@/lib/coupons/resolveCartLines";
+import { logApiRouteError } from "@/lib/http/apiError";
 
 function err(message: string, status: number) {
   return NextResponse.json({ message }, { status });
@@ -166,6 +167,7 @@ export async function POST(req: NextRequest) {
       eligiblePacketCount: result.eligiblePacketCount,
     });
   } catch (e) {
+    logApiRouteError("POST /api/coupons/validate", e);
     const message = e instanceof Error ? e.message : "Server error";
     return err(message, 500);
   }
