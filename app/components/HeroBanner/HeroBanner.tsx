@@ -8,7 +8,6 @@ import { productHeading, brandPillLabel, resolveBrandPillVariant } from "../../l
 import { resolvePackingUnitLabels } from "@/lib/packingLabels";
 import type { Product, ProductSize } from "@/app/data/products";
 import ListingMoqCartControls from "@/app/components/ListingMoqCartControls/ListingMoqCartControls";
-import listingMoqStyles from "@/app/components/ListingMoqCartControls/ListingMoqCartControls.module.css";
 import { heroSlideProductToModel } from "@/lib/cart/listingMoqModel";
 import type { HomeBannerPayload } from "@/lib/banner/resolveHomeBanner";
 import type { HeroSlide } from "@/lib/banner/heroSlide";
@@ -210,7 +209,8 @@ function ProductCarousel({ slides }: { slides: HeroSlide[] }) {
             <ListingMoqCartControls
               model={heroSlideProductToModel(p)}
               labels={heroLabels}
-              className={`${listingMoqStyles.heroSlideBulk} ${styles.slideListingMoq}`}
+              className={styles.slideListingMoq}
+              cardListingLayout
             />
           </div>
         </div>

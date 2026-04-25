@@ -236,9 +236,28 @@
   .tabContent {
     padding: 1.25rem;
   }
+  .tab {
+    padding: 0.8rem 1rem;
+    font-size: 0.78rem;
+  }
   .table thead th,
   .table td {
     padding: 0.6rem 0.75rem;
     font-size: 0.78rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    border-radius: 14px;
+  }
+
+  .tabContent {
+    padding: 1rem;
+  }
+
+  .packingInfoGrid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 }

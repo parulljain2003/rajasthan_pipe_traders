@@ -79,16 +79,21 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
 
                 <p className={styles.cardDesc}>{product.description}</p>
 
-                <div className={styles.cardPricing}>
-                  <span className={styles.fromLabel}>From</span>
-                  <span className={styles.cardPrice}>₹{size.withGST.toFixed(2)}</span>
-                  <span className={styles.gstTag}>incl. GST / {listLabels.inner}</span>
+                <div className={styles.cardPriceStack}>
+                  <span className={styles.cardPriceLabel}>Price (incl. GST)</span>
+                  <p className={styles.cardPriceGst}>
+                    ₹{size.withGST.toFixed(2)} / {listLabels.inner}
+                  </p>
+                  <span className={styles.cardPriceLabel}>Basic</span>
+                  <p className={styles.cardPriceBasic}>₹{size.basicPrice.toFixed(2)}</p>
                 </div>
 
                 <ListingMoqCartControls
                   model={listingEntryToModel(entry)}
                   labels={listLabels}
                   className={styles.listingMoqWrap}
+                  cardListingLayout
+                  labeledBulkCardRows
                 />
               </div>
             </div>

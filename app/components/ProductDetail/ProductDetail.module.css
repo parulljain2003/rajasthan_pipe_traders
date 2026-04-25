@@ -356,9 +356,28 @@
 }
 
 @media (max-width: 480px) {
+  .breadcrumb {
+    padding: 0.65rem 0;
+  }
+
+  .breadcrumbInner {
+    gap: 0.3rem;
+    padding: 0 0.75rem;
+  }
+
+  .breadcrumbLink,
+  .breadcrumbCurrent,
+  .breadcrumbActive {
+    font-size: 0.72rem;
+  }
+
   .container {
     padding: 1rem 0.75rem;
     gap: 1.25rem;
+  }
+
+  .topGrid {
+    gap: 1.15rem;
   }
   .descriptionBlock {
     padding: 1rem;
