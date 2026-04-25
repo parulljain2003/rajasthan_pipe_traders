@@ -756,30 +756,62 @@
 @media (max-width: 1024px) {
   .row {
     flex-wrap: wrap;
+    gap: 0.35rem 0.5rem;
   }
 
   .rowLabel {
     flex: 1 1 auto;
     min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .rowVal {
     flex-shrink: 0;
+    text-align: right;
   }
 
   .totalRow {
     flex-wrap: nowrap;
+    gap: 0.5rem;
   }
 
   .totalLabel {
     min-width: 0;
     padding-right: 0.5rem;
+    overflow-wrap: anywhere;
+  }
+
+  .productRow {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .productTotal {
+    white-space: normal;
+    text-align: right;
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .summary {
+    padding: clamp(0.85rem, 3vw, 1.25rem);
+  }
+
+  .couponManualRow {
+    flex-wrap: wrap;
+  }
+
+  .couponManualApply {
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+    flex: 1 1 auto;
   }
 }
 
 @media (max-width: 480px) {
   .summary {
-    padding: 1rem;
+    padding: 1rem max(0.85rem, env(safe-area-inset-left)) 1rem max(0.85rem, env(safe-area-inset-right));
     border-radius: 14px;
     position: static;
   }
@@ -790,10 +822,13 @@
 
   .productTotal {
     font-size: 0.72rem;
+    width: 100%;
+    text-align: left;
+    margin-left: 0;
   }
 
   .totalVal {
-    font-size: 1.1rem;
+    font-size: clamp(1rem, 4vw, 1.1rem);
   }
 
   .placeOrderBtn {
@@ -805,5 +840,26 @@
   .minOrderError {
     font-size: 0.76rem;
     padding: 0.65rem 0.75rem;
+  }
+
+  .couponCardRow {
+    flex-wrap: wrap;
+  }
+
+  .couponCardApplyBtn {
+    min-width: 0;
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 380px) {
+  .couponManualRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .couponManualApply {
+    width: 100%;
   }
 }

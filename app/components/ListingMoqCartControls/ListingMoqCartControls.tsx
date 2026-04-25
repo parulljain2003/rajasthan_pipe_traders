@@ -20,8 +20,13 @@ interface ListingMoqCartControlsViewProps {
   labelOuter?: string;
   labelInner?: string;
   labelSingle?: string;
-  /** Home listing cards: outer box + stepper (− qty +) with unit chip. */
+  /**
+   * Storefront product cards and product detail: use the same `stepperCardListing` row(s)
+   * (− value +, unit chip) instead of the wide `ORDER BY` / `detailPage` steppers.
+   */
   cardListingLayout?: boolean;
+  /** Category cards: captions above each bulk row + equal-width bag/packet steppers. */
+  labeledBulkCardRows?: boolean;
 }
 
 /** Presentational MOQ steppers; pass `moq` from `useMoqCartForModel` (e.g. product detail shares state with summary). */
@@ -35,6 +40,7 @@ export function ListingMoqCartControlsView({
   labelInner,
   labelSingle,
   cardListingLayout = false,
+  labeledBulkCardRows = false,
 }: ListingMoqCartControlsViewProps) {
   const {
     hasBulk,
@@ -45,6 +51,7 @@ export function ListingMoqCartControlsView({
     onPacketDelta,
     setPacketStepsFromInput,
     setPacketTarget,
+    setBagTarget,
   } = moq;
 
   const outerRowText = labelOuter ?? labels.outer;
@@ -62,15 +69,82 @@ export function ListingMoqCartControlsView({
     setPacketTarget(n);
   };
 
+  const onBagInput = (raw: string) => {
+    const n = parseInt(raw, 10);
+    if (Number.isNaN(n) || n < 0) return;
+    setBagTarget(n);
+  };
+
   return (
     <div
-      className={`${styles.root} ${compact ? styles.compact : ""} ${stackRows ? styles.stackRows : ""} ${cardListingLayout ? styles.cardListingLayout : ""} ${className ?? ""}`}
+      className={`${styles.root} ${compact ? styles.compact : ""} ${stackRows ? styles.stackRows : ""} ${cardListingLayout ? styles.cardListingLayout : ""} ${labeledBulkCardRows ? styles.labeledBulkRows : ""} ${className ?? ""}`}
       onClick={stop}
     >
       {hasBulk ? (
         <>
           <div className={styles.bulkRows}>
             {cardListingLayout ? (
+              labeledBulkCardRows ? (
+                <>
+                  <div className={styles.cardListingLabeledRow}>
+                    <span className={styles.cardListingRowCap}>{labels.outerHeading}</span>
+                    <div className={styles.cardListingOuterBox}>
+                      <div className={`${styles.stepper} ${styles.stepperCardListing}`}>
+                        <button type="button" className={styles.stepBtn} disabled={bagQty <= 0} onClick={(e) => { stop(e); onBagDelta(-1); }} aria-label={`Decrease ${labels.outerPlural}`}>
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          className={styles.stepInput}
+                          value={bagQty}
+                          min={0}
+                          onChange={(e) => onBagInput(e.target.value)}
+                          onClick={stop}
+                          onFocus={(e) => e.currentTarget.select()}
+                          aria-label={`${labels.outerHeading} quantity in ${labels.outerPlural}`}
+                        />
+                        <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onBagDelta(1); }} aria-label={`Increase ${labels.outerPlural}`}>
+                          +
+                        </button>
+                        <span className={styles.cardListingUnitChip}>{labels.outerPlural}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.cardListingLabeledRow}>
+                    <span className={styles.cardListingRowCap}>{labels.innerHeading}</span>
+                    <div className={styles.cardListingOuterBox}>
+                      <div className={`${styles.stepper} ${styles.stepperCardListing}`}>
+                        <button
+                          type="button"
+                          className={styles.stepBtn}
+                          disabled={pktQty <= 0}
+                          onClick={(e) => {
+                            stop(e);
+                            onPacketDelta(-1);
+                          }}
+                          aria-label="Decrease packet MOQ step"
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          className={styles.stepInput}
+                          value={pktQty}
+                          min={0}
+                          onChange={(e) => onPacketInput(e.target.value)}
+                          onClick={stop}
+                          onFocus={(e) => e.currentTarget.select()}
+                          aria-label={`${labels.innerHeading} quantity in ${labels.innerPlural} (adds ${qpb} per click)`}
+                        />
+                        <button type="button" className={styles.stepBtn} onClick={(e) => { stop(e); onPacketDelta(1); }} aria-label="Increase packet MOQ step">
+                          +
+                        </button>
+                        <span className={styles.cardListingUnitChip}>{labels.innerPlural}</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
               <>
                 <div className={styles.cardListingOuterBox}>
                   <div className={`${styles.stepper} ${styles.stepperCardListing}`}>
@@ -117,6 +191,7 @@ export function ListingMoqCartControlsView({
                   </div>
                 </div>
               </>
+            )
             ) : (
               <>
                 <div className={styles.row}>

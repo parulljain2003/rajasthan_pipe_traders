@@ -196,6 +196,37 @@
   text-align: right;
 }
 
+/* Category cards: GST / basic stacked like cart line (labels + values) */
+.cardPriceStack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.08rem;
+  width: 100%;
+  margin: 0.2rem 0 0.32rem;
+}
+
+.cardPriceLabel {
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin-top: 0.18rem;
+  line-height: 1.2;
+}
+
+.cardPriceStack .cardPriceLabel:first-of-type {
+  margin-top: 0;
+}
+
+.cardPriceStack .cardPriceGst,
+.cardPriceStack .cardPriceBasic {
+  flex: none;
+  text-align: left;
+  white-space: normal;
+}
+
 .description {
   font-size: 0.78rem;
   color: #64748b;

@@ -202,7 +202,7 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
 
             {/* Product grid */}
             {filteredListingEntries.length > 0 ? (
-              <ProductGrid listingEntries={filteredListingEntries} gridDensity="four" />
+              <ProductGrid listingEntries={filteredListingEntries} gridDensity="four" categoryCardLayout />
             ) : listingEntries.length === 0 ? (
               <div className={styles.empty}>
                 <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5">

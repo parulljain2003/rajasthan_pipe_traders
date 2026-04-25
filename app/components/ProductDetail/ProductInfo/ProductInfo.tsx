@@ -266,10 +266,8 @@ export default function ProductInfo({ product }: ProductInfoProps) {
           <ListingMoqCartControlsView
             labels={labels}
             moq={moq}
-            className={`${listingMoqStyles.detailPage} ${listingMoqStyles.detailPageLarge}`}
-            labelOuter={`Order by ${labels.outerHeading}`}
-            labelInner={`Order by ${labels.innerHeading}`}
-            labelSingle={`Order by ${labels.innerHeading}`}
+            cardListingLayout
+            className={listingMoqStyles.pdpCardListing}
           />
         </div>
       </div>
