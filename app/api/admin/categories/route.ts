@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDb } from "@/lib/db/connect";
 import {
+  bumpSiblingCategorySortOrdersByOne,
   findSortOrderConflict,
   maxSortOrderInParent,
+  normalizeNonPositiveCategorySortOrders,
   parseSortOrderInput,
   sortOrderConflictPayload,
 } from "@/lib/db/categorySortOrder";
@@ -108,17 +110,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const doc = await CategoryModel.create({
-      name,
-      slug: slugRaw,
-      image,
-      description: typeof body.description === "string" ? body.description : undefined,
-      parent,
-      sortOrder,
-      sourceSectionLabel:
-        typeof body.sourceSectionLabel === "string" ? body.sourceSectionLabel : undefined,
-      isActive: typeof body.isActive === "boolean" ? body.isActive : true,
-    });
+    const session = await mongoose.startSession();
+    let doc!: { _id: mongoose.Types.ObjectId };
+    try {
+      await session.withTransaction(async () => {
+        await normalizeNonPositiveCategorySortOrders(parent, session);
+        await bumpSiblingCategorySortOrdersByOne(parent, session);
+        const createdArr = (await CategoryModel.create(
+          [
+            {
+              name,
+              slug: slugRaw,
+              image,
+              description: typeof body.description === "string" ? body.description : undefined,
+              parent,
+              sortOrder: 1,
+              sourceSectionLabel:
+                typeof body.sourceSectionLabel === "string" ? body.sourceSectionLabel : undefined,
+              isActive: typeof body.isActive === "boolean" ? body.isActive : true,
+            },
+          ] as never,
+          { session }
+        )) as unknown as { _id: mongoose.Types.ObjectId }[];
+        doc = { _id: createdArr[0]._id };
+      });
+    } finally {
+      await session.endSession();
+    }
     const populated = await CategoryModel.findById(doc._id).populate("parent", "name slug").lean();
     return NextResponse.json({
       data: serializeCategoryLean(populated as Parameters<typeof serializeCategoryLean>[0]),

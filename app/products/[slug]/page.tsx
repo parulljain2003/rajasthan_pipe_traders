@@ -6,6 +6,13 @@ import { apiProductToProduct } from "../../lib/api/mapApiProduct";
 import type { ApiProduct } from "../../lib/api/types";
 import { getStorefrontProductBySlug, getStorefrontRelatedProducts } from "@/lib/catalog/storefront";
 import { sortProductsForDisplayOrder } from "@/app/lib/sortApiProductsDisplay";
+import { loadActiveComboGuardRules } from "@/lib/combo/loadActiveComboGuardRules";
+import {
+  comboTargetPdpNoticeInfo,
+  COMBO_TARGET_PDP_DEFAULT_INTRO_FALLBACK,
+  isComboTriggerSlug,
+  type ComboTargetAddBlockedInfo,
+} from "@/lib/combo/comboAddGuard";
 
 const RELATED_FETCH_LIMIT = 80;
 const RELATED_SHOW_COUNT = 4;
@@ -78,5 +85,48 @@ export default async function ProductPage({ params }: PageProps) {
   );
   const relatedProducts = sortProductsForDisplayOrder(relatedCandidates).slice(0, RELATED_SHOW_COUNT);
 
-  return <ProductDetail product={product} relatedProducts={relatedProducts} />;
+  let comboTargetPdpNotice: ComboTargetAddBlockedInfo | undefined;
+  let comboTriggerPdpMessage: string | undefined;
+  let comboTriggerTargetSlugs: string[] | undefined;
+  try {
+    const rules = await loadActiveComboGuardRules();
+    if (product.isEligibleForCombo === true) {
+      comboTargetPdpNotice =
+        comboTargetPdpNoticeInfo(product.slug, rules) ?? {
+          message: COMBO_TARGET_PDP_DEFAULT_INTRO_FALLBACK,
+          qualifyingProductSlugs: [],
+        };
+    }
+    if (isComboTriggerSlug(product.slug, rules)) {
+      comboTriggerPdpMessage = "Is product ko cart me add karne par aapko combo offer mil jayega.";
+      const normalized = product.slug.trim().toLowerCase();
+      const target = new Set<string>();
+      for (const r of rules) {
+        const isTrigger = r.triggerSlugs.some((s) => s.trim().toLowerCase() === normalized);
+        if (!isTrigger) continue;
+        for (const s of r.targetSlugs ?? []) {
+          const t = String(s).trim().toLowerCase();
+          if (t) target.add(t);
+        }
+      }
+      comboTriggerTargetSlugs = [...target];
+    }
+  } catch {
+    if (product.isEligibleForCombo === true) {
+      comboTargetPdpNotice = {
+        message: COMBO_TARGET_PDP_DEFAULT_INTRO_FALLBACK,
+        qualifyingProductSlugs: [],
+      };
+    }
+  }
+
+  return (
+    <ProductDetail
+      product={product}
+      relatedProducts={relatedProducts}
+      comboTargetPdpNotice={comboTargetPdpNotice}
+      comboTriggerPdpMessage={comboTriggerPdpMessage}
+      comboTriggerTargetSlugs={comboTriggerTargetSlugs}
+    />
+  );
 }

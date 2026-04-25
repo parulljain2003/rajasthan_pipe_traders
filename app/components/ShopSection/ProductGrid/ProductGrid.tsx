@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './ProductGrid.module.css';
@@ -21,6 +21,8 @@ interface ProductGridProps {
   categoryCardLayout?: boolean;
   /** `four`: category-style grid — 4 cards per row on large screens (default is 5). */
   gridDensity?: "default" | "four";
+  /** Optional: show "COMBO OFFER" for slugs that qualify as trigger products. */
+  comboTriggerSlugs?: string[];
 }
 
 function listingKey(productId: number, sellerId: string) {
@@ -32,8 +34,13 @@ export default function ProductGrid({
   cardListingLayout = false,
   categoryCardLayout = false,
   gridDensity = "default",
+  comboTriggerSlugs = [],
 }: ProductGridProps) {
-  const useCardListing = categoryCardLayout || cardListingLayout;
+  const useCardListing = cardListingLayout || categoryCardLayout;
+  const triggerSlugSet = useMemo(
+    () => new Set(comboTriggerSlugs.map((s) => s.trim().toLowerCase()).filter(Boolean)),
+    [comboTriggerSlugs]
+  );
   const imageSizes =
     gridDensity === "four"
       ? "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1279px) 25vw, 25vw"
@@ -57,6 +64,8 @@ export default function ProductGrid({
     <div className={`${styles.grid} ${gridDensity === "four" ? styles.gridDensityFour : ""}`}>
       {entries.map((entry, index) => {
         const { product, offer } = entry;
+        const normalizedSlug = String(product.slug || "").trim().toLowerCase();
+        const showComboOfferBadge = normalizedSlug.length > 0 && triggerSlugSet.has(normalizedSlug);
         const brandSource = (product.brand || offer.brand || "").trim();
         const pillLabel = brandPillLabel(brandSource);
         const variant = resolveBrandPillVariant(brandSource);
@@ -93,6 +102,9 @@ export default function ProductGrid({
               {pillLabel ? (
                 <div className={styles.meta}>
                   <span className={`${styles.listingBrand} ${pillClass}`}>{pillLabel}</span>
+                  {showComboOfferBadge ? (
+                    <span className={styles.listingComboOffer}>Combo Offer</span>
+                  ) : null}
                 </div>
               ) : null}
 

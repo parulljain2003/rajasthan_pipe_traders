@@ -86,9 +86,8 @@ export default function CartPage() {
     () => comboMeta.comboFallbackTargets.filter((t) => !cartSlugSet.has(t.slug)),
     [comboMeta.comboFallbackTargets, cartSlugSet]
   );
-
-  const comboShowPromoCards =
-    visibleEligibleTargets.length > 0 || visibleFallbackTargets.length > 0;
+  const comboOfferClaimed = comboMeta.comboSavingsInclGst > 0;
+  const comboConditionMet = visibleEligibleTargets.length > 0 || comboOfferClaimed;
 
   const gstTotal = cartTotal - cartBasicTotal;
 
@@ -216,14 +215,34 @@ export default function CartPage() {
         for (const q of queue) {
           removeFromCart(q.row.productId, q.row.size, q.row.sellerId, normalizeOrderMode(q.row.orderMode));
         }
+
+        // Merge fallback quantities so existing + swapped lines show one combined non-combo count.
+        const currentQtyByKey = new Map<string, number>();
+        for (const ci of cartItems) {
+          const mode = normalizeOrderMode(ci.orderMode);
+          const key = `${ci.productId}|${ci.size}|${ci.sellerId}|${mode}`;
+          currentQtyByKey.set(key, Number(ci.quantity) || 0);
+        }
+        const mergedAdds = new Map<
+          string,
+          { payload: Parameters<typeof addToCart>[0]; totalQty: number }
+        >();
         for (const q of queue) {
-          addToCart(
-            {
-              ...q.payload,
-              orderMode: normalizeOrderMode(q.row.orderMode),
-            },
-            q.row.quantity
-          );
+          const mode = normalizeOrderMode(q.row.orderMode);
+          const nextPayload: Parameters<typeof addToCart>[0] = {
+            ...q.payload,
+            orderMode: mode,
+          };
+          const key = `${nextPayload.productId}|${nextPayload.size}|${nextPayload.sellerId}|${mode}`;
+          const existingBase = currentQtyByKey.get(key) ?? 0;
+          const prevExtra = mergedAdds.get(key)?.totalQty ?? existingBase;
+          mergedAdds.set(key, {
+            payload: nextPayload,
+            totalQty: prevExtra + Math.max(0, Number(q.row.quantity) || 0),
+          });
+        }
+        for (const merged of mergedAdds.values()) {
+          addToCart(merged.payload, merged.totalQty);
         }
       } finally {
         swapBusyRef.current = false;
@@ -562,113 +581,76 @@ export default function CartPage() {
             {/* Left: Items list */}
             <div className={styles.itemsCol}>
               {comboMeta.suggestion ||
-                visibleEligibleTargets.length > 0 ||
-                visibleFallbackTargets.length > 0 ? (
-                <div
-                  className={`${styles.comboSuggestionBanner}${comboShowPromoCards || comboMeta.suggestion
-                      ? ` ${styles.comboSuggestionBannerNoIcon}`
-                      : ""
-                    }`}
+              visibleEligibleTargets.length > 0 ||
+              visibleFallbackTargets.length > 0 ? (
+                <section
+                  className={`${styles.comboGuideCard} ${comboConditionMet ? styles.comboGuideCardSuccess : ""}`}
                   role="status"
                   aria-live="polite"
                 >
-                  {!comboShowPromoCards && !comboMeta.suggestion ? (
-                    <span className={styles.comboSuggestionIcon} aria-hidden>
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="16" x2="12" y2="12" />
-                        <line x1="12" y1="8" x2="12.01" y2="8" />
-                      </svg>
+                  <div className={styles.comboGuideHeader}>
+                    <span className={styles.comboGuideBadge}>
+                      {comboOfferClaimed ? "Offer Claimed" : comboConditionMet ? "Combo Unlocked" : "Combo Offer"}
                     </span>
-                  ) : null}
-                  <div className={styles.comboSuggestionBody}>
-                    {comboMeta.suggestion ? (
-                      <div className={styles.comboSuggestionCallout}>
-                        <div className={styles.comboSuggestionCalloutGlow} aria-hidden />
-                        <div className={styles.comboSuggestionCalloutInner}>
-                          <span className={styles.comboSuggestionCalloutBadge}>Add more to unlock</span>
-                          <div className={styles.comboSuggestionCalloutRow}>
-                            <p className={styles.comboSuggestionCalloutText}>{comboMeta.suggestion}</p>
-                            <span className={styles.comboSuggestionCalloutIcon} aria-hidden title="Combo offer">
-                              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="12" y1="16" x2="12" y2="12" />
-                                <line x1="12" y1="8" x2="12.01" y2="8" />
-                              </svg>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
-                    {visibleEligibleTargets.length > 0 ? (
-                      <div className={styles.comboEligibleCard}>
-                        <div className={styles.comboEligibleCardGlow} aria-hidden />
-                        <div className={styles.comboEligibleCardInner}>
-                          <span className={styles.comboEligibleBadge}>Combo unlocked</span>
-                          <div className={styles.comboEligibleTitleRow}>
-                            <h3 className={styles.comboEligibleHeadline}>You can add to cart</h3>
-                            <span className={styles.comboEligibleInlineIcon} aria-hidden title="Combo offer">
-                              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="12" y1="16" x2="12" y2="12" />
-                                <line x1="12" y1="8" x2="12.01" y2="8" />
-                              </svg>
-                            </span>
-                          </div>
-                          <p className={styles.comboEligibleSub}>
-                            Tap a product to open its page — then add to cart for combo net pricing.
-                          </p>
-                          <ul className={styles.comboEligiblePills} role="list">
-                            {visibleEligibleTargets.map((t) => (
-                              <li key={t.slug} className={styles.comboEligiblePillLi}>
-                                <Link
-                                  href={`/products/${encodeURIComponent(t.slug)}`}
-                                  className={styles.comboEligiblePill}
-                                >
-                                  <span className={styles.comboEligiblePillChevron} aria-hidden>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="M5 12h14M13 6l6 6-6 6" />
-                                    </svg>
-                                  </span>
-                                  <span className={styles.comboEligiblePillName}>{t.name}</span>
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    ) : null}
-                    {visibleFallbackTargets.length > 0 ? (
-                      <div className={styles.comboFallbackCard}>
-                        <div className={styles.comboFallbackCardGlow} aria-hidden />
-                        <div className={styles.comboFallbackCardInner}>
-                          <span className={styles.comboFallbackBadge}>Until combo unlocks</span>
-                          <h3 className={styles.comboFallbackHeadline}>You can add these (list price)</h3>
-                          <p className={styles.comboFallbackSub}>
-                            Add these products at regular rates while you build the trigger quantity for the combo offer.
-                          </p>
-                          <ul className={styles.comboFallbackPills} role="list">
-                            {visibleFallbackTargets.map((t) => (
-                              <li key={t.slug} className={styles.comboFallbackPillLi}>
-                                <Link
-                                  href={`/products/${encodeURIComponent(t.slug)}`}
-                                  className={styles.comboFallbackPill}
-                                >
-                                  <span className={styles.comboFallbackPillChevron} aria-hidden>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="M5 12h14M13 6l6 6-6 6" />
-                                    </svg>
-                                  </span>
-                                  <span className={styles.comboFallbackPillName}>{t.name}</span>
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    ) : null}
+                    <h3 className={styles.comboGuideTitle}>
+                      {comboOfferClaimed
+                        ? "🎉 Congrats! Aapka combo offer apply ho gaya"
+                        : comboConditionMet
+                          ? "Great! Combo unlock ho chuka hai"
+                          : "Aapka combo progress"}
+                    </h3>
                   </div>
-                </div>
+                  <p className={styles.comboGuideText}>
+                    {comboOfferClaimed
+                      ? `Combo net pricing cart mein apply ho chuki hai. Aap abhi tak approx ₹${comboMeta.comboSavingsInclGst.toLocaleString("en-IN")} save kar rahe ho.`
+                      : comboConditionMet
+                        ? visibleEligibleTargets.length === 1
+                          ? "Ab bas neeche diya gaya combo product add karke offer claim karo."
+                          : "Ab bas neeche diye combo products mein se koi add karke offer claim karo."
+                        : comboMeta.suggestion ??
+                          "Combo unlock karne ke liye qualifying quantity complete karein. Neeche diye products par tap karke jaldi add kar sakte ho."}
+                  </p>
+
+                  {visibleEligibleTargets.length > 0 ? (
+                    <div className={styles.comboGuideSection}>
+                      <p className={styles.comboGuideSectionTitle}>
+                        Combo unlocked products (special combo rate):
+                      </p>
+                      <ul className={styles.comboGuidePills} role="list">
+                        {visibleEligibleTargets.map((t) => (
+                          <li key={t.slug}>
+                            <Link
+                              href={`/products/${encodeURIComponent(t.slug)}`}
+                              className={styles.comboGuidePill}
+                            >
+                              {t.name}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {visibleFallbackTargets.length > 0 ? (
+                    <div className={styles.comboGuideSection}>
+                      <p className={styles.comboGuideSectionTitle}>
+                        Abhi regular rate par add kar sakte ho:
+                      </p>
+                      <ul className={styles.comboGuidePills} role="list">
+                        {visibleFallbackTargets.map((t) => (
+                          <li key={t.slug}>
+                            <Link
+                              href={`/products/${encodeURIComponent(t.slug)}`}
+                              className={styles.comboGuidePill}
+                            >
+                              {t.name}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </section>
               ) : null}
 
               <div className={styles.itemsHeader}>

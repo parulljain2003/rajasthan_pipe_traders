@@ -99,7 +99,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (typeof body.isIsiCertified === "boolean") $set.isIsiCertified = body.isIsiCertified;
     if (typeof body.isBestseller === "boolean") $set.isBestseller = body.isBestseller;
     if (typeof body.isActive === "boolean") $set.isActive = body.isActive;
-    if (typeof body.isEligibleForCombo === "boolean") $set.isEligibleForCombo = body.isEligibleForCombo;
+    if (Object.prototype.hasOwnProperty.call(body, "isEligibleForCombo")) {
+      const v = body.isEligibleForCombo;
+      if (v === null || typeof v === "boolean") $set.isEligibleForCombo = v;
+    }
     if ("moq" in body) {
       if (body.moq === null) {
         $unset.moq = 1;

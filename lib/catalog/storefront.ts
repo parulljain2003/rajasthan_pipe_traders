@@ -10,6 +10,7 @@ import type { ApiProduct } from "@/app/lib/api/types";
 import type { Product } from "@/app/data/products";
 
 type LeanDoc = Record<string, unknown> & { _id: mongoose.Types.ObjectId };
+const UNSET_SORT_ORDER = 2147483647;
 
 /**
  * Product fields required for category/search listing + `apiProductToProduct` (excludes
@@ -149,10 +150,20 @@ export async function getStorefrontRelatedProducts(
     {
       $addFields: {
         _pSort: {
-          $cond: {
-            if: { $gt: [{ $ifNull: ["$categorySortOrder", 0] }, 0] },
-            then: "$categorySortOrder",
-            else: { $ifNull: ["$sortOrder", 0] },
+          $let: {
+            vars: {
+              catSo: { $ifNull: ["$categorySortOrder", 0] },
+              so: { $ifNull: ["$sortOrder", 0] },
+            },
+            in: {
+              $cond: [
+                { $gt: ["$$catSo", 0] },
+                "$$catSo",
+                {
+                  $cond: [{ $gt: ["$$so", 0] }, "$$so", UNSET_SORT_ORDER],
+                },
+              ],
+            },
           },
         },
       },
@@ -206,6 +217,7 @@ export async function getStorefrontProductsFromSearchParams(
   await connectDb();
   const filter: Record<string, unknown> = { isActive: true };
   const categorySlug = sp.get("categorySlug")?.trim().toLowerCase();
+  const hasCategoryFilter = Boolean(categorySlug);
   if (categorySlug) {
     const cat = await CategoryModel.findOne({ slug: categorySlug })
       .select("_id")
@@ -244,13 +256,32 @@ export async function getStorefrontProductsFromSearchParams(
     },
     {
       $addFields: {
-        _pSort: {
-          $cond: {
-            if: { $gt: [{ $ifNull: ["$categorySortOrder", 0] }, 0] },
-            then: "$categorySortOrder",
-            else: { $ifNull: ["$sortOrder", 0] },
-          },
-        },
+        _pSort: hasCategoryFilter
+          ? {
+              $let: {
+                vars: {
+                  catSo: { $ifNull: ["$categorySortOrder", 0] },
+                  so: { $ifNull: ["$sortOrder", 0] },
+                },
+                in: {
+                  $cond: [
+                    { $gt: ["$$catSo", 0] },
+                    "$$catSo",
+                    {
+                      $cond: [{ $gt: ["$$so", 0] }, "$$so", UNSET_SORT_ORDER],
+                    },
+                  ],
+                },
+              },
+            }
+          : {
+              $let: {
+                vars: { so: { $ifNull: ["$sortOrder", 0] } },
+                in: {
+                  $cond: [{ $gt: ["$$so", 0] }, "$$so", UNSET_SORT_ORDER],
+                },
+              },
+            },
       },
     },
     { $sort: { _pSort: 1, name: 1 } },

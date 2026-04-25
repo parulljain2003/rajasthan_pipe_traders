@@ -16,9 +16,10 @@ import {
 interface CategoryPageProps {
   category: CategoryConfig;
   products: Product[];
+  comboTriggerSlugs?: string[];
 }
 
-export default function CategoryPage({ category, products }: CategoryPageProps) {
+export default function CategoryPage({ category, products, comboTriggerSlugs = [] }: CategoryPageProps) {
   const listingEntries = useMemo(
     () => expandProductsForListing(products),
     [products]
@@ -54,8 +55,7 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
       const price = e.offer.sizes[0].withGST;
       const brandOk = entryMatchesSelectedBrandFilters(e, selectedBrands);
       const priceOk = price >= priceRange[0] && price <= priceRange[1];
-      const comboEligibilityOk = (e.product.isEligibleForCombo ?? null) === null;
-      return brandOk && priceOk && comboEligibilityOk;
+      return brandOk && priceOk;
     });
 
     switch (sortBy) {
@@ -202,7 +202,11 @@ export default function CategoryPage({ category, products }: CategoryPageProps) 
 
             {/* Product grid */}
             {filteredListingEntries.length > 0 ? (
-              <ProductGrid listingEntries={filteredListingEntries} gridDensity="four" categoryCardLayout />
+              <ProductGrid
+                listingEntries={filteredListingEntries}
+                gridDensity="four"
+                comboTriggerSlugs={comboTriggerSlugs}
+              />
             ) : listingEntries.length === 0 ? (
               <div className={styles.empty}>
                 <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5">

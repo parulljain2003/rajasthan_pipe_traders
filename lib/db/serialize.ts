@@ -101,6 +101,7 @@ export function serializeComboRuleLean(doc: LeanDoc | null): Record<string, unkn
     fallbackTargetSlugs: Array.isArray(fallbackTargetSlugs) ? [...fallbackTargetSlugs] : [],
     triggerCategoryIds: mapIdArray(doc.triggerCategoryIds),
     targetCategoryIds: mapIdArray(doc.targetCategoryIds),
+    fallbackCategoryIds: mapIdArray(doc.fallbackCategoryIds),
     minTriggerBags: doc.minTriggerBags,
     minTargetBags:
       typeof doc.minTargetBags === "number" && Number.isFinite(doc.minTargetBags) ? doc.minTargetBags : 1,

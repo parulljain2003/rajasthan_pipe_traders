@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/lib/db/connect";
 import { ComboRuleModel } from "@/lib/db/models/ComboRule";
+import { ProductModel } from "@/lib/db/models/Product";
 import { serializeComboRuleLean } from "@/lib/db/serialize";
 import {
   hasComboPriceInclGstInput,
@@ -35,6 +36,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await connectDb();
+    const existingCount = await ComboRuleModel.countDocuments({});
+    if (existingCount > 0) {
+      return err("Only one combo rule is allowed. Please edit the existing rule.", 409);
+    }
     const body = (await req.json()) as Record<string, unknown>;
     const name = typeof body.name === "string" ? body.name.trim() : "";
     if (!name) return err("name is required", 400);
@@ -46,6 +51,9 @@ export async function POST(req: NextRequest) {
       (id) => new mongoose.Types.ObjectId(id)
     );
     const targetCategoryIds = parseObjectIdList(body.targetCategoryIds).map(
+      (id) => new mongoose.Types.ObjectId(id)
+    );
+    const fallbackCategoryIds = parseObjectIdList(body.fallbackCategoryIds).map(
       (id) => new mongoose.Types.ObjectId(id)
     );
     const minTriggerBags = parseMinTriggerBags(body.minTriggerBags, 3);
@@ -67,6 +75,7 @@ export async function POST(req: NextRequest) {
       fallbackTargetSlugs,
       triggerCategoryIds,
       targetCategoryIds,
+      fallbackCategoryIds,
       minTriggerBags,
       minTargetBags,
       triggerThresholdUnit,
@@ -75,6 +84,24 @@ export async function POST(req: NextRequest) {
       suggestionMessage: typeof body.suggestionMessage === "string" ? body.suggestionMessage.trim() : "",
       isActive: typeof body.isActive === "boolean" ? body.isActive : true,
     });
+    const targetSlugsNorm = targetSlugs
+      .map((s) => (typeof s === "string" ? s.trim().toLowerCase() : ""))
+      .filter((s): s is string => s.length > 0);
+    const fallbackTargetSlugsNorm = fallbackTargetSlugs
+      .map((s) => (typeof s === "string" ? s.trim().toLowerCase() : ""))
+      .filter((s): s is string => s.length > 0);
+    if (fallbackTargetSlugsNorm.length > 0) {
+      await ProductModel.updateMany(
+        { slug: { $in: fallbackTargetSlugsNorm } },
+        { $set: { isEligibleForCombo: false } }
+      );
+    }
+    if (targetSlugsNorm.length > 0) {
+      await ProductModel.updateMany(
+        { slug: { $in: targetSlugsNorm } },
+        { $set: { isEligibleForCombo: true } }
+      );
+    }
     const row = await ComboRuleModel.findById(doc._id).lean();
     return NextResponse.json({
       data: serializeComboRuleLean(row as Parameters<typeof serializeComboRuleLean>[0]),

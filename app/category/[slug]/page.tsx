@@ -10,6 +10,7 @@ import {
   getStorefrontCategoryBySlug,
   getStorefrontProductsFromSearchParams,
 } from "@/lib/catalog/storefront";
+import { loadActiveComboGuardRules } from "@/lib/combo/loadActiveComboGuardRules";
 import {
   sortApiProductsForDisplayOrder,
   sortProductsForDisplayOrder,
@@ -92,6 +93,7 @@ export default async function CategorySlugPage({ params }: PageProps) {
 
   let category: CategoryConfig;
   let products: Product[];
+  let comboTriggerSlugs: string[] = [];
 
   const staticCategory = getCategoryBySlug(slug);
   if (staticCategory) {
@@ -116,5 +118,19 @@ export default async function CategorySlugPage({ params }: PageProps) {
     products = apiProducts.map((doc) => apiProductToProduct(doc as unknown as ApiProduct));
   }
 
-  return <CategoryPage category={category} products={products} />;
+  try {
+    const rules = await loadActiveComboGuardRules();
+    const trigger = new Set<string>();
+    for (const r of rules) {
+      for (const s of r.triggerSlugs ?? []) {
+        const n = String(s).trim().toLowerCase();
+        if (n) trigger.add(n);
+      }
+    }
+    comboTriggerSlugs = [...trigger];
+  } catch {
+    comboTriggerSlugs = [];
+  }
+
+  return <CategoryPage category={category} products={products} comboTriggerSlugs={comboTriggerSlugs} />;
 }

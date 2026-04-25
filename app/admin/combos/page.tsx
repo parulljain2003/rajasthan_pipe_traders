@@ -10,16 +10,6 @@ const UNIT_OPTIONS: { value: ComboThresholdUnit; label: string }[] = [
   { value: "cartons", label: "Cartons" },
 ];
 
-const BULK_UNIT_OPTIONS = [
-  { value: "per_bag", label: "Bags" },
-  { value: "per_cartoon", label: "Carton" },
-] as const;
-
-const INNER_UNIT_OPTIONS = [
-  { value: "per_packet", label: "Packets" },
-  { value: "per_box", label: "Box" },
-] as const;
-
 type CategoryOption = { id: string; name: string };
 
 type ProductOption = {
@@ -139,6 +129,7 @@ function buildMinOrderLine(
 function MultiCheckboxBlock({
   title,
   hint,
+  error,
   idPrefix,
   search,
   showSearch = true,
@@ -148,10 +139,12 @@ function MultiCheckboxBlock({
   options,
   selectedKeys,
   onToggle,
+  onSelectAll,
   onClear,
 }: {
   title: string;
   hint: string;
+  error?: string | null;
   idPrefix: string;
   search: string;
   showSearch?: boolean;
@@ -161,6 +154,7 @@ function MultiCheckboxBlock({
   options: { key: string; primary: string; secondary?: string }[];
   selectedKeys: string[];
   onToggle: (key: string, checked: boolean) => void;
+  onSelectAll?: (keys: string[]) => void;
   onClear: () => void;
 }) {
   const n = selectedKeys.length;
@@ -176,6 +170,15 @@ function MultiCheckboxBlock({
     <div className="admin-field">
       <label>{title}</label>
       <p className="admin-multiselect-hint">{hint}</p>
+      {error ? (
+        <p
+          className="admin-multiselect-hint"
+          role="alert"
+          style={{ color: "#991b1b", marginTop: "0.25rem", fontWeight: 500 }}
+        >
+          {error}
+        </p>
+      ) : null}
       <div className="admin-multiselect" aria-busy={loading}>
         <div className="admin-multiselect-toolbar">
           {showSearch ? (
@@ -191,6 +194,14 @@ function MultiCheckboxBlock({
           ) : (
             <div aria-hidden="true" />
           )}
+          <button
+            type="button"
+            className="admin-btn admin-btn-ghost"
+            onClick={() => onSelectAll?.(filtered.map((o) => o.key))}
+            disabled={loading || filtered.length === 0 || !onSelectAll}
+          >
+            Select all ({filtered.length})
+          </button>
           <button
             type="button"
             className="admin-btn admin-btn-ghost"
@@ -234,10 +245,11 @@ function MultiCheckboxBlock({
 const emptyForm = {
   name: "",
   triggerCategoryIds: [] as string[],
+  targetCategoryIds: [] as string[],
+  fallbackCategoryIds: [] as string[],
   triggerProductSlugs: [] as string[],
   targetProductSlugs: [] as string[],
   fallbackTargetProductSlugs: [] as string[],
-  targetProductCategoryFocus: "",
   minTriggerBags: "3",
   minTargetBags: "1",
   triggerThresholdUnit: "bags" as ComboThresholdUnit,
@@ -245,6 +257,18 @@ const emptyForm = {
   suggestionMessage: "",
   isActive: true,
 };
+
+type ComboFormFieldErrorKey =
+  | "name"
+  | "triggerCategories"
+  | "triggerProducts"
+  | "targetCategories"
+  | "targetProducts"
+  | "fallbackCategories"
+  | "fallbackProducts"
+  | "minTrigger"
+  | "maxTargetCombo"
+  | "suggestion";
 
 export default function AdminCombosPage() {
   const [list, setList] = useState<AdminComboRule[]>([]);
@@ -254,6 +278,8 @@ export default function AdminCombosPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<ComboFormFieldErrorKey, string>>>({});
+  const [modalSaveError, setModalSaveError] = useState<string | null>(null);
 
   const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
   const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
@@ -263,29 +289,6 @@ export default function AdminCombosPage() {
   const [searchTrigProd, setSearchTrigProd] = useState("");
   const [searchTgtProd, setSearchTgtProd] = useState("");
   const [searchFallbackTgtProd, setSearchFallbackTgtProd] = useState("");
-  const [addProductModalOpen, setAddProductModalOpen] = useState(false);
-  const [addProductSlug, setAddProductSlug] = useState("");
-  const [addProductTo, setAddProductTo] = useState<"target" | "fallback">("target");
-  const [addProductMode, setAddProductMode] = useState<"existing" | "new">("existing");
-  const [addProductCategoryFocus, setAddProductCategoryFocus] = useState("");
-  const [newProductName, setNewProductName] = useState("");
-  const [newProductSku, setNewProductSku] = useState("");
-  const [newProductSlug, setNewProductSlug] = useState("");
-  const [newProductKind, setNewProductKind] = useState<"catalog" | "sku">("catalog");
-  const [newProductBrand, setNewProductBrand] = useState("");
-  const [newProductDescription, setNewProductDescription] = useState("");
-  const [newProductSizeOrModel, setNewProductSizeOrModel] = useState("");
-  const [newProductBasicPrice, setNewProductBasicPrice] = useState("");
-  const [newProductPriceWithGst, setNewProductPriceWithGst] = useState("");
-  const [newProductImage, setNewProductImage] = useState("");
-  const [newProductBulkUnit, setNewProductBulkUnit] = useState<"per_bag" | "per_cartoon">("per_bag");
-  const [newProductInnerUnit, setNewProductInnerUnit] = useState<"per_packet" | "per_box">("per_packet");
-  const [newProductPcsPerPacket, setNewProductPcsPerPacket] = useState("100");
-  const [newProductPacketsPerBag, setNewProductPacketsPerBag] = useState("");
-  const [newProductKeyFeaturesText, setNewProductKeyFeaturesText] = useState("");
-  const [newProductCurrency, setNewProductCurrency] = useState("INR");
-  const [creatingProduct, setCreatingProduct] = useState(false);
-  const [addProductError, setAddProductError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -359,39 +362,34 @@ export default function AdminCombosPage() {
     form.fallbackTargetProductSlugs,
   ]);
 
+  const triggerSlugSetForPicker = useMemo(
+    () => new Set(form.triggerProductSlugs.map(normSlug)),
+    [form.triggerProductSlugs]
+  );
+
   const targetProductsForPicker = useMemo(() => {
-    const selectedCategoryIds = form.triggerCategoryIds;
+    const selectedCategoryIds = form.targetCategoryIds;
     if (selectedCategoryIds.length === 0) return [];
     const selectedCategorySet = new Set(selectedCategoryIds);
-    const productsInSelectedCategories = productOptions.filter(
-      (p) => p.categoryId && selectedCategorySet.has(p.categoryId)
+    return productOptions.filter(
+      (p) =>
+        p.categoryId &&
+        selectedCategorySet.has(p.categoryId) &&
+        !triggerSlugSetForPicker.has(normSlug(p.slug))
     );
-    if (selectedCategoryIds.length === 1) return productsInSelectedCategories;
-    const focusedCategoryId = form.targetProductCategoryFocus;
-    if (!focusedCategoryId || !selectedCategorySet.has(focusedCategoryId)) {
-      return productsInSelectedCategories;
-    }
-    return productsInSelectedCategories.filter((p) => p.categoryId === focusedCategoryId);
-  }, [productOptions, form.triggerCategoryIds, form.targetProductCategoryFocus]);
+  }, [productOptions, form.targetCategoryIds, triggerSlugSetForPicker]);
 
-  useEffect(() => {
-    setForm((f) => {
-      const catIds = f.triggerCategoryIds;
-      if (catIds.length === 0) {
-        if (!f.targetProductCategoryFocus) return f;
-        return { ...f, targetProductCategoryFocus: "" };
-      }
-      if (catIds.length === 1) {
-        const singleCategoryId = catIds[0];
-        if (f.targetProductCategoryFocus === singleCategoryId) return f;
-        return { ...f, targetProductCategoryFocus: singleCategoryId };
-      }
-      if (f.targetProductCategoryFocus && !catIds.includes(f.targetProductCategoryFocus)) {
-        return { ...f, targetProductCategoryFocus: "" };
-      }
-      return f;
-    });
-  }, [form.triggerCategoryIds]);
+  const fallbackProductsForPicker = useMemo(() => {
+    const selectedCategoryIds = form.fallbackCategoryIds;
+    if (selectedCategoryIds.length === 0) return [];
+    const selectedCategorySet = new Set(selectedCategoryIds);
+    return productOptions.filter(
+      (p) =>
+        p.categoryId &&
+        selectedCategorySet.has(p.categoryId) &&
+        !triggerSlugSetForPicker.has(normSlug(p.slug))
+    );
+  }, [productOptions, form.fallbackCategoryIds, triggerSlugSetForPicker]);
 
   useEffect(() => {
     if (productOptions.length === 0) return;
@@ -422,8 +420,19 @@ export default function AdminCombosPage() {
   }, [form.targetProductSlugs, form.fallbackTargetProductSlugs]);
 
   useEffect(() => {
+    const trig = new Set(form.triggerProductSlugs.map(normSlug));
+    setForm((f) => {
+      const nextTgt = f.targetProductSlugs.filter((s) => !trig.has(normSlug(s)));
+      const nextFb = f.fallbackTargetProductSlugs.filter((s) => !trig.has(normSlug(s)));
+      if (nextTgt.length === f.targetProductSlugs.length && nextFb.length === f.fallbackTargetProductSlugs.length)
+        return f;
+      return { ...f, targetProductSlugs: nextTgt, fallbackTargetProductSlugs: nextFb };
+    });
+  }, [form.triggerProductSlugs]);
+
+  useEffect(() => {
     if (productOptions.length === 0) return;
-    const catIds = form.triggerCategoryIds;
+    const catIds = form.targetCategoryIds;
     if (catIds.length === 0) return;
     const catSet = new Set(catIds);
     const allowed = new Set(
@@ -431,63 +440,60 @@ export default function AdminCombosPage() {
     );
     setForm((f) => {
       const next = f.targetProductSlugs.filter((s) => allowed.has(normSlug(s)));
-      const fallbackNext = f.fallbackTargetProductSlugs.filter((s) => allowed.has(normSlug(s)));
-      if (
-        next.length === f.targetProductSlugs.length &&
-        fallbackNext.length === f.fallbackTargetProductSlugs.length
-      ) {
-        return f;
-      }
-      return {
-        ...f,
-        targetProductSlugs: next,
-        fallbackTargetProductSlugs: fallbackNext,
-      };
+      if (next.length === f.targetProductSlugs.length) return f;
+      return { ...f, targetProductSlugs: next };
     });
-  }, [form.triggerCategoryIds, productOptions]);
+  }, [form.targetCategoryIds, productOptions]);
 
   useEffect(() => {
     if (productOptions.length === 0) return;
-    const bySlug = new Map(productOptions.map((p) => [normSlug(p.slug), p]));
+    const catIds = form.fallbackCategoryIds;
+    if (catIds.length === 0) return;
+    const catSet = new Set(catIds);
+    const allowed = new Set(
+      productOptions.filter((p) => p.categoryId && catSet.has(p.categoryId)).map((p) => normSlug(p.slug))
+    );
     setForm((f) => {
-      const targetNext = f.targetProductSlugs.filter((slug) => {
-        const p = bySlug.get(normSlug(slug));
-        return p?.isEligibleForCombo === true;
-      });
-      const fallbackNext = f.fallbackTargetProductSlugs.filter((slug) => {
-        const p = bySlug.get(normSlug(slug));
-        return p?.isEligibleForCombo === false;
-      });
-      if (
-        targetNext.length === f.targetProductSlugs.length &&
-        fallbackNext.length === f.fallbackTargetProductSlugs.length
-      ) {
-        return f;
-      }
-      return {
-        ...f,
-        targetProductSlugs: targetNext,
-        fallbackTargetProductSlugs: fallbackNext,
-      };
+      const next = f.fallbackTargetProductSlugs.filter((s) => allowed.has(normSlug(s)));
+      if (next.length === f.fallbackTargetProductSlugs.length) return f;
+      return { ...f, fallbackTargetProductSlugs: next };
     });
-  }, [productOptions]);
+  }, [form.fallbackCategoryIds, productOptions]);
+
+  function clearFieldError(key: ComboFormFieldErrorKey) {
+    setFieldErrors((er) => {
+      if (!(key in er)) return er;
+      const next = { ...er };
+      delete next[key];
+      return next;
+    });
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setFieldErrors({});
+    setModalSaveError(null);
+  }
 
   function openCreate() {
     setEditingId(null);
     setForm({ ...emptyForm });
+    setFieldErrors({});
+    setModalSaveError(null);
     setModalOpen(true);
   }
 
   function openEdit(rule: AdminComboRule) {
+    const maybe = rule as AdminComboRule & { fallbackCategoryIds?: string[] };
     setEditingId(rule._id);
     setForm({
       name: rule.name,
       triggerCategoryIds: rule.triggerCategoryIds ?? [],
+      targetCategoryIds: rule.targetCategoryIds ?? [],
+      fallbackCategoryIds: maybe.fallbackCategoryIds ?? [],
       triggerProductSlugs: [...(rule.triggerSlugs ?? [])],
       targetProductSlugs: [...(rule.targetSlugs ?? [])],
       fallbackTargetProductSlugs: [...(rule.fallbackTargetSlugs ?? [])],
-      targetProductCategoryFocus:
-        (rule.triggerCategoryIds?.length ?? 0) === 1 ? String(rule.triggerCategoryIds?.[0]) : "",
       minTriggerBags: String(rule.minTriggerBags ?? 3),
       minTargetBags: String(
         rule.minTargetBags !== undefined && rule.minTargetBags !== null ? rule.minTargetBags : 1
@@ -497,6 +503,8 @@ export default function AdminCombosPage() {
       suggestionMessage: rule.suggestionMessage ?? "",
       isActive: rule.isActive,
     });
+    setFieldErrors({});
+    setModalSaveError(null);
     setModalOpen(true);
   }
 
@@ -509,7 +517,8 @@ export default function AdminCombosPage() {
       targetSlugs: form.targetProductSlugs,
       fallbackTargetSlugs: form.fallbackTargetProductSlugs,
       triggerCategoryIds: form.triggerCategoryIds,
-      targetCategoryIds: form.triggerCategoryIds,
+      targetCategoryIds: form.targetCategoryIds,
+      fallbackCategoryIds: form.fallbackCategoryIds,
       minTriggerBags: parseMinTriggerBags(trigStr === "" ? undefined : trigStr, 3),
       minTargetBags: parseMinTriggerBags(tgtStr === "" ? undefined : tgtStr, 1),
       triggerThresholdUnit: form.triggerThresholdUnit,
@@ -521,19 +530,65 @@ export default function AdminCombosPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setModalSaveError(null);
+
+    const nextErrors: Partial<Record<ComboFormFieldErrorKey, string>> = {};
+    const nameTrim = form.name.trim();
+    if (!nameTrim) nextErrors.name = "Enter a rule name.";
+
+    if (form.triggerCategoryIds.length === 0) {
+      nextErrors.triggerCategories = "Select at least one trigger category.";
+    }
+    if (form.triggerProductSlugs.length === 0) {
+      nextErrors.triggerProducts = "Select at least one trigger product.";
+    }
+    if (form.targetCategoryIds.length === 0) {
+      nextErrors.targetCategories = "Select at least one target category.";
+    }
     if (form.targetProductSlugs.length === 0) {
-      setError("At least one target product is required.");
-      return;
+      nextErrors.targetProducts = "Select at least one combo target product.";
+    }
+    if (form.fallbackCategoryIds.length === 0) {
+      nextErrors.fallbackCategories = "Select at least one fallback category.";
     }
     if (form.fallbackTargetProductSlugs.length === 0) {
-      setError("At least one fallback target product is required.");
+      nextErrors.fallbackProducts = "Select at least one fallback product.";
+    }
+
+    const trigStr = String(form.minTriggerBags ?? "").trim();
+    if (trigStr === "") {
+      nextErrors.minTrigger = "Enter the trigger minimum quantity.";
+    } else {
+      const nTrig = Number(trigStr);
+      if (!Number.isFinite(nTrig) || nTrig < 0 || !Number.isInteger(nTrig)) {
+        nextErrors.minTrigger = "Enter a whole number zero or greater.";
+      }
+    }
+
+    const tgtStr = String(form.minTargetBags ?? "").trim();
+    if (tgtStr === "") {
+      nextErrors.maxTargetCombo = "Enter the max target quantity at combo price.";
+    } else {
+      const nTgt = Number(tgtStr);
+      if (!Number.isFinite(nTgt) || nTgt < 0 || !Number.isInteger(nTgt)) {
+        nextErrors.maxTargetCombo = "Enter a whole number zero or greater.";
+      }
+    }
+
+    const msgTrim = form.suggestionMessage.trim();
+    if (!msgTrim) {
+      nextErrors.suggestion = "Enter a customer message (shown on product and cart).";
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
       return;
     }
+    setFieldErrors({});
+
     setSaving(true);
     try {
       const body = buildBody();
-      if (!body.name) throw new Error("Name is required");
       const url = editingId ? `/api/admin/combo-rules/${editingId}` : "/api/admin/combo-rules";
       const res = await fetch(url, {
         method: editingId ? "PATCH" : "POST",
@@ -542,10 +597,10 @@ export default function AdminCombosPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
-      setModalOpen(false);
+      closeModal();
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setModalSaveError(err instanceof Error ? err.message : "Save failed");
     } finally {
       setSaving(false);
     }
@@ -591,284 +646,17 @@ export default function AdminCombosPage() {
     [targetProductsForPicker]
   );
 
-  const productBySlug = useMemo(() => {
-    const map = new Map<string, ProductOption>();
-    for (const p of productOptions) map.set(p.slug, p);
-    return map;
-  }, [productOptions]);
-
-  const selectedTargetProdRows = useMemo(
+  const fallbackProdRows = useMemo(
     () =>
-      form.targetProductSlugs.map((slug) => {
-        const p = productBySlug.get(slug);
-        return {
-          key: slug,
-          primary: p?.name ?? slug,
-          secondary: `${p?.sku ?? "—"} · ${p?.categoryName || "—"} · ₹${
-            typeof p?.priceWithGst === "number" ? p.priceWithGst.toFixed(2) : "—"
-          }`,
-        };
-      }),
-    [form.targetProductSlugs, productBySlug]
+      fallbackProductsForPicker.map((p) => ({
+        key: p.slug,
+        primary: p.name,
+        secondary: `${p.sku ?? "—"} · ${p.categoryName || "—"} · ₹${
+          typeof p.priceWithGst === "number" ? p.priceWithGst.toFixed(2) : "—"
+        }`,
+      })),
+    [fallbackProductsForPicker]
   );
-
-  const selectedFallbackProdRows = useMemo(
-    () =>
-      form.fallbackTargetProductSlugs.map((slug) => {
-        const p = productBySlug.get(slug);
-        return {
-          key: slug,
-          primary: p?.name ?? slug,
-          secondary: `${p?.sku ?? "—"} · ${p?.categoryName || "—"} · ₹${
-            typeof p?.priceWithGst === "number" ? p.priceWithGst.toFixed(2) : "—"
-          }`,
-        };
-      }),
-    [form.fallbackTargetProductSlugs, productBySlug]
-  );
-
-  const triggerCategoriesForAddModal = useMemo(
-    () => categoryOptions.filter((c) => form.triggerCategoryIds.includes(c.id)),
-    [categoryOptions, form.triggerCategoryIds]
-  );
-
-  const addModalProductsForPicker = useMemo(() => {
-    if (form.triggerCategoryIds.length === 0) return [];
-    const categorySet = new Set(form.triggerCategoryIds);
-    const base = productOptions.filter((p) => p.categoryId && categorySet.has(p.categoryId));
-    if (form.triggerCategoryIds.length <= 1) return base;
-    if (!addProductCategoryFocus || !categorySet.has(addProductCategoryFocus)) return [];
-    return base.filter((p) => p.categoryId === addProductCategoryFocus);
-  }, [productOptions, form.triggerCategoryIds, addProductCategoryFocus]);
-
-  const targetProductsForAddModal = useMemo(
-    () => {
-      const blocked = new Set([
-        ...form.targetProductSlugs.map(normSlug),
-        ...form.fallbackTargetProductSlugs.map(normSlug),
-      ]);
-      return addModalProductsForPicker
-        .filter((p) =>
-          addProductTo === "fallback"
-            ? p.isEligibleForCombo === false
-            : p.isEligibleForCombo === true
-        )
-        .filter((p) => !blocked.has(normSlug(p.slug)))
-        .map((p) => ({
-          slug: p.slug,
-          label: `${p.name} (${p.sku ?? "—"}) · ${p.categoryName || "—"} · ₹${
-            typeof p.priceWithGst === "number" ? p.priceWithGst.toFixed(2) : "—"
-          }`,
-        }));
-    },
-    [addModalProductsForPicker, addProductTo, form.targetProductSlugs, form.fallbackTargetProductSlugs]
-  );
-
-  useEffect(() => {
-    if (form.triggerCategoryIds.length <= 1) {
-      const onlyCategory = form.triggerCategoryIds[0] ?? "";
-      if (addProductCategoryFocus !== onlyCategory) setAddProductCategoryFocus(onlyCategory);
-      return;
-    }
-    if (addProductCategoryFocus && form.triggerCategoryIds.includes(addProductCategoryFocus)) return;
-    setAddProductCategoryFocus("");
-  }, [form.triggerCategoryIds, addProductCategoryFocus]);
-
-  useEffect(() => {
-    if (!addProductSlug) return;
-    const exists = targetProductsForAddModal.some((p) => p.slug === addProductSlug);
-    if (!exists) setAddProductSlug("");
-  }, [targetProductsForAddModal, addProductSlug]);
-
-  function openAddProductModal(defaultBucket: "target" | "fallback" = "target") {
-    setAddProductTo(defaultBucket);
-    setAddProductMode("existing");
-    setAddProductSlug("");
-    setAddProductCategoryFocus(form.triggerCategoryIds.length === 1 ? form.triggerCategoryIds[0] : "");
-    setAddProductError(null);
-    setNewProductName("");
-    setNewProductSku("");
-    setNewProductSlug("");
-    setNewProductKind("catalog");
-    setNewProductBrand("");
-    setNewProductDescription("");
-    setNewProductSizeOrModel("");
-    setNewProductBasicPrice("");
-    setNewProductPriceWithGst("");
-    setNewProductImage("");
-    setNewProductBulkUnit("per_bag");
-    setNewProductInnerUnit("per_packet");
-    setNewProductPcsPerPacket("100");
-    setNewProductPacketsPerBag("");
-    setNewProductKeyFeaturesText("");
-    setNewProductCurrency("INR");
-    setAddProductModalOpen(true);
-  }
-
-  async function handleAddProductFromModal() {
-    if (!addProductSlug) return;
-    setAddProductError(null);
-    setForm((f) => {
-      if (addProductTo === "target") {
-        return {
-          ...f,
-          targetProductSlugs: toggleSlug(f.targetProductSlugs, addProductSlug, true),
-          fallbackTargetProductSlugs: toggleSlug(f.fallbackTargetProductSlugs, addProductSlug, false),
-        };
-      }
-      return {
-        ...f,
-        targetProductSlugs: toggleSlug(f.targetProductSlugs, addProductSlug, false),
-        fallbackTargetProductSlugs: toggleSlug(f.fallbackTargetProductSlugs, addProductSlug, true),
-      };
-    });
-    setAddProductModalOpen(false);
-  }
-
-  async function handleCreateAndAddProduct() {
-    setAddProductError(null);
-    const name = newProductName.trim();
-    const category = addProductCategoryFocus.trim();
-    const sku = newProductSku.trim();
-    const slugFromInput = newProductSlug.trim().toLowerCase();
-    const brand = newProductBrand.trim();
-    const sizeOrModel = newProductSizeOrModel.trim();
-    const basicPrice = Number(newProductBasicPrice);
-    const priceWithGst = Number(newProductPriceWithGst);
-    const pcsPerPacketNum = Math.max(1, Math.floor(Number(newProductPcsPerPacket) || 1));
-    const packetsPerBagRaw = String(newProductPacketsPerBag ?? "").trim();
-    const packetsPerBagNum =
-      packetsPerBagRaw === "" ? 0 : Math.max(0, Math.floor(Number(packetsPerBagRaw)));
-    if (!name) {
-      setAddProductError("Product name is required.");
-      return;
-    }
-    if (!category) {
-      setAddProductError("Select category first.");
-      return;
-    }
-    if (!sku) {
-      setAddProductError("SKU is required.");
-      return;
-    }
-    if (!slugFromInput) {
-      setAddProductError("Slug is required.");
-      return;
-    }
-    if (!brand) {
-      setAddProductError("Brand is required.");
-      return;
-    }
-    if (!sizeOrModel) {
-      setAddProductError("Size / model is required.");
-      return;
-    }
-    if (!Number.isFinite(basicPrice) || basicPrice < 0) {
-      setAddProductError("Basic price must be a valid non-negative number.");
-      return;
-    }
-    if (!Number.isFinite(priceWithGst) || priceWithGst < 0) {
-      setAddProductError("Price with GST must be a valid non-negative number.");
-      return;
-    }
-    setCreatingProduct(true);
-    try {
-      const finalSlug = slugFromInput;
-
-      const keyLines = newProductKeyFeaturesText
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
-      const keyFeatures = keyLines.map((text) => ({ text, icon: "check" }));
-
-      const image = newProductImage.trim();
-
-      const body: Record<string, unknown> = {
-        name,
-        category,
-        productKind: newProductKind,
-        pricing: {
-          basicPrice,
-          priceWithGst,
-          currency: String(newProductCurrency || "INR").trim().toUpperCase() || "INR",
-        },
-        isActive: true,
-        isNew: false,
-        isIsiCertified: false,
-        packaging: {
-          pricingUnit: newProductInnerUnit,
-          bulkUnitChoices: [newProductBulkUnit],
-          innerUnitChoices: [newProductInnerUnit],
-          pcsPerPacket: pcsPerPacketNum,
-          ...(packetsPerBagNum > 0
-            ? { packetsInMasterBag: packetsPerBagNum, pktInMasterBag: packetsPerBagNum }
-            : {}),
-        },
-        ...(keyFeatures.length > 0
-          ? { keyFeatures, features: [] }
-          : { keyFeatures: null, features: [] }),
-        ...(image ? { image, images: [image] } : {}),
-        sellers: [],
-      };
-      const description = newProductDescription.trim();
-      body.sku = sku;
-      body.slug = finalSlug;
-      body.brand = brand;
-      if (description) body.description = description;
-      body.sizeOrModel = sizeOrModel;
-      if (newProductKind === "catalog") {
-        body.sizes = [
-          {
-            size: sizeOrModel || "Standard",
-            basicPrice,
-            priceWithGst,
-            pcsPerPacket: pcsPerPacketNum,
-            qtyPerBag: packetsPerBagNum > 0 ? packetsPerBagNum : 0,
-          },
-        ];
-      }
-
-      const res = await fetch("/api/admin/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const json = (await res.json().catch(() => ({}))) as {
-        message?: string;
-        data?: { _id?: string; slug?: string };
-      };
-      if (!res.ok) {
-        throw new Error(json.message || "Failed to create product");
-      }
-      const createdSlug =
-        typeof json.data?.slug === "string" && json.data.slug.trim()
-          ? json.data.slug.trim().toLowerCase()
-          : "";
-      if (!createdSlug) {
-        throw new Error("Could not resolve product slug for combo target. Please enter product slug manually.");
-      }
-
-      const prods = await fetchAllProductOptions();
-      setProductOptions(prods);
-      setForm((f) => {
-        if (addProductTo === "target") {
-          return {
-            ...f,
-            targetProductSlugs: toggleSlug(f.targetProductSlugs, createdSlug, true),
-          };
-        }
-        return {
-          ...f,
-          fallbackTargetProductSlugs: toggleSlug(f.fallbackTargetProductSlugs, createdSlug, true),
-        };
-      });
-      setAddProductModalOpen(false);
-    } catch (e) {
-      setAddProductError(e instanceof Error ? e.message : "Could not create product");
-    } finally {
-      setCreatingProduct(false);
-    }
-  }
 
   return (
     <div>
@@ -892,7 +680,13 @@ export default function AdminCombosPage() {
       ) : null}
 
       <div className="admin-toolbar">
-        <button type="button" className="admin-btn admin-btn-primary" onClick={openCreate}>
+        <button
+          type="button"
+          className="admin-btn admin-btn-primary"
+          onClick={openCreate}
+          disabled={list.length > 0}
+          title={list.length > 0 ? "Only one combo rule is allowed. Edit the existing rule." : undefined}
+        >
           New combo rule
         </button>
         <button type="button" className="admin-btn admin-btn-ghost" onClick={() => void load()} disabled={loading}>
@@ -965,42 +759,63 @@ export default function AdminCombosPage() {
           className="admin-modal-backdrop"
           role="presentation"
           onMouseDown={(ev) => {
-            if (ev.target === ev.currentTarget) setModalOpen(false);
+            if (ev.target === ev.currentTarget) closeModal();
           }}
         >
           <div className="admin-modal" role="dialog" aria-labelledby="combo-modal-title" style={{ maxWidth: "42rem" }}>
             <h2 id="combo-modal-title">{editingId ? "Edit combo rule" : "New combo rule"}</h2>
             <form key={editingId ?? "new"} onSubmit={(e) => void handleSubmit(e)}>
+              {modalSaveError ? (
+                <div className="admin-banner err" role="alert" style={{ marginBottom: "0.75rem" }}>
+                  {modalSaveError}
+                </div>
+              ) : null}
+
               <div className="admin-field">
                 <label htmlFor="combo-name">Name *</label>
                 <input
                   id="combo-name"
                   value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. Standard Patti Offer"
-                  required
+                  onChange={(e) => {
+                    clearFieldError("name");
+                    setForm((f) => ({ ...f, name: e.target.value }));
+                  }}
+                  placeholder="e.g. Standard Combo Offer"
+                  aria-invalid={fieldErrors.name ? true : undefined}
+                  aria-describedby={fieldErrors.name ? "combo-name-err" : undefined}
                 />
+                {fieldErrors.name ? (
+                  <p id="combo-name-err" className="admin-multiselect-hint" role="alert" style={{ color: "#991b1b", fontWeight: 500 }}>
+                    {fieldErrors.name}
+                  </p>
+                ) : null}
               </div>
 
               <MultiCheckboxBlock
-                title="Trigger categories (optional)"
-                hint="Select one or multiple trigger categories. Trigger products list below will show only products from selected categories."
+                title="Trigger categories *"
+                hint="Select one or more categories. The trigger product list only shows products from these categories."
+                error={fieldErrors.triggerCategories}
                 idPrefix="trig-cat"
                 search={searchTrigCat}
                 onSearchChange={setSearchTrigCat}
                 loading={optionsLoading}
-                emptyMessage="No categories"
+                emptyMessage="No categories found."
                 options={categoryRowsForMulti}
                 selectedKeys={form.triggerCategoryIds}
-                onToggle={(key, checked) =>
-                  setForm((f) => ({ ...f, triggerCategoryIds: toggleId(f.triggerCategoryIds, key, checked) }))
-                }
-                onClear={() => setForm((f) => ({ ...f, triggerCategoryIds: [] }))}
+                onToggle={(key, checked) => {
+                  clearFieldError("triggerCategories");
+                  setForm((f) => ({ ...f, triggerCategoryIds: toggleId(f.triggerCategoryIds, key, checked) }));
+                }}
+                onClear={() => {
+                  clearFieldError("triggerCategories");
+                  setForm((f) => ({ ...f, triggerCategoryIds: [] }));
+                }}
               />
 
               <MultiCheckboxBlock
-                title="Trigger products"
-                hint="Only products belonging to selected trigger categories are shown here."
+                title="Trigger products *"
+                hint="Qualifying products (from trigger categories). These products are not listed under target or fallback."
+                error={fieldErrors.triggerProducts}
                 idPrefix="trig-prod"
                 search={searchTrigProd}
                 onSearchChange={setSearchTrigProd}
@@ -1008,92 +823,190 @@ export default function AdminCombosPage() {
                 emptyMessage={
                   form.triggerCategoryIds.length > 0
                     ? "No products in the selected categories."
-                    : "Select a trigger category first."
+                    : "Please select a trigger category first."
                 }
                 options={triggerProdRows}
                 selectedKeys={form.triggerProductSlugs}
-                onToggle={(key, checked) =>
-                  setForm((f) => ({ ...f, triggerProductSlugs: toggleSlug(f.triggerProductSlugs, key, checked) }))
-                }
-                onClear={() => setForm((f) => ({ ...f, triggerProductSlugs: [] }))}
+                onToggle={(key, checked) => {
+                  clearFieldError("triggerProducts");
+                  setForm((f) => ({ ...f, triggerProductSlugs: toggleSlug(f.triggerProductSlugs, key, checked) }));
+                }}
+                onClear={() => {
+                  clearFieldError("triggerProducts");
+                  setForm((f) => ({ ...f, triggerProductSlugs: [] }));
+                }}
               />
 
-              <MultiCheckboxBlock
-                title="Target products"
-                hint="These are combo target products. They must belong to selected trigger categories."
-                idPrefix="tgt-prod"
-                search={searchTgtProd}
-                showSearch={false}
-                onSearchChange={setSearchTgtProd}
-                loading={optionsLoading}
-                emptyMessage={
-                  form.triggerCategoryIds.length > 0
-                    ? "No target product added yet. Use Add Product button below."
-                    : "Select a trigger category first."
-                }
-                options={selectedTargetProdRows}
-                selectedKeys={form.targetProductSlugs}
-                onToggle={(key, checked) =>
-                  setForm((f) => ({ ...f, targetProductSlugs: toggleSlug(f.targetProductSlugs, key, checked) }))
-                }
-                onClear={() => setForm((f) => ({ ...f, targetProductSlugs: [] }))}
-              />
-
-              <MultiCheckboxBlock
-                title="Fallback target products (shown when trigger threshold is NOT met)"
-                hint="Pick higher-price or regular products from selected trigger categories. These are alternatives shown before combo unlock."
-                idPrefix="fallback-tgt-prod"
-                search={searchFallbackTgtProd}
-                showSearch={false}
-                onSearchChange={setSearchFallbackTgtProd}
-                loading={optionsLoading}
-                emptyMessage={
-                  form.triggerCategoryIds.length > 0
-                    ? "No fallback target product added yet. Use Add Product button below."
-                    : "Select a trigger category first."
-                }
-                options={selectedFallbackProdRows}
-                selectedKeys={form.fallbackTargetProductSlugs}
-                onToggle={(key, checked) =>
-                  setForm((f) => ({
-                    ...f,
-                    fallbackTargetProductSlugs: toggleSlug(f.fallbackTargetProductSlugs, key, checked),
-                  }))
-                }
-                onClear={() => setForm((f) => ({ ...f, fallbackTargetProductSlugs: [] }))}
-              />
-              <div className="admin-field-row" style={{ marginTop: "-0.5rem", marginBottom: "0.65rem" }}>
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-ghost"
-                  onClick={() => openAddProductModal("target")}
-                  disabled={form.triggerCategoryIds.length === 0}
-                >
-                  Add Product (Target / Fallback)
-                </button>
+              <div className="admin-field-row" style={{ gap: "1rem", alignItems: "flex-start" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <MultiCheckboxBlock
+                    title="Target categories *"
+                    hint="Categories for combo-priced target products."
+                    error={fieldErrors.targetCategories}
+                    idPrefix="target-cat"
+                    search={searchTrigCat}
+                    onSearchChange={setSearchTrigCat}
+                    loading={optionsLoading}
+                    emptyMessage="No categories found."
+                    options={categoryRowsForMulti}
+                    selectedKeys={form.targetCategoryIds}
+                    onToggle={(key, checked) => {
+                      clearFieldError("targetCategories");
+                      setForm((f) => ({ ...f, targetCategoryIds: toggleId(f.targetCategoryIds, key, checked) }));
+                    }}
+                    onClear={() => {
+                      clearFieldError("targetCategories");
+                      setForm((f) => ({ ...f, targetCategoryIds: [] }));
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <MultiCheckboxBlock
+                    title="Target products (combo) *"
+                    hint="Combo-priced products after the trigger condition is met. Trigger products are hidden here."
+                    error={fieldErrors.targetProducts}
+                    idPrefix="tgt-prod"
+                    search={searchTgtProd}
+                    showSearch
+                    onSearchChange={setSearchTgtProd}
+                    loading={optionsLoading}
+                    emptyMessage={
+                      form.targetCategoryIds.length > 0
+                        ? "No products found in selected categories."
+                        : "Please select a target category first."
+                    }
+                    options={targetProdRows}
+                    selectedKeys={form.targetProductSlugs}
+                    onToggle={(key, checked) => {
+                      clearFieldError("targetProducts");
+                      setForm((f) => ({
+                        ...f,
+                        targetProductSlugs: toggleSlug(f.targetProductSlugs, key, checked),
+                        fallbackTargetProductSlugs: checked
+                          ? toggleSlug(f.fallbackTargetProductSlugs, key, false)
+                          : f.fallbackTargetProductSlugs,
+                      }));
+                    }}
+                    onSelectAll={(keys) => {
+                      clearFieldError("targetProducts");
+                      setForm((f) => {
+                        let nextTargets = [...f.targetProductSlugs];
+                        let nextFallback = [...f.fallbackTargetProductSlugs];
+                        for (const k of keys) {
+                          nextTargets = toggleSlug(nextTargets, k, true);
+                          nextFallback = toggleSlug(nextFallback, k, false);
+                        }
+                        return { ...f, targetProductSlugs: nextTargets, fallbackTargetProductSlugs: nextFallback };
+                      });
+                    }}
+                    onClear={() => {
+                      clearFieldError("targetProducts");
+                      setForm((f) => ({ ...f, targetProductSlugs: [] }));
+                    }}
+                  />
+                </div>
               </div>
 
+              <div className="admin-field-row" style={{ gap: "1rem", alignItems: "flex-start" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <MultiCheckboxBlock
+                    title="Fallback categories *"
+                    hint="Categories for regular-priced fallback products (before combo unlocks)."
+                    error={fieldErrors.fallbackCategories}
+                    idPrefix="fallback-cat"
+                    search={searchTrigCat}
+                    onSearchChange={setSearchTrigCat}
+                    loading={optionsLoading}
+                    emptyMessage="No categories found."
+                    options={categoryRowsForMulti}
+                    selectedKeys={form.fallbackCategoryIds}
+                    onToggle={(key, checked) => {
+                      clearFieldError("fallbackCategories");
+                      setForm((f) => ({ ...f, fallbackCategoryIds: toggleId(f.fallbackCategoryIds, key, checked) }));
+                    }}
+                    onClear={() => {
+                      clearFieldError("fallbackCategories");
+                      setForm((f) => ({ ...f, fallbackCategoryIds: [] }));
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <MultiCheckboxBlock
+                    title="Fallback products *"
+                    hint="Regular price before combo unlocks. Same product cannot be both target and fallback; trigger products are hidden here."
+                    error={fieldErrors.fallbackProducts}
+                    idPrefix="fallback-tgt-prod"
+                    search={searchFallbackTgtProd}
+                    showSearch
+                    onSearchChange={setSearchFallbackTgtProd}
+                    loading={optionsLoading}
+                    emptyMessage={
+                      form.fallbackCategoryIds.length > 0
+                        ? "No products found in selected categories."
+                        : "Please select a fallback category first."
+                    }
+                    options={fallbackProdRows}
+                    selectedKeys={form.fallbackTargetProductSlugs}
+                    onToggle={(key, checked) => {
+                      clearFieldError("fallbackProducts");
+                      setForm((f) => ({
+                        ...f,
+                        fallbackTargetProductSlugs: toggleSlug(f.fallbackTargetProductSlugs, key, checked),
+                        targetProductSlugs: checked
+                          ? toggleSlug(f.targetProductSlugs, key, false)
+                          : f.targetProductSlugs,
+                      }));
+                    }}
+                    onSelectAll={(keys) => {
+                      clearFieldError("fallbackProducts");
+                      setForm((f) => {
+                        let nextTargets = [...f.targetProductSlugs];
+                        let nextFallback = [...f.fallbackTargetProductSlugs];
+                        for (const k of keys) {
+                          nextFallback = toggleSlug(nextFallback, k, true);
+                          nextTargets = toggleSlug(nextTargets, k, false);
+                        }
+                        return { ...f, targetProductSlugs: nextTargets, fallbackTargetProductSlugs: nextFallback };
+                      });
+                    }}
+                    onClear={() => {
+                      clearFieldError("fallbackProducts");
+                      setForm((f) => ({ ...f, fallbackTargetProductSlugs: [] }));
+                    }}
+                  />
+                </div>
+              </div>
               <div className="admin-field">
                 <span className="muted" style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.85rem" }}>
-                  Trigger threshold
+                  Trigger minimum quantity
                 </span>
                 <p className="muted" style={{ fontSize: "0.8rem", margin: "0 0 0.5rem" }}>
-                  User must add at least this quantity of trigger products in cart to activate combo pricing.
+                  Users must add at least this trigger quantity in cart to unlock combo pricing.
                 </p>
                 <div className="admin-field-row" style={{ alignItems: "flex-end" }}>
                   <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-min-trig">Amount</label>
+                    <label htmlFor="combo-min-trig">Amount *</label>
                     <input
                       id="combo-min-trig"
                       type="number"
                       min={0}
                       step={1}
                       value={form.minTriggerBags}
-                      onChange={(e) => setForm((f) => ({ ...f, minTriggerBags: e.target.value }))}
+                      onChange={(e) => {
+                        clearFieldError("minTrigger");
+                        setForm((f) => ({ ...f, minTriggerBags: e.target.value }));
+                      }}
+                      aria-invalid={fieldErrors.minTrigger ? true : undefined}
+                      aria-describedby={fieldErrors.minTrigger ? "combo-min-trig-err" : undefined}
                     />
+                    {fieldErrors.minTrigger ? (
+                      <p id="combo-min-trig-err" role="alert" style={{ color: "#991b1b", fontSize: "0.85rem", margin: "0.35rem 0 0" }}>
+                        {fieldErrors.minTrigger}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-trig-unit">Unit</label>
+                    <label htmlFor="combo-trig-unit">Unit *</label>
                     <select
                       id="combo-trig-unit"
                       value={form.triggerThresholdUnit}
@@ -1113,26 +1026,35 @@ export default function AdminCombosPage() {
 
               <div className="admin-field">
                 <span className="muted" style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.85rem" }}>
-                  Target maximum threshold
+                  Target max quantity at combo price
                 </span>
                 <p className="muted" style={{ fontSize: "0.8rem", margin: "0 0 0.5rem" }}>
-                  This is the maximum quantity allowed at combo price. After this limit, user should see: "You can
-                  only add that much bags."
+                  This is the maximum target quantity allowed at combo price. Above this limit, normal pricing applies.
                 </p>
                 <div className="admin-field-row" style={{ alignItems: "flex-end" }}>
                   <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-min-tgt">Amount</label>
+                    <label htmlFor="combo-min-tgt">Amount *</label>
                     <input
                       id="combo-min-tgt"
                       type="number"
                       min={0}
                       step={1}
                       value={form.minTargetBags}
-                      onChange={(e) => setForm((f) => ({ ...f, minTargetBags: e.target.value }))}
+                      onChange={(e) => {
+                        clearFieldError("maxTargetCombo");
+                        setForm((f) => ({ ...f, minTargetBags: e.target.value }));
+                      }}
+                      aria-invalid={fieldErrors.maxTargetCombo ? true : undefined}
+                      aria-describedby={fieldErrors.maxTargetCombo ? "combo-min-tgt-err" : undefined}
                     />
+                    {fieldErrors.maxTargetCombo ? (
+                      <p id="combo-min-tgt-err" role="alert" style={{ color: "#991b1b", fontSize: "0.85rem", margin: "0.35rem 0 0" }}>
+                        {fieldErrors.maxTargetCombo}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-tgt-unit">Unit</label>
+                    <label htmlFor="combo-tgt-unit">Unit *</label>
                     <select
                       id="combo-tgt-unit"
                       value={form.targetThresholdUnit}
@@ -1151,14 +1073,24 @@ export default function AdminCombosPage() {
               </div>
 
               <div className="admin-field">
-                <label htmlFor="combo-msg">Suggestion message (B2C)</label>
+                <label htmlFor="combo-msg">Customer message (optional)</label>
                 <textarea
                   id="combo-msg"
                   value={form.suggestionMessage}
-                  onChange={(e) => setForm((f) => ({ ...f, suggestionMessage: e.target.value }))}
+                  onChange={(e) => {
+                    clearFieldError("suggestion");
+                    setForm((f) => ({ ...f, suggestionMessage: e.target.value }));
+                  }}
                   rows={2}
-                  placeholder="Optional; cart copy is mostly automated."
+                  placeholder="Shown on product detail and cart ."
+                  // aria-invalid={fieldErrors.suggestion ? true : undefined}
+                  // aria-describedby={fieldErrors.suggestion ? "combo-msg-err" : undefined}
                 />
+                {/* {fieldErrors.suggestion ? (
+                  <p id="combo-msg-err" role="alert" style={{ color: "#991b1b", fontSize: "0.85rem", margin: "0.35rem 0 0" }}>
+                    {fieldErrors.suggestion}
+                  </p>
+                ) : null} */}
               </div>
 
               <div className="admin-field-row">
@@ -1173,7 +1105,7 @@ export default function AdminCombosPage() {
               </div>
 
               <div className="admin-modal-actions">
-                <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setModalOpen(false)}>
+                <button type="button" className="admin-btn admin-btn-ghost" onClick={closeModal}>
                   Cancel
                 </button>
                 <button
@@ -1189,306 +1121,6 @@ export default function AdminCombosPage() {
         </div>
       ) : null}
 
-      {modalOpen && addProductModalOpen ? (
-        <div
-          className="admin-modal-backdrop"
-          role="presentation"
-          onMouseDown={(ev) => {
-            if (ev.target === ev.currentTarget) setAddProductModalOpen(false);
-          }}
-        >
-          <div className="admin-modal" role="dialog" aria-labelledby="combo-add-product-modal-title" style={{ maxWidth: "36rem" }}>
-            <h2 id="combo-add-product-modal-title">Add product</h2>
-            {addProductError ? (
-              <div className="admin-banner err" role="alert">
-                {addProductError}
-              </div>
-            ) : null}
-            <div className="admin-field">
-              <label htmlFor="combo-add-product-bucket">Add to</label>
-              <select
-                id="combo-add-product-bucket"
-                value={addProductTo}
-                onChange={(e) => setAddProductTo(e.target.value === "fallback" ? "fallback" : "target")}
-              >
-                <option value="target">Target products</option>
-                <option value="fallback">Fallback target products</option>
-              </select>
-            </div>
-            <div className="admin-field">
-              <label htmlFor="combo-add-product-category-focus">Category</label>
-              <select
-                id="combo-add-product-category-focus"
-                value={addProductCategoryFocus}
-                onChange={(e) => setAddProductCategoryFocus(e.target.value)}
-                disabled={triggerCategoriesForAddModal.length <= 1}
-              >
-                {triggerCategoriesForAddModal.length > 1 ? (
-                  <option value="">Select category</option>
-                ) : null}
-                {triggerCategoriesForAddModal.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="admin-field">
-              <label htmlFor="combo-add-product-mode">Mode</label>
-              <select
-                id="combo-add-product-mode"
-                value={addProductMode}
-                onChange={(e) => setAddProductMode(e.target.value === "new" ? "new" : "existing")}
-              >
-                <option value="existing">Select existing product</option>
-                <option value="new">Create new product</option>
-              </select>
-            </div>
-            {addProductMode === "existing" ? (
-              <>
-                <div className="admin-field">
-                  <label htmlFor="combo-add-product-slug">Product</label>
-                  <select
-                    id="combo-add-product-slug"
-                    value={addProductSlug}
-                    onChange={(e) => setAddProductSlug(e.target.value)}
-                    disabled={
-                      triggerCategoriesForAddModal.length === 0 ||
-                      (triggerCategoriesForAddModal.length > 1 && !addProductCategoryFocus) ||
-                      targetProductsForAddModal.length === 0
-                    }
-                  >
-                    <option value="">Select product</option>
-                    {targetProductsForAddModal.map((p) => (
-                      <option key={p.slug} value={p.slug}>
-                        {p.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="muted" style={{ margin: "0.35rem 0 0", fontSize: "0.8rem" }}>
-                    {triggerCategoriesForAddModal.length > 1 && !addProductCategoryFocus
-                      ? "Select a category first to view products."
-                      : targetProductsForAddModal.length === 0
-                        ? "No products available for selected category and bucket."
-                        : "Products are filtered by selected trigger category."}
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="admin-field">
-                  <label htmlFor="combo-new-product-name">Product name *</label>
-                  <input
-                    id="combo-new-product-name"
-                    value={newProductName}
-                    onChange={(e) => setNewProductName(e.target.value)}
-                    placeholder="e.g. 20mm Clamp Premium"
-                  />
-                </div>
-                <div className="admin-field-row">
-                  <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-new-product-sku">SKU *</label>
-                    <input
-                      id="combo-new-product-sku"
-                      value={newProductSku}
-                      onChange={(e) => setNewProductSku(e.target.value)}
-                      placeholder="e.g. CLP20PREM"
-                    />
-                  </div>
-                  <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-new-product-slug">Slug *</label>
-                    <input
-                      id="combo-new-product-slug"
-                      value={newProductSlug}
-                      onChange={(e) => setNewProductSlug(e.target.value)}
-                      placeholder="e.g. 20mm-clamp-premium"
-                    />
-                  </div>
-                </div>
-                <div className="admin-field-row">
-                  <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-new-product-kind">Product kind</label>
-                    <select
-                      id="combo-new-product-kind"
-                      value={newProductKind}
-                      onChange={(e) =>
-                        setNewProductKind(e.target.value === "sku" ? "sku" : "catalog")
-                      }
-                    >
-                      <option value="catalog">Catalog</option>
-                      <option value="sku">SKU line item</option>
-                    </select>
-                  </div>
-                  <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-new-product-brand">Brand *</label>
-                    <input
-                      id="combo-new-product-brand"
-                      value={newProductBrand}
-                      onChange={(e) => setNewProductBrand(e.target.value)}
-                      placeholder="e.g. Astral"
-                    />
-                  </div>
-                </div>
-                <div className="admin-field">
-                  <label htmlFor="combo-new-product-description">Description (optional)</label>
-                  <textarea
-                    id="combo-new-product-description"
-                    value={newProductDescription}
-                    onChange={(e) => setNewProductDescription(e.target.value)}
-                    rows={3}
-                    placeholder="Short product description"
-                  />
-                </div>
-                <div className="admin-field-row">
-                  <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-new-product-size-model">Size / model *</label>
-                    <input
-                      id="combo-new-product-size-model"
-                      value={newProductSizeOrModel}
-                      onChange={(e) => setNewProductSizeOrModel(e.target.value)}
-                      placeholder="e.g. 20 MM"
-                    />
-                  </div>
-                  <div className="admin-field" style={{ maxWidth: "9rem" }}>
-                    <label htmlFor="combo-new-product-currency">Currency</label>
-                    <input
-                      id="combo-new-product-currency"
-                      value={newProductCurrency}
-                      onChange={(e) => setNewProductCurrency(e.target.value)}
-                      placeholder="INR"
-                    />
-                  </div>
-                </div>
-                <div className="admin-field-row">
-                  <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-new-product-basic">Basic price *</label>
-                    <input
-                      id="combo-new-product-basic"
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={newProductBasicPrice}
-                      onChange={(e) => setNewProductBasicPrice(e.target.value)}
-                    />
-                  </div>
-                  <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-new-product-gst">Price with GST *</label>
-                    <input
-                      id="combo-new-product-gst"
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={newProductPriceWithGst}
-                      onChange={(e) => setNewProductPriceWithGst(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="admin-field">
-                  <label htmlFor="combo-new-product-image">Image URL (optional)</label>
-                  <input
-                    id="combo-new-product-image"
-                    value={newProductImage}
-                    onChange={(e) => setNewProductImage(e.target.value)}
-                    placeholder="https://..."
-                  />
-                </div>
-                <div className="admin-field-row">
-                  <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-new-product-bulk-unit">Bags / carton</label>
-                    <select
-                      id="combo-new-product-bulk-unit"
-                      value={newProductBulkUnit}
-                      onChange={(e) =>
-                        setNewProductBulkUnit(
-                          e.target.value === "per_cartoon" ? "per_cartoon" : "per_bag"
-                        )
-                      }
-                    >
-                      {BULK_UNIT_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-new-product-inner-unit">Packets / box</label>
-                    <select
-                      id="combo-new-product-inner-unit"
-                      value={newProductInnerUnit}
-                      onChange={(e) =>
-                        setNewProductInnerUnit(
-                          e.target.value === "per_box" ? "per_box" : "per_packet"
-                        )
-                      }
-                    >
-                      {INNER_UNIT_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="admin-field-row">
-                  <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-new-product-pcs-per-packet">PCS per packet</label>
-                    <input
-                      id="combo-new-product-pcs-per-packet"
-                      type="number"
-                      min={1}
-                      step={1}
-                      value={newProductPcsPerPacket}
-                      onChange={(e) => setNewProductPcsPerPacket(e.target.value)}
-                    />
-                  </div>
-                  <div className="admin-field" style={{ flex: 1 }}>
-                    <label htmlFor="combo-new-product-packets-per-bag">Packets per master bag</label>
-                    <input
-                      id="combo-new-product-packets-per-bag"
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={newProductPacketsPerBag}
-                      onChange={(e) => setNewProductPacketsPerBag(e.target.value)}
-                      placeholder="e.g. 750"
-                    />
-                  </div>
-                </div>
-                <div className="admin-field">
-                  <label htmlFor="combo-new-product-key-features">Key features (one line each)</label>
-                  <textarea
-                    id="combo-new-product-key-features"
-                    value={newProductKeyFeaturesText}
-                    onChange={(e) => setNewProductKeyFeaturesText(e.target.value)}
-                    rows={4}
-                    placeholder={"Feature 1\nFeature 2"}
-                  />
-                </div>
-              </>
-            )}
-            <div className="admin-modal-actions">
-              <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setAddProductModalOpen(false)}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="admin-btn admin-btn-primary"
-                disabled={addProductMode === "existing" ? !addProductSlug : creatingProduct}
-                onClick={() =>
-                  void (addProductMode === "existing" ? handleAddProductFromModal() : handleCreateAndAddProduct())
-                }
-              >
-                {addProductMode === "existing"
-                  ? "Add product"
-                  : creatingProduct
-                    ? "Creating…"
-                    : "Create and add"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

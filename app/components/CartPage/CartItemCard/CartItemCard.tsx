@@ -250,6 +250,12 @@ export default function CartItemCard({
               ) : null}
             </div>
             {base.sellerId !== "default" && <span className={styles.sellerLine}>Seller: {base.sellerName}</span>}
+            {showComboBadge ? (
+              <p className={styles.comboInlineMsg}>
+                🎉 Combo offer claimed on this product. Combo net price: ₹{safePrice.toFixed(2)} per{" "}
+                {labels.inner}. Current line total: ₹{combinedLineTotal.toFixed(2)}.
+              </p>
+            ) : null}
           </div>
           <button
             className={styles.removeBtn}
