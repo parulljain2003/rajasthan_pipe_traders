@@ -188,27 +188,43 @@
   flex-grow: 1;
 }
 
-.cardPricing {
+.cardPriceStack {
   display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  margin-top: 0.5rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.08rem;
+  width: 100%;
+  margin: 0.2rem 0 0.32rem;
 }
 
-.fromLabel {
-  font-size: 0.7rem;
-  color: #94a3b8;
+.cardPriceLabel {
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin-top: 0.18rem;
+  line-height: 1.2;
 }
 
-.cardPrice {
-  font-size: 1.1rem;
-  font-weight: 800;
+.cardPriceLabel:first-of-type {
+  margin-top: 0;
+}
+
+.cardPriceGst {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
   color: #0f172a;
+  line-height: 1.35;
 }
 
-.gstTag {
-  font-size: 0.65rem;
-  color: #94a3b8;
+.cardPriceBasic {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #64748b;
+  line-height: 1.35;
 }
 
 .imageLink {
@@ -344,6 +360,9 @@
     grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
   }
+  .card {
+    min-height: auto;
+  }
   .sectionTitle {
     font-size: 1.2rem;
   }
@@ -368,8 +387,14 @@
 
 @media (max-width: 480px) {
   .grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 0.65rem;
+  }
+  .cardInfo {
+    padding: 0.85rem;
+  }
+  .listingMoqWrap {
+    margin-top: 0.35rem;
   }
   .sectionTitle {
     font-size: 1.05rem;

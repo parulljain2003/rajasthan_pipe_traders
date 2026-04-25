@@ -160,8 +160,16 @@
 }
 
 @media (max-width: 480px) {
+  .mainImageWrapper {
+    border-radius: 14px;
+  }
+
   .mainImage {
     padding: 1rem;
+  }
+
+  .zoomHint {
+    display: none;
   }
 
   .thumbnail {
