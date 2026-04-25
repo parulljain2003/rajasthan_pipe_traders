@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react";
+import Link from "next/link";
 import {
   normalizeOrderMode,
   pricedPacketCount,
@@ -10,8 +11,10 @@ import { loadCartFromStorage, saveCartToStorage } from "@/lib/cart/cartStorage";
 import { comboCartLineKeyFromCartItem } from "@/lib/cart/cartLineKey";
 import {
   isEligibleForCombo,
-  COMBO_TARGET_ADD_BLOCKED_MESSAGE,
+  comboTargetAddBlockedInfo,
+  comboQualifyingTriggersSectionHeading,
   type ComboRuleGuard,
+  type ComboTargetAddBlockedInfo,
 } from "@/lib/combo/comboAddGuard";
 import {
   comboTargetMaxReachedMessage,
@@ -165,11 +168,13 @@ interface CartWishlistState {
   ) => void;
   clearCart: () => void;
   /** In-app notice when a combo target line is blocked (see combo add guard) */
-  comboAddBlockedNotice: string | null;
+  comboAddBlockedNotice: ComboTargetAddBlockedInfo | null;
   clearComboAddBlockedNotice: () => void;
   /** Max combo target cap reached (see comboTargetCap) */
   comboTargetCapNotice: string | null;
   clearComboTargetCapNotice: () => void;
+  /** Active combo guard rules (null until first fetch completes) */
+  comboGuardRules: ComboRuleGuard[] | null;
 }
 
 const CartWishlistContext = createContext<CartWishlistState | null>(null);
@@ -180,7 +185,7 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
   const [cartHydrated, setCartHydrated] = useState(false);
   const [couponPricingMode, setCouponPricingMode] = useState<CartCouponPricingMode>("combo_first");
   const [comboGuardRules, setComboGuardRules] = useState<ComboRuleGuard[] | null>(null);
-  const [comboAddBlockedNotice, setComboAddBlockedNotice] = useState<string | null>(null);
+  const [comboAddBlockedNotice, setComboAddBlockedNotice] = useState<ComboTargetAddBlockedInfo | null>(null);
   const [comboTargetCapNotice, setComboTargetCapNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -242,7 +247,7 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
         if (!outcome.ok) {
           if (outcome.reason === "guard") {
             setComboTargetCapNotice(null);
-            setComboAddBlockedNotice(COMBO_TARGET_ADD_BLOCKED_MESSAGE);
+            setComboAddBlockedNotice(comboTargetAddBlockedInfo(row.productSlug, comboGuardRules));
           } else {
             setComboAddBlockedNotice(null);
             setComboTargetCapNotice(comboTargetMaxReachedMessage(outcome.cap, outcome.unit));
@@ -436,6 +441,7 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
           clearComboAddBlockedNotice,
           comboTargetCapNotice,
           clearComboTargetCapNotice,
+          comboGuardRules,
         }}
       >
         {children}
@@ -463,7 +469,62 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
             gap: "0.75rem",
           }}
         >
-          <span style={{ flex: 1 }}>{comboTargetCapNotice ?? comboAddBlockedNotice}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {comboTargetCapNotice ? (
+              <span>{comboTargetCapNotice}</span>
+            ) : comboAddBlockedNotice ? (
+              <>
+                <div>{comboAddBlockedNotice.message}</div>
+                {comboAddBlockedNotice.qualifyingProductSlugs.length > 0 ? (
+                  <div style={{ marginTop: "0.55rem" }}>
+                    <div style={{ fontWeight: 700, marginBottom: "0.3rem", fontSize: "0.82rem" }}>
+                      {comboQualifyingTriggersSectionHeading(comboAddBlockedNotice.qualifyingProductSlugs.length)}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "0.35rem 0.65rem",
+                        alignItems: "center",
+                      }}
+                    >
+                      {comboAddBlockedNotice.qualifyingProductSlugs.slice(0, 12).map((slug) => (
+                        <Link
+                          key={slug}
+                          href={`/products/${encodeURIComponent(slug)}`}
+                          prefetch={false}
+                          onClick={() => {
+                            clearComboAddBlockedNotice();
+                            clearComboTargetCapNotice();
+                          }}
+                          style={{
+                            color: "inherit",
+                            textDecoration: "underline",
+                            textUnderlineOffset: "2px",
+                            fontWeight: 600,
+                            fontSize: "0.84rem",
+                          }}
+                        >
+                          {slug
+                            .split("-")
+                            .filter(Boolean)
+                            .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                            .join(" ") || slug}
+                        </Link>
+                      ))}
+                    </div>
+                    {comboAddBlockedNotice.qualifyingProductSlugs.length > 12 ? (
+                      <div style={{ marginTop: "0.35rem", fontSize: "0.8rem", opacity: 0.92 }}>
+                        +{comboAddBlockedNotice.qualifyingProductSlugs.length - 12} aur qualifying{" "}
+                        {comboAddBlockedNotice.qualifyingProductSlugs.length - 12 === 1 ? "product" : "products"} is
+                        offer mein — search ya category browse karke add kar sakte ho.
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={() => {
@@ -495,5 +556,10 @@ export function useCartWishlist() {
   return ctx;
 }
 
-export { isEligibleForCombo, COMBO_TARGET_ADD_BLOCKED_MESSAGE } from "@/lib/combo/comboAddGuard";
-export type { ComboRuleGuard } from "@/lib/combo/comboAddGuard";
+export {
+  isEligibleForCombo,
+  COMBO_TARGET_ADD_BLOCKED_MESSAGE,
+  messageForComboTargetAddBlocked,
+  comboTargetAddBlockedInfo,
+} from "@/lib/combo/comboAddGuard";
+export type { ComboRuleGuard, ComboTargetAddBlockedInfo } from "@/lib/combo/comboAddGuard";

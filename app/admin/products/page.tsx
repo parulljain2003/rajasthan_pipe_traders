@@ -337,17 +337,13 @@ export default function AdminProductsPage() {
       const res = await fetch(`/api/admin/products?${params}`, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
-      const rows = json.data as Array<AdminProduct & { isEligibleForCombo?: unknown }>;
-      const visibleRows = rows.filter((p) => {
-        const v = p.isEligibleForCombo;
-        return v === null || (typeof v === "string" && v.trim() === "");
-      });
-      setList(visibleRows);
+      const rows = json.data as AdminProduct[];
+      setList(rows);
       setMeta({
-        total: visibleRows.length,
+        total: json.meta?.total ?? rows.length ?? 0,
       });
       if (scrollToId) {
-        const index = visibleRows.findIndex((product) => product._id === scrollToId);
+        const index = rows.findIndex((product) => product._id === scrollToId);
         setPage(index >= 0 ? Math.floor(index / pageSize) : 0);
       } else if (nextSearch !== undefined) {
         setPage(0);
@@ -660,10 +656,14 @@ export default function AdminProductsPage() {
         }
       } else {
         if (!f.categoryId) throw new Error("Category is required");
+        const skuTrim = String(f.sku ?? "").trim().toUpperCase();
+        if (!skuTrim) throw new Error("SKU is required");
+        const slugTrim = String(f.slug ?? "").trim().toLowerCase();
+        if (!slugTrim) throw new Error("Slug is required");
         const body: Record<string, unknown> = {
           name: String(f.name ?? "").trim(),
           productKind: f.productKind,
-          slug: String(f.slug ?? "").trim().toLowerCase() || undefined,
+          slug: slugTrim,
           category: f.categoryId,
           sortOrder: sortOrderFromForm(f.sortOrder),
           description: String(f.description ?? "").trim() || undefined,
@@ -695,8 +695,7 @@ export default function AdminProductsPage() {
           body.sizes = catalog.sizes;
         }
         body.sellers = [];
-        const skuTrim = String(f.sku ?? "").trim().toUpperCase();
-        if (skuTrim) body.sku = skuTrim;
+        body.sku = skuTrim;
         if (swapSortOrderWith) {
           body.swapSortOrderWith = swapSortOrderWith;
         }
@@ -1040,13 +1039,14 @@ export default function AdminProductsPage() {
                 <h3 className="admin-form-section-title">Product details</h3>
                 <div className="admin-field-row">
                   <div className="admin-field">
-                    <label htmlFor="p-sku">SKU (optional)</label>
+                    <label htmlFor="p-sku">SKU {editingId ? "(optional)" : "*"}</label>
                     <input
                       id="p-sku"
                       className="admin-input"
                       value={form.sku}
                       onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
                       autoComplete="off"
+                      required={!editingId}
                     />
                   </div>
                   <div className="admin-field">
@@ -1078,13 +1078,14 @@ export default function AdminProductsPage() {
                   />
                 </div>
                 <div className="admin-field">
-                  <label htmlFor="p-slug">Slug (URL; optional)</label>
+                  <label htmlFor="p-slug">Slug (URL) {editingId ? "(optional)" : "*"}</label>
                   <input
                     id="p-slug"
                     className="admin-input"
                     value={form.slug}
                     onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
                     placeholder="e.g. cable-nail-clips"
+                    required={!editingId}
                   />
                 </div>
                 <div className="admin-field">

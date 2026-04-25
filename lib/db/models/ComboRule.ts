@@ -16,6 +16,8 @@ const comboRuleSchema = new Schema(
     triggerCategoryIds: [{ type: Schema.Types.ObjectId, ref: "Category" }],
     /** Categories whose products all count as targets (expanded to slugs at runtime). */
     targetCategoryIds: [{ type: Schema.Types.ObjectId, ref: "Category" }],
+    /** Categories whose products may be shown as fallback targets before trigger unlock. */
+    fallbackCategoryIds: [{ type: Schema.Types.ObjectId, ref: "Category" }],
     /** Bags required from trigger slugs before combo can activate */
     minTriggerBags: { type: Number, default: 3, min: 0 },
     /** Bags required from target slugs before combo can activate (both thresholds must be met) */

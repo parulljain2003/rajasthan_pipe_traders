@@ -38,6 +38,41 @@ export async function maxSortOrderInParent(parent: mongoose.Types.ObjectId | nul
   return typeof doc?.sortOrder === "number" ? doc.sortOrder : 0;
 }
 
+/** Categories with missing / null / non-positive sortOrder get unique tail values in the same parent group. */
+export async function normalizeNonPositiveCategorySortOrders(
+  parent: mongoose.Types.ObjectId | null,
+  session: mongoose.ClientSession
+): Promise<void> {
+  const parentFilter = parentQueryFilter(parent);
+  const doc = await CategoryModel.findOne({ ...parentFilter })
+    .sort({ sortOrder: -1 })
+    .select("sortOrder")
+    .session(session)
+    .lean();
+  const maxSo = typeof doc?.sortOrder === "number" ? doc.sortOrder : 0;
+  let slot = maxSo + 1;
+  const bad = await CategoryModel.find({
+    ...parentFilter,
+    $or: [{ sortOrder: null }, { sortOrder: { $lte: 0 } }],
+  })
+    .sort({ name: 1, _id: 1 })
+    .select("_id")
+    .session(session)
+    .lean();
+  for (const row of bad) {
+    await CategoryModel.updateOne({ _id: row._id }, { $set: { sortOrder: slot } }, { session });
+    slot += 1;
+  }
+}
+
+/** Parent group list: shift each sibling category up by one (frees slot 1). */
+export async function bumpSiblingCategorySortOrdersByOne(
+  parent: mongoose.Types.ObjectId | null,
+  session: mongoose.ClientSession
+): Promise<void> {
+  await CategoryModel.updateMany({ ...parentQueryFilter(parent) }, { $inc: { sortOrder: 1 } }, { session });
+}
+
 export function sortOrderConflictPayload(conflict: {
   _id: mongoose.Types.ObjectId;
   name: string;
