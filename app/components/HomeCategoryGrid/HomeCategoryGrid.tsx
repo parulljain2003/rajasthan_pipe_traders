@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import styles from "./HomeCategoryGrid.module.css";
@@ -9,6 +9,19 @@ import type { ApiCategory, ApiProduct } from "../../lib/api/types";
 
 const CATEGORY_BG_COLORS = ["#ffccd5", "#b3e5fc", "#c8e6c9", "#e1bee7", "#ffe0b2", "#d7ccc8"];
 const CATEGORY_CARD_IMAGES = ["/Cable_Clip.png", "/Nail_Cable_Clip.png"];
+
+/** Must match `.track` gap (1.25rem) and min column width (220px) in HomeCategoryGrid.module.css */
+const GRID_GAP_PX = 20;
+const GRID_MIN_TRACK_PX = 220;
+const MOBILE_MAX_WIDTH = 768;
+
+function maxCategoriesForTwoRows(gridWidthPx: number, isMobileTwoCol: boolean): number {
+  if (isMobileTwoCol) {
+    return 4;
+  }
+  const cols = Math.max(1, Math.floor((gridWidthPx + GRID_GAP_PX) / (GRID_MIN_TRACK_PX + GRID_GAP_PX)));
+  return cols * 2;
+}
 
 function countCatalogByCategorySlug(products: ApiProduct[]): Map<string, number> {
   const map = new Map<string, number>();
@@ -21,32 +34,20 @@ function countCatalogByCategorySlug(products: ApiProduct[]): Map<string, number>
 }
 
 export default function HomeCategoryGrid() {
-  const trackRef = useRef<HTMLDivElement>(null);
-  const [canLeft, setCanLeft] = useState(false);
-  const [canRight, setCanRight] = useState(false);
+  const gridWrapRef = useRef<HTMLDivElement>(null);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [countsBySlug, setCountsBySlug] = useState<Map<string, number>>(new Map());
   const [loadState, setLoadState] = useState<"loading" | "error" | "ok">("loading");
+  const [maxHomeCategories, setMaxHomeCategories] = useState(12);
 
-  const sync = useCallback(() => {
-    const el = trackRef.current;
+  const recomputeHomeLimit = useCallback(() => {
+    const el = gridWrapRef.current;
     if (!el) return;
-    setCanLeft(el.scrollLeft > 4);
-    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    const w = el.clientWidth;
+    if (w <= 0) return;
+    const isMobileTwoCol = typeof window !== "undefined" && window.matchMedia(`(max-width: ${MOBILE_MAX_WIDTH}px)`).matches;
+    setMaxHomeCategories(maxCategoriesForTwoRows(w, isMobileTwoCol));
   }, []);
-
-  useEffect(() => {
-    const el = trackRef.current;
-    if (!el) return;
-    sync();
-    el.addEventListener("scroll", sync, { passive: true });
-    const ro = new ResizeObserver(sync);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener("scroll", sync);
-      ro.disconnect();
-    };
-  }, [sync, categories.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,14 +73,29 @@ export default function HomeCategoryGrid() {
     };
   }, []);
 
-  const scroll = (dir: "left" | "right") => {
-    const el = trackRef.current;
+  /* Recompute when category count changes (e.g. after fetch). Fixed deps array length. */
+  useLayoutEffect(() => {
+    recomputeHomeLimit();
+  }, [recomputeHomeLimit, categories.length]);
+
+  /* Observers once; do not include variable-length or hot-reload-affected dep lists. */
+  useEffect(() => {
+    const el = gridWrapRef.current;
     if (!el) return;
-    const cardW = el.firstElementChild
-      ? (el.firstElementChild as HTMLElement).offsetWidth + 20
-      : 260;
-    el.scrollBy({ left: dir === "left" ? -cardW : cardW, behavior: "smooth" });
-  };
+    const ro = new ResizeObserver(() => {
+      recomputeHomeLimit();
+    });
+    ro.observe(el);
+    const mql = window.matchMedia(`(max-width: ${MOBILE_MAX_WIDTH}px)`);
+    const onMql = () => recomputeHomeLimit();
+    mql.addEventListener("change", onMql);
+    return () => {
+      ro.disconnect();
+      mql.removeEventListener("change", onMql);
+    };
+  }, [recomputeHomeLimit]);
+
+  const homeCategories = categories.slice(0, maxHomeCategories);
 
   return (
     <section className={styles.section}>
@@ -99,51 +115,17 @@ export default function HomeCategoryGrid() {
               </p>
             )}
           </div>
-          <div className={styles.arrowGroup}>
-            <button
-              className={`${styles.navArrow} ${!canLeft ? styles.navArrowDisabled : ""}`}
-              onClick={() => scroll("left")}
-              disabled={!canLeft}
-              aria-label="Scroll categories left"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-            </button>
-            <button
-              className={`${styles.navArrow} ${!canRight ? styles.navArrowDisabled : ""}`}
-              onClick={() => scroll("right")}
-              disabled={!canRight}
-              aria-label="Scroll categories right"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="m9 18 6-6-6-6" />
-              </svg>
-            </button>
-          </div>
+          <Link href="/categories" className={styles.viewAllLink}>
+            View all
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </Link>
         </div>
 
-        <div className={styles.sliderWrap}>
-          <div className={styles.track} ref={trackRef}>
-            {categories.map((cat, i) => {
+        <div className={styles.gridWrap} ref={gridWrapRef}>
+          <div className={styles.track}>
+            {homeCategories.map((cat, i) => {
               const count = countsBySlug.get(cat.slug) ?? 0;
               const bgColor = CATEGORY_BG_COLORS[i % CATEGORY_BG_COLORS.length];
               const imageSrc = CATEGORY_CARD_IMAGES[i % CATEGORY_CARD_IMAGES.length];
