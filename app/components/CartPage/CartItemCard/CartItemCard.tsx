@@ -266,14 +266,27 @@ export default function CartItemCard({
           </button>
         </div>
 
+        <div className={styles.cartUnitQtyMeta}>
+          <div className={styles.cartMetaRow}>
+            <span className={styles.cartMetaLabel}>Unit price</span>
+            <div className={styles.pricingValues}>
+              <span className={styles.strike}>₹{mrpUnit.toFixed(2)}</span>
+              <span className={styles.priceMain}>₹{safePrice.toFixed(2)}</span>
+            </div>
+          </div>
+          <div className={styles.cartMetaRow}>
+            <span className={styles.cartMetaLabel}>Quantity</span>
+            <p className={styles.qtySummaryLine}>{qtySummaryText}</p>
+          </div>
+        </div>
+
         <div
-          className={`${listingMoqStyles.root} ${listingMoqStyles.detailPage} ${listingMoqStyles.cartPageMoq} ${styles.cartMoqRoot}`}
+          className={`${listingMoqStyles.root} ${listingMoqStyles.cardListingLayout} ${listingMoqStyles.cartCardListing} ${styles.cartMoqRoot}`}
         >
           {hasBulk ? (
             <div className={listingMoqStyles.bulkRows}>
-              <div className={listingMoqStyles.row}>
-                <span className={listingMoqStyles.rowLabel}>{labels.outerPlural}</span>
-                <div className={listingMoqStyles.stepper}>
+              <div className={listingMoqStyles.cardListingOuterBox}>
+                <div className={`${listingMoqStyles.stepper} ${listingMoqStyles.stepperCardListing}`}>
                   <button
                     type="button"
                     className={listingMoqStyles.stepBtn}
@@ -299,14 +312,11 @@ export default function CartItemCard({
                   <button type="button" className={listingMoqStyles.stepBtn} onClick={() => setBagQty(bagQty + 1)} aria-label={`Increase ${labels.outerPlural}`}>
                     +
                   </button>
-                  <span className={listingMoqStyles.unit}>{labels.outer}</span>
+                  <span className={listingMoqStyles.cardListingUnitChip}>{labels.outerPlural}</span>
                 </div>
               </div>
-              <div className={listingMoqStyles.row}>
-                <span className={listingMoqStyles.rowLabel}>
-                  {qpb > 0 ? `${labels.innerPlural} (+/- ${qpb})` : labels.innerPlural}
-                </span>
-                <div className={listingMoqStyles.stepper}>
+              <div className={listingMoqStyles.cardListingOuterBox}>
+                <div className={`${listingMoqStyles.stepper} ${listingMoqStyles.stepperCardListing}`}>
                   <button
                     type="button"
                     className={listingMoqStyles.stepBtn}
@@ -314,7 +324,7 @@ export default function CartItemCard({
                       qpb > 0 ? setPacketQty(Math.max(0, pktQty - qpb)) : setPacketQty(Math.max(0, pktQty - 1))
                     }
                     disabled={pktQty <= 0}
-                    aria-label={qpb > 0 ? "Decrease one MOQ step" : "Decrease packets"}
+                    aria-label={qpb > 0 ? `Decrease packets by ${qpb}` : "Decrease packets"}
                   >
                     −
                   </button>
@@ -331,7 +341,7 @@ export default function CartItemCard({
                     }}
                     aria-label={
                       qpb > 0
-                        ? `Quantity in ${labels.innerPlural} (${qpb} per click)`
+                        ? `Quantity in ${labels.innerPlural}; +/- buttons change by ${qpb}`
                         : `Quantity in ${labels.innerPlural}`
                     }
                   />
@@ -339,18 +349,17 @@ export default function CartItemCard({
                     type="button"
                     className={listingMoqStyles.stepBtn}
                     onClick={() => (qpb > 0 ? setPacketQty(pktQty + qpb) : setPacketQty(pktQty + 1))}
-                    aria-label={qpb > 0 ? "Increase one MOQ step" : "Increase packets"}
+                    aria-label={qpb > 0 ? `Increase packets by ${qpb}` : "Increase packets"}
                   >
                     +
                   </button>
-                  <span className={listingMoqStyles.unit}>{qpb > 0 ? labels.innerPlural : labels.inner}</span>
+                  <span className={listingMoqStyles.cardListingUnitChip}>{labels.innerPlural}</span>
                 </div>
               </div>
             </div>
           ) : (
-            <div className={listingMoqStyles.row}>
-              <span className={listingMoqStyles.rowLabel}>{`Quantity (${labels.innerPlural})`}</span>
-              <div className={listingMoqStyles.stepper}>
+            <div className={listingMoqStyles.cardListingOuterBox}>
+              <div className={`${listingMoqStyles.stepper} ${listingMoqStyles.stepperCardListing}`}>
                 <button
                   type="button"
                   className={listingMoqStyles.stepBtn}
@@ -376,7 +385,7 @@ export default function CartItemCard({
                 <button type="button" className={listingMoqStyles.stepBtn} onClick={() => setPacketQty(pktQty + 1)} aria-label="Increase packets">
                   +
                 </button>
-                <span className={listingMoqStyles.unit}>{labels.innerPlural}</span>
+                <span className={listingMoqStyles.cardListingUnitChip}>{labels.innerPlural}</span>
               </div>
             </div>
           )}
@@ -384,19 +393,6 @@ export default function CartItemCard({
       </div>
 
       <div className={styles.pricingCol}>
-        <div className={styles.pricingRow}>
-          <span className={styles.pricingLabel}>Unit price</span>
-          <div className={styles.pricingValues}>
-            <span className={styles.strike}>₹{mrpUnit.toFixed(2)}</span>
-            <span className={styles.priceMain}>₹{safePrice.toFixed(2)}</span>
-          </div>
-        </div>
-
-        <div className={styles.pricingRow}>
-          <span className={styles.pricingLabel}>Quantity</span>
-          <p className={styles.qtySummaryLine}>{qtySummaryText}</p>
-        </div>
-
         <div className={styles.pricingRow}>
           <span className={styles.pricingLabel}>Total</span>
           <div className={styles.pricingValues}>
@@ -412,8 +408,8 @@ export default function CartItemCard({
                 </span>
               ) : null}
             </span>
-            <span className={styles.gstNote}>Total price without GST · ₹{combinedBasic.toFixed(2)}</span>
-            <span className={styles.gstNote}>incl. GST · GST ₹{gstAmount.toFixed(2)}</span>
+            <span className={styles.gstNote}>Basic price · ₹{combinedBasic.toFixed(2)}</span>
+            <span className={styles.gstNote}>Including GST · ₹{gstAmount.toFixed(2)}</span>
           </div>
         </div>
 

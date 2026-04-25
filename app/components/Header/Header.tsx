@@ -161,16 +161,33 @@ const Header = () => {
                 />
               </div>
 
-              {search.searchResults.length > 0 && (
+              {search.searchQuery.trim().length >= 2 && search.loading ? (
+                <p className="mobile-search-loading" aria-live="polite">
+                  Searching…
+                </p>
+              ) : null}
+              {search.searchQuery.trim().length >= 2 && !search.loading && search.searchResults.length === 0 ? (
+                <p className="mobile-search-empty">No products found</p>
+              ) : null}
+              {search.searchResults.length > 0 ? (
                 <ul className="mobile-search-results">
-                  {search.searchResults.slice(0, 5).map((result, i) => (
-                    <li key={i} onMouseDown={() => { search.navigateToProduct(result); setMobileMenuOpen(false); }} className="mobile-search-result-item">
+                  {search.searchResults.map((result) => (
+                    <li
+                      key={result.slug}
+                      onMouseDown={() => {
+                        search.navigateToProduct(result);
+                        setMobileMenuOpen(false);
+                      }}
+                      className="mobile-search-result-item"
+                    >
                       <span>{result.name}</span>
-                      <span className="mobile-result-category">{result.category}</span>
+                      <span className="mobile-result-category">
+                        {[result.category, result.brand].filter(Boolean).join(" · ")}
+                      </span>
                     </li>
                   ))}
                 </ul>
-              )}
+              ) : null}
 
               <ul className="mobile-nav-links">
                 <li><Link href="/" className="mobile-nav-link">Home</Link></li>

@@ -14,6 +14,11 @@ interface ProductGridProps {
   listingEntries: ProductListingEntry[];
   /** Home “All Products”: label left, quantity box right. */
   cardListingLayout?: boolean;
+  /**
+   * Category pages: stacked price labels + full-width MOQ rows with captions (matches cart-style hierarchy).
+   * Implies `cardListingLayout` for quantity controls.
+   */
+  categoryCardLayout?: boolean;
   /** `four`: category-style grid — 4 cards per row on large screens (default is 5). */
   gridDensity?: "default" | "four";
 }
@@ -25,8 +30,10 @@ function listingKey(productId: number, sellerId: string) {
 export default function ProductGrid({
   listingEntries: entries,
   cardListingLayout = false,
+  categoryCardLayout = false,
   gridDensity = "default",
 }: ProductGridProps) {
+  const useCardListing = categoryCardLayout || cardListingLayout;
   const imageSizes =
     gridDensity === "four"
       ? "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1279px) 25vw, 25vw"
@@ -90,17 +97,29 @@ export default function ProductGrid({
               ) : null}
 
               <h3 className={styles.title}>{productHeading(product.name, size0.size)}</h3>
-              <div className={styles.cardPriceBlock}>
-                <p className={styles.cardPriceGst}>
-                  ₹{size0.withGST.toFixed(2)} incl. GST / {listLabels.inner}
-                </p>
-                <p className={styles.cardPriceBasic}>₹{size0.basicPrice.toFixed(2)} basic</p>
-              </div>
+              {categoryCardLayout ? (
+                <div className={styles.cardPriceStack}>
+                  <span className={styles.cardPriceLabel}>Price (incl. GST)</span>
+                  <p className={styles.cardPriceGst}>
+                    ₹{size0.withGST.toFixed(2)} / {listLabels.inner}
+                  </p>
+                  <span className={styles.cardPriceLabel}>Basic</span>
+                  <p className={styles.cardPriceBasic}>₹{size0.basicPrice.toFixed(2)}</p>
+                </div>
+              ) : (
+                <div className={styles.cardPriceBlock}>
+                  <p className={styles.cardPriceGst}>
+                    ₹{size0.withGST.toFixed(2)} incl. GST / {listLabels.inner}
+                  </p>
+                  <p className={styles.cardPriceBasic}>₹{size0.basicPrice.toFixed(2)} basic</p>
+                </div>
+              )}
               <ListingMoqCartControls
                 model={listingEntryToModel(entry)}
                 labels={listLabels}
                 className={styles.listingMoqWrap}
-                cardListingLayout={cardListingLayout}
+                cardListingLayout={useCardListing}
+                labeledBulkCardRows={categoryCardLayout}
               />
             </div>
           </Link>

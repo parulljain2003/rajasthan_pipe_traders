@@ -102,6 +102,97 @@
   width: 100%;
 }
 
+/* Product detail: same stepper + unit chip UI as listing cards, full width in premium block */
+.pdpCardListing {
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+}
+
+/* Product detail only: bulk (bags + pkts) card steppers side by side on one row */
+.cardListingLayout.pdpCardListing .bulkRows {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.75rem 1rem;
+}
+
+.cardListingLayout.pdpCardListing .bulkRows > .cardListingOuterBox {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/*
+ * Cart line items: same − / value / + + unit chip as listing cards, smaller touch targets,
+ * always stacked (never the PDP side-by-side row).
+ */
+.cardListingLayout.cartCardListing {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.cardListingLayout.cartCardListing .bulkRows {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.4rem;
+  width: 50%;
+}
+
+.cardListingLayout.cartCardListing .cardListingOuterBox {
+  width: 100%;
+  min-width: 0;
+}
+
+.cardListingLayout.cartCardListing .stepper.stepperCardListing {
+  min-height: 30px;
+  padding: 0.16rem 0.38rem;
+  gap: 0.28rem;
+  width: 100%;
+  max-width: 100%;
+}
+
+.cardListingLayout.cartCardListing .stepperCardListing .stepBtn {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  flex: 0 0 26px;
+  font-size: 0.9rem;
+}
+
+.cardListingLayout.cartCardListing .stepperCardListing .stepValue,
+.cardListingLayout.cartCardListing .stepperCardListing .stepInput {
+  font-size: 0.78rem;
+  min-width: 1.75rem;
+}
+
+.cardListingLayout.cartCardListing .cardListingUnitChip {
+  font-size: 0.52rem;
+  padding: 0.12rem 0.3rem;
+  min-width: 1.75rem;
+  margin-left: 0.12rem;
+}
+
+@media (max-width: 480px) {
+  .cardListingLayout.cartCardListing .stepper.stepperCardListing {
+    min-height: 28px;
+    padding: 0.12rem 0.3rem;
+    gap: 0.22rem;
+  }
+
+  .cardListingLayout.cartCardListing .stepperCardListing .stepBtn {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    flex: 0 0 24px;
+    font-size: 0.85rem;
+  }
+}
+
 .cardListingLayout .bulkRows {
   display: flex;
   flex-direction: column;
@@ -110,8 +201,53 @@
   align-items: stretch;
 }
 
+/* Category bulk cards: row caption + full-width stepper; bag/pkt rows same width */
+.labeledBulkRows {
+  width: 100%;
+  min-width: 0;
+}
+
+.labeledBulkRows .bulkRows {
+  gap: 0.42rem;
+}
+
+.cardListingLabeledRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: 100%;
+  min-width: 0;
+  align-items: stretch;
+}
+
+.cardListingRowCap {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0369a1;
+}
+
+.labeledBulkRows .cardListingOuterBox {
+  width: 100%;
+  min-width: 0;
+}
+
+.labeledBulkRows .stepper.stepperCardListing {
+  width: 100%;
+  max-width: 100%;
+}
+
+.labeledBulkRows .cardListingUnitChip {
+  flex: 0 0 2.9rem;
+  min-width: 2.9rem;
+  max-width: 2.9rem;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
 /* Rounded frame around counter row (unit chip inside stepper) */
-.cardListingOuterBox {
+/* .cardListingOuterBox {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -122,7 +258,7 @@
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
   box-sizing: border-box;
-}
+} */
 
 .cardListingUnitChip {
   display: inline-flex;

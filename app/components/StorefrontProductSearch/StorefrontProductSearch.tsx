@@ -1,8 +1,25 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { searchData, type SearchEntry } from "@/app/data/searchData";
+import type { SearchEntry } from "@/app/data/searchData";
+import type { ApiProduct, ApiProductsListResponse } from "@/app/lib/api/types";
+
+function apiProductToSearchEntry(p: ApiProduct): SearchEntry | null {
+  const slug = typeof p.slug === "string" ? p.slug.trim() : "";
+  if (!slug) return null;
+  const category = p.category?.name?.trim() ?? "";
+  const brand =
+    (typeof p.brand === "string" && p.brand.trim()) ||
+    (p.sellers?.[0] && typeof p.sellers[0].brand === "string" ? p.sellers[0].brand.trim() : "") ||
+    "";
+  return {
+    name: typeof p.name === "string" ? p.name : "",
+    slug,
+    category,
+    brand,
+  };
+}
 
 function highlightMatch(text: string, query: string): React.ReactNode {
   const q = query.trim();
@@ -20,33 +37,90 @@ function highlightMatch(text: string, query: string): React.ReactNode {
   );
 }
 
+const SEARCH_DEBOUNCE_MS = 280;
+/** Matches storefront GET /api/products max limit (see lib/catalog/storefront.ts). */
+const SEARCH_LIMIT = 500;
+
 export function useStorefrontProductSearch() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [totalMatchCount, setTotalMatchCount] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const searchResults = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return [];
-    return searchData
-      .filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) ||
-          e.slug.toLowerCase().includes(q) ||
-          e.category.toLowerCase().includes(q) ||
-          e.brand.toLowerCase().includes(q),
-      )
-      .slice(0, 8);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const q = searchQuery.trim();
+
+    if (q.length < 2) {
+      if (abortRef.current) abortRef.current.abort();
+      setSearchResults([]);
+      setTotalMatchCount(0);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    debounceRef.current = setTimeout(() => {
+      if (abortRef.current) abortRef.current.abort();
+      const ac = new AbortController();
+      abortRef.current = ac;
+
+      void (async () => {
+        try {
+          const sp = new URLSearchParams({
+            q,
+            limit: String(SEARCH_LIMIT),
+            skip: "0",
+          });
+          const res = await fetch(`/api/products?${sp.toString()}`, {
+            signal: ac.signal,
+            cache: "no-store",
+            headers: { Accept: "application/json" },
+          });
+          const json = (await res.json()) as ApiProductsListResponse & { error?: string };
+          if (ac.signal.aborted) return;
+          if (!res.ok || !Array.isArray(json.data)) {
+            setSearchResults([]);
+            setTotalMatchCount(0);
+            return;
+          }
+          const entries: SearchEntry[] = [];
+          for (const p of json.data) {
+            const e = apiProductToSearchEntry(p);
+            if (e) entries.push(e);
+          }
+          setSearchResults(entries);
+          setTotalMatchCount(typeof json.meta?.total === "number" ? json.meta.total : entries.length);
+        } catch (e) {
+          if ((e as Error).name === "AbortError") return;
+          if (!ac.signal.aborted) {
+            setSearchResults([]);
+            setTotalMatchCount(0);
+          }
+        } finally {
+          if (!ac.signal.aborted) setLoading(false);
+        }
+      })();
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
   }, [searchQuery]);
 
   useEffect(() => {
     setActiveIndex(0);
-  }, [searchQuery]);
+  }, [searchResults]);
 
   const navigateToProduct = useCallback(
     (result: SearchEntry) => {
-      router.push(`/products/${result.slug}`);
+      router.push(`/products/${encodeURIComponent(result.slug)}`);
       setSearchQuery("");
       setIsFocused(false);
     },
@@ -57,6 +131,8 @@ export function useStorefrontProductSearch() {
     searchQuery,
     setSearchQuery,
     searchResults,
+    loading,
+    totalMatchCount,
     navigateToProduct,
     isFocused,
     setIsFocused,
@@ -71,6 +147,8 @@ export function StorefrontProductSearchView({
   searchQuery,
   setSearchQuery,
   searchResults,
+  loading,
+  totalMatchCount,
   navigateToProduct,
   isFocused,
   setIsFocused,
@@ -78,7 +156,9 @@ export function StorefrontProductSearchView({
   setActiveIndex,
 }: StorefrontProductSearchState) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  const showDropdown = isFocused && searchQuery.trim().length > 0;
+  const qTrim = searchQuery.trim();
+  const showDropdown = isFocused && qTrim.length > 0;
+  const needMoreChars = qTrim.length === 1;
 
   useEffect(() => {
     function onDocMouseDown(e: MouseEvent) {
@@ -152,44 +232,66 @@ export function StorefrontProductSearchView({
 
       {showDropdown ? (
         <div className="search-dropdown" id="storefront-search-results" role="listbox">
-          {searchResults.length > 0 ? (
+          {needMoreChars ? (
+            <div className="search-no-results search-no-results--hint">
+              <p>Type at least 2 characters</p>
+              <span>Search matches name, SKU, brand, category, and more</span>
+            </div>
+          ) : loading ? (
+            <div className="search-no-results search-no-results--loading">
+              <p>Searching…</p>
+            </div>
+          ) : searchResults.length > 0 ? (
             <>
-              <div className="search-dropdown-header">Products</div>
+              <div className="search-dropdown-header">
+                <span className="search-dropdown-header-label">Suggestions</span>
+                <span className="search-dropdown-header-meta">
+                  {totalMatchCount > searchResults.length
+                    ? `${searchResults.length} of ${totalMatchCount}`
+                    : `${searchResults.length} ${searchResults.length === 1 ? "result" : "results"}`}
+                </span>
+              </div>
               <ul className="search-results-list" role="presentation">
-                {searchResults.map((result, i) => (
-                  <li key={`${result.slug}-${i}`} role="option" aria-selected={i === activeIndex}>
-                    <button
-                      type="button"
-                      className={`search-result-item ${i === activeIndex ? "active" : ""}`}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onMouseEnter={() => setActiveIndex(i)}
-                      onClick={() => navigateToProduct(result)}
-                    >
-                      <svg className="result-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path
-                          d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                        />
-                      </svg>
-                      <div className="result-text">
-                        <span className="result-name">{highlightMatch(result.name, searchQuery)}</span>
-                        <span className="result-category">
-                          {result.category} · {result.brand}
+                {searchResults.map((result, i) => {
+                  const initial = (result.name.trim().charAt(0) || "?").toUpperCase();
+                  return (
+                    <li key={result.slug} role="option" aria-selected={i === activeIndex}>
+                      <button
+                        type="button"
+                        className={`search-suggestion-card ${i === activeIndex ? "is-active" : ""}`}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onMouseEnter={() => setActiveIndex(i)}
+                        onClick={() => navigateToProduct(result)}
+                      >
+                        <span className="search-suggestion-avatar" aria-hidden>
+                          {initial}
                         </span>
-                      </div>
-                      <svg className="result-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path d="m9 18 6-6-6-6" stroke="currentColor" strokeWidth="2" />
-                      </svg>
-                    </button>
-                  </li>
-                ))}
+                        <div className="search-suggestion-body">
+                          <span className="search-suggestion-name">{highlightMatch(result.name, searchQuery)}</span>
+                          <div className="search-suggestion-tags">
+                            {result.category ? (
+                              <span className="search-suggestion-pill search-suggestion-pill--muted">{result.category}</span>
+                            ) : null}
+                            {result.brand ? (
+                              <span className="search-suggestion-pill">{result.brand}</span>
+                            ) : null}
+                          </div>
+                        </div>
+                        <span className="search-suggestion-chevron" aria-hidden>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="m10 17 5-5-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             </>
           ) : (
             <div className="search-no-results">
               <p>No products found</p>
-              <span>Try a different name or category</span>
+              <span>Try a different name, SKU, or brand</span>
             </div>
           )}
         </div>
