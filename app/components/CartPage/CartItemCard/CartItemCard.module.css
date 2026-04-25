@@ -145,6 +145,20 @@
   color: #64748b;
 }
 
+.comboInlineMsg {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  font-weight: 700;
+  color: #065f46;
+  background: #ecfdf5;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+  width: fit-content;
+  max-width: 100%;
+}
+
 .removeBtn {
   background: none;
   border: 1px solid #f1f5f9;

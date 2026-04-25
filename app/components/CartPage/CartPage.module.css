@@ -181,6 +181,122 @@
   min-width: 0;
 }
 
+/* Single combo guidance section for cart users */
+.comboGuideCard {
+  border-radius: 16px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: linear-gradient(145deg, #fffbeb 0%, #fef3c7 45%, #fde68a 100%);
+  box-shadow: 0 4px 20px rgba(180, 83, 9, 0.12);
+  padding: 0.95rem 1rem 1rem;
+}
+
+.comboGuideCardSuccess {
+  border: 1px solid rgba(16, 185, 129, 0.36);
+  background: linear-gradient(145deg, #ecfdf5 0%, #d1fae5 45%, #a7f3d0 100%);
+  box-shadow: 0 4px 20px rgba(5, 150, 105, 0.14);
+}
+
+.comboGuideCardSuccess .comboGuideBadge {
+  color: #065f46;
+  background: linear-gradient(135deg, #d1fae5 0%, #86efac 100%);
+  border-color: rgba(5, 150, 105, 0.36);
+}
+
+.comboGuideCardSuccess .comboGuideTitle,
+.comboGuideCardSuccess .comboGuideText,
+.comboGuideCardSuccess .comboGuideSectionTitle {
+  color: #065f46;
+}
+
+.comboGuideCardSuccess .comboGuidePill {
+  color: #065f46;
+  background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 100%);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.comboGuideCardSuccess .comboGuidePill:hover {
+  border-color: rgba(5, 150, 105, 0.58);
+  box-shadow: 0 5px 16px rgba(5, 150, 105, 0.15);
+}
+
+.comboGuideHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.55rem;
+}
+
+.comboGuideBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.62rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #92400e;
+  background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%);
+  border: 1px solid rgba(217, 119, 6, 0.4);
+  border-radius: 999px;
+}
+
+.comboGuideTitle {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: #78350f;
+}
+
+.comboGuideText {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  font-weight: 600;
+  color: #78350f;
+}
+
+.comboGuideSection {
+  margin-top: 0.72rem;
+}
+
+.comboGuideSectionTitle {
+  margin: 0 0 0.42rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.comboGuidePills {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.comboGuidePill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #7c2d12;
+  text-decoration: none;
+  background: linear-gradient(180deg, #ffffff 0%, #fffbeb 100%);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 12px;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.comboGuidePill:hover {
+  transform: translateY(-1px);
+  border-color: rgba(234, 88, 12, 0.55);
+  box-shadow: 0 5px 16px rgba(234, 88, 12, 0.12);
+}
+
 /* Combo offer hint from /api/cart/combo-pricing — shown above product list */
 .comboSuggestionBanner {
   display: flex;

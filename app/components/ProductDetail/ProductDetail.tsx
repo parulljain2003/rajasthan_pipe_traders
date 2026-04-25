@@ -5,16 +5,27 @@ import ImageGallery from "./ImageGallery/ImageGallery";
 import ProductInfo from "./ProductInfo/ProductInfo";
 import SpecsTable from "./SpecsTable/SpecsTable";
 import RelatedProducts from "./RelatedProducts/RelatedProducts";
+import ComboTargetPdpNotice from "./ComboTargetPdpNotice";
+import ComboTriggerPdpHint from "./ComboTriggerPdpHint";
 import type { Product } from "../../data/products";
+import type { ComboTargetAddBlockedInfo } from "@/lib/combo/comboAddGuard";
 
 interface ProductDetailProps {
   product: Product;
   relatedProducts: Product[];
+  /** Combo *target* PDP notice when `isEligibleForCombo` is true (storefront). */
+  comboTargetPdpNotice?: ComboTargetAddBlockedInfo;
+  /** Combo *trigger* PDP hint when this product helps unlock combo offers in cart. */
+  comboTriggerPdpMessage?: string;
+  comboTriggerTargetSlugs?: string[];
 }
 
 export default function ProductDetail({
   product,
   relatedProducts,
+  comboTargetPdpNotice,
+  comboTriggerPdpMessage,
+  comboTriggerTargetSlugs,
 }: ProductDetailProps) {
   const aboutText = (product.longDescription || product.description || "").trim();
 
@@ -44,7 +55,19 @@ export default function ProductDetail({
         {/* Top Section: Gallery + Info */}
         <div className={styles.topGrid}>
           <ImageGallery product={product} />
-          <ProductInfo key={product.slug} product={product} />
+          <div className={styles.pdpInfoColumn}>
+            {comboTriggerPdpMessage ? (
+              <ComboTriggerPdpHint
+                productSlug={product.slug}
+                message={comboTriggerPdpMessage}
+                fallbackTargetSlugs={comboTriggerTargetSlugs}
+              />
+            ) : null}
+            {comboTargetPdpNotice ? (
+              <ComboTargetPdpNotice productSlug={product.slug} info={comboTargetPdpNotice} />
+            ) : null}
+            <ProductInfo key={product.slug} product={product} />
+          </div>
         </div>
 
         {/* Description — long text, or short description when long is empty (matches admin “Description” field) */}

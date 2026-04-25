@@ -67,6 +67,153 @@
   align-items: start;
 }
 
+.pdpInfoColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.comboTriggerPdpHint {
+  border-radius: 14px;
+  border: 1px solid #86efac;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  padding: 0.9rem 1rem;
+}
+
+.comboTriggerPdpHintBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.58rem;
+  border-radius: 999px;
+  border: 1px solid #6ee7b7;
+  background: #d1fae5;
+  color: #065f46;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.comboTriggerPdpHintText {
+  margin: 0.55rem 0 0;
+  color: #065f46;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.comboTriggerPdpLinksWrap {
+  margin-top: 0.65rem;
+}
+
+.comboTriggerPdpLinksLabel {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #047857;
+}
+
+.comboTriggerPdpLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+}
+
+.comboTriggerPdpLink {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #065f46;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.comboTriggerPdpLink:hover {
+  color: #047857;
+}
+
+.comboPdpNotice {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.1rem 1.25rem;
+  border-radius: 16px;
+  border: 1px solid #fcd34d;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef9c3 45%, #fff7ed 100%);
+  color: #713f12;
+}
+
+.comboPdpNoticeSuccess {
+  border: 1px solid #86efac;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 45%, #bbf7d0 100%);
+  color: #065f46;
+}
+
+.comboPdpNoticeSuccess .comboPdpNoticeIcon {
+  color: #059669;
+}
+
+.comboPdpNoticeSuccess .comboPdpNoticeLead {
+  color: #065f46;
+}
+
+.comboPdpNoticeIcon {
+  flex-shrink: 0;
+  color: #b45309;
+  margin-top: 0.05rem;
+}
+
+.comboPdpNoticeBody {
+  min-width: 0;
+  flex: 1;
+}
+
+.comboPdpNoticeLead {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.comboPdpNoticeLinksWrap {
+  margin-top: 0.85rem;
+}
+
+.comboPdpNoticeLinksLabel {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.45;
+  color: #92400e;
+  margin-bottom: 0.45rem;
+}
+
+.comboPdpNoticeLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.65rem;
+  align-items: center;
+}
+
+.comboPdpNoticeLink {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #92400e;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.comboPdpNoticeLink:hover {
+  color: #b45309;
+}
+
+.comboPdpNoticeMore {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  opacity: 0.92;
+}
+
 /* ── Description ── */
 .descriptionBlock {
   background: #ffffff;

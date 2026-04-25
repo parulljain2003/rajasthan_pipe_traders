@@ -184,10 +184,19 @@ const productSchema = new Schema(
     isActive: { type: Boolean, default: true },
     sourceDocument: { type: String, default: "RPT PRICE LIST" },
     /**
-     * When true, this product’s cart lines count toward the eligible-packet pool
-     * (1.4–18MM clips, clamps, batten, wall plugs, etc.).
+     * null = not a combo target/fallback (admin trigger picker treats non-boolean as eligible).
+     * true = combo target; false = combo fallback (set by combo rule APIs).
      */
-    isEligibleForCombo: { type: Boolean, default: false },
+    isEligibleForCombo: {
+      type: Schema.Types.Mixed,
+      validate: {
+        validator(v: unknown) {
+          return v === null || typeof v === "boolean";
+        },
+        message: "isEligibleForCombo must be null or a boolean",
+      },
+      default: null,
+    },
   },
   { timestamps: true, suppressReservedKeysWarning: true }
 );

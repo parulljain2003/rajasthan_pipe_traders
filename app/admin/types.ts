@@ -30,6 +30,7 @@ export type AdminComboRule = {
   fallbackTargetSlugs?: string[];
   triggerCategoryIds?: string[];
   targetCategoryIds?: string[];
+  fallbackCategoryIds?: string[];
   minTriggerBags: number;
   minTargetBags: number;
   triggerThresholdUnit: ComboThresholdUnit;

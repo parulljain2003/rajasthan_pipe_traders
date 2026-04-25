@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDb } from "@/lib/db/connect";
 import {
+  bumpAllProductSortOrdersByOne,
+  bumpCategoryProductSortOrdersByOne,
   findGlobalProductSortOrderConflict,
   maxSortOrderInProducts,
+  normalizeNonPositiveCategoryProductSortOrders,
+  normalizeNonPositiveProductSortOrders,
   parseSortOrderInput,
   productSortOrderConflictPayload,
 } from "@/lib/db/productSortOrder";
@@ -107,7 +111,7 @@ export async function POST(req: NextRequest) {
         let doc;
         try {
           await session.withTransaction(async () => {
-            const maxSo = await maxSortOrderInProducts();
+            const maxSo = await maxSortOrderInProducts(session);
             await ProductModel.updateOne(
               { _id: conflict._id },
               { $set: { sortOrder: maxSo + 1 } },
@@ -178,7 +182,7 @@ export async function POST(req: NextRequest) {
                     typeof body.packaging === "object" && body.packaging !== null ? body.packaging : {},
                   isActive: typeof body.isActive === "boolean" ? body.isActive : true,
                   isEligibleForCombo:
-                    typeof body.isEligibleForCombo === "boolean" ? body.isEligibleForCombo : false,
+                    typeof body.isEligibleForCombo === "boolean" ? body.isEligibleForCombo : null,
                   sourceDocument:
                     typeof body.sourceDocument === "string" ? body.sourceDocument : "RPT PRICE LIST",
                   legacyId: typeof body.legacyId === "number" ? body.legacyId : undefined,
@@ -224,55 +228,84 @@ export async function POST(req: NextRequest) {
         : undefined;
     const slug = await ensureUniqueProductSlug(slugInput);
     const kf = sanitizeKeyFeaturesInput(body.keyFeatures);
-    const doc = await ProductModel.create({
-      ...(sku ? { sku } : {}),
-      name,
-      productKind,
-      slug,
-      category: new mongoose.Types.ObjectId(categoryId),
-      sortOrder,
-      description: typeof body.description === "string" ? body.description : undefined,
-      longDescription: typeof body.longDescription === "string" ? body.longDescription : undefined,
-      subCategory: typeof body.subCategory === "string" ? body.subCategory : undefined,
-      brand: typeof body.brand === "string" ? body.brand : undefined,
-      brandCode: typeof body.brandCode === "string" ? body.brandCode : undefined,
-      productLine: typeof body.productLine === "string" ? body.productLine : undefined,
-      sizeOrModel: typeof body.sizeOrModel === "string" ? body.sizeOrModel : undefined,
-      features:
-        kf && kf.length > 0 ? [] : Array.isArray(body.features) ? body.features : undefined,
-      ...(kf && kf.length > 0 ? { keyFeatures: kf } : {}),
-      image: typeof body.image === "string" ? body.image : undefined,
-      images: Array.isArray(body.images) ? body.images : undefined,
-      isNew: typeof body.isNew === "boolean" ? body.isNew : false,
-      isIsiCertified: typeof body.isIsiCertified === "boolean" ? body.isIsiCertified : false,
-      isBestseller: typeof body.isBestseller === "boolean" ? body.isBestseller : undefined,
-      tags: Array.isArray(body.tags) ? body.tags : undefined,
-      certifications: Array.isArray(body.certifications) ? body.certifications : undefined,
-      material: typeof body.material === "string" ? body.material : undefined,
-      minOrder: typeof body.minOrder === "string" ? body.minOrder : undefined,
-      moq: typeof body.moq === "number" ? body.moq : undefined,
-      moqBags: typeof body.moqBags === "number" ? body.moqBags : undefined,
-      note: typeof body.note === "string" ? body.note : undefined,
-      listNotes: typeof body.listNotes === "string" ? body.listNotes : undefined,
-      alternateSkus: Array.isArray(body.alternateSkus) ? body.alternateSkus : undefined,
-      discountTiers: Array.isArray(body.discountTiers) ? body.discountTiers : undefined,
-      sizes: Array.isArray(body.sizes) ? body.sizes : undefined,
-      sellers: Array.isArray(body.sellers) ? body.sellers : undefined,
-      pricing: {
-        basicPrice: pricing.basicPrice,
-        priceWithGst: pricing.priceWithGst,
-        currency: typeof pricing.currency === "string" ? pricing.currency : "INR",
-        priceListEffectiveDate: pricing.priceListEffectiveDate
-          ? new Date(String(pricing.priceListEffectiveDate))
-          : undefined,
-      },
-      packaging: typeof body.packaging === "object" && body.packaging !== null ? body.packaging : {},
-      isActive: typeof body.isActive === "boolean" ? body.isActive : true,
-      isEligibleForCombo: typeof body.isEligibleForCombo === "boolean" ? body.isEligibleForCombo : false,
-      sourceDocument:
-        typeof body.sourceDocument === "string" ? body.sourceDocument : "RPT PRICE LIST",
-      legacyId: typeof body.legacyId === "number" ? body.legacyId : undefined,
-    });
+
+    const session = await mongoose.startSession();
+    let doc!: { _id: mongoose.Types.ObjectId };
+    try {
+      await session.withTransaction(async () => {
+        await normalizeNonPositiveProductSortOrders(session);
+        await normalizeNonPositiveCategoryProductSortOrders(categoryOid, session);
+        await bumpAllProductSortOrdersByOne(session);
+        await bumpCategoryProductSortOrdersByOne(categoryOid, session);
+        const createdArr = (await ProductModel.create(
+          [
+            {
+              ...(sku ? { sku } : {}),
+              name,
+              productKind,
+              slug,
+              category: categoryOid,
+              sortOrder: 1,
+              categorySortOrder: 1,
+              description: typeof body.description === "string" ? body.description : undefined,
+              longDescription:
+                typeof body.longDescription === "string" ? body.longDescription : undefined,
+              subCategory: typeof body.subCategory === "string" ? body.subCategory : undefined,
+              brand: typeof body.brand === "string" ? body.brand : undefined,
+              brandCode: typeof body.brandCode === "string" ? body.brandCode : undefined,
+              productLine: typeof body.productLine === "string" ? body.productLine : undefined,
+              sizeOrModel: typeof body.sizeOrModel === "string" ? body.sizeOrModel : undefined,
+              features:
+                kf && kf.length > 0 ? [] : Array.isArray(body.features) ? body.features : undefined,
+              ...(kf && kf.length > 0 ? { keyFeatures: kf } : {}),
+              image: typeof body.image === "string" ? body.image : undefined,
+              images: Array.isArray(body.images) ? body.images : undefined,
+              isNew: typeof body.isNew === "boolean" ? body.isNew : false,
+              isIsiCertified: typeof body.isIsiCertified === "boolean" ? body.isIsiCertified : false,
+              isBestseller: typeof body.isBestseller === "boolean" ? body.isBestseller : undefined,
+              tags: Array.isArray(body.tags) ? body.tags : undefined,
+              certifications: Array.isArray(body.certifications) ? body.certifications : undefined,
+              material: typeof body.material === "string" ? body.material : undefined,
+              minOrder: typeof body.minOrder === "string" ? body.minOrder : undefined,
+              moq: typeof body.moq === "number" ? body.moq : undefined,
+              moqBags: typeof body.moqBags === "number" ? body.moqBags : undefined,
+              note: typeof body.note === "string" ? body.note : undefined,
+              listNotes: typeof body.listNotes === "string" ? body.listNotes : undefined,
+              alternateSkus: Array.isArray(body.alternateSkus) ? body.alternateSkus : undefined,
+              discountTiers: Array.isArray(body.discountTiers) ? body.discountTiers : undefined,
+              sizes: Array.isArray(body.sizes) ? body.sizes : undefined,
+              sellers: Array.isArray(body.sellers) ? body.sellers : undefined,
+              pricing: {
+                basicPrice: pricing.basicPrice,
+                priceWithGst: pricing.priceWithGst,
+                currency: typeof pricing.currency === "string" ? pricing.currency : "INR",
+                priceListEffectiveDate: pricing.priceListEffectiveDate
+                  ? new Date(String(pricing.priceListEffectiveDate))
+                  : undefined,
+              },
+              packaging:
+                typeof body.packaging === "object" && body.packaging !== null ? body.packaging : {},
+              isActive: typeof body.isActive === "boolean" ? body.isActive : true,
+              isEligibleForCombo:
+                typeof body.isEligibleForCombo === "boolean" ? body.isEligibleForCombo : null,
+              sourceDocument:
+                typeof body.sourceDocument === "string" ? body.sourceDocument : "RPT PRICE LIST",
+              legacyId: typeof body.legacyId === "number" ? body.legacyId : undefined,
+            },
+          ] as never,
+          { session }
+        )) as unknown as { _id: mongoose.Types.ObjectId }[];
+        doc = { _id: createdArr[0]._id };
+      });
+    } catch (e) {
+      if (e instanceof Error && e.message.includes("pricing")) {
+        return err(e.message, 400);
+      }
+      throw e;
+    } finally {
+      await session.endSession();
+    }
+
     const populated = await ProductModel.findById(doc._id).populate("category", "name slug").lean();
     return NextResponse.json({
       data: serializeProductLean(populated as Parameters<typeof serializeProductLean>[0]),
