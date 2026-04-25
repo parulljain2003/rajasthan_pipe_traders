@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDb } from "@/lib/db/connect";
+import { MONGO_MAX_TIME_MS } from "@/lib/db/mongoTimeout";
+import { logApiRouteError } from "@/lib/http/apiError";
 import { LeadModel } from "@/lib/db/models/Lead";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     await connectDb();
 
-    const existing = await LeadModel.findOne({ phone }).lean();
+    const existing = await LeadModel.findOne({ phone }).maxTimeMS(MONGO_MAX_TIME_MS).lean();
     const nextStatus: "non-ordered" | "ordered" =
       existing && existing.status === "ordered" ? "ordered" : "non-ordered";
 
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest) {
         },
         $setOnInsert: { createdAt: new Date() },
       },
-      { new: true, upsert: true, runValidators: true }
+      { new: true, upsert: true, runValidators: true, maxTimeMS: MONGO_MAX_TIME_MS }
     );
 
     return NextResponse.json(
@@ -59,6 +61,7 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
   } catch (e) {
+    logApiRouteError("POST /api/leads", e);
     const message = e instanceof Error ? e.message : "Server error";
     return err(message, 500);
   }

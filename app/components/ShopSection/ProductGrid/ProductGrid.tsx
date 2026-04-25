@@ -44,9 +44,11 @@ export default function ProductGrid({
   }
 
 
+  const priorityUpTo = 6;
+
   return (
     <div className={`${styles.grid} ${gridDensity === "four" ? styles.gridDensityFour : ""}`}>
-      {entries.map((entry) => {
+      {entries.map((entry, index) => {
         const { product, offer } = entry;
         const brandSource = (product.brand || offer.brand || "").trim();
         const pillLabel = brandPillLabel(brandSource);
@@ -73,6 +75,7 @@ export default function ProductGrid({
                   alt={product.name}
                   fill
                   sizes={imageSizes}
+                  priority={index < priorityUpTo}
                   style={{ objectFit: 'contain', padding: '0.8rem' }}
                 />
               </div>

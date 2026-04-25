@@ -4,6 +4,7 @@ import { connectDb } from "@/lib/db/connect";
 import { OrderModel } from "@/lib/db/models/Order";
 import { LeadModel } from "@/lib/db/models/Lead";
 import { orderSerialFromMongoId } from "@/lib/utils/orderSerialFromId";
+import { logApiRouteError } from "@/lib/http/apiError";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -123,6 +124,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (e) {
+    logApiRouteError("POST /api/quotation-request", e);
     const message = e instanceof Error ? e.message : "Server error";
     return err(message, 500);
   }

@@ -265,7 +265,7 @@ export default function AdminBannerPage() {
             />
           </div>
           <div className="admin-field">
-            <label htmlFor="h1b">Headline — second part (e.g. leading space + “Pipe Traders”)</label>
+            <label htmlFor="h1b">Headline — second part (e.g. “Pipe Traders”; a space is added after the first part)</label>
             <input
               id="h1b"
               className="admin-input"

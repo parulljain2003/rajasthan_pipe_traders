@@ -21,6 +21,6 @@ export async function GET(req: NextRequest) {
       meta: result.meta,
     });
   } catch (e) {
-    return serverFetchError(e);
+    return serverFetchError(e, 500, { route: "GET /api/products" });
   }
 }

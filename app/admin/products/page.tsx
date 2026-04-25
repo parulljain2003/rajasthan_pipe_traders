@@ -835,16 +835,16 @@ export default function AdminProductsPage() {
     // Move the items in local state
     const newList = arrayMove(list, oldIndex, newIndex);
 
-    const finalSortOrders = newList.map((_, index) => index + 1);
+    const finalSortOrders = newList.map((_: AdminProduct, index: number) => index + 1);
 
     // Create the updates mapping: id -> new sort order
-    const updates = newList.map((p, index) => ({
+    const updates = newList.map((p: AdminProduct, index: number) => ({
       id: p._id,
       sortOrder: finalSortOrders[index] ?? 0,
     }));
 
     // Optimistically update the list with new sort orders
-    const newlyOrderedList = newList.map((p, index) => ({
+    const newlyOrderedList = newList.map((p: AdminProduct, index: number) => ({
       ...p,
       sortOrder: finalSortOrders[index] ?? 0,
     }));

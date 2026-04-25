@@ -300,8 +300,9 @@ export default function HeroBanner({ banner }: { banner: HomeBannerPayload }) {
           </div>
 
           <h1 className={styles.headline}>
-            <span className={styles.companyName}>{banner.headlinePart1}</span>
-            <span className={styles.companyName2}>{banner.headlinePart2}</span>
+            <span className={styles.companyName}>{banner.headlinePart1.trimEnd()}</span>
+            {" "}
+            <span className={styles.companyName2}>{banner.headlinePart2.trimStart()}</span>
           </h1>
 
           <p className={styles.tagline}>{banner.tagline}</p>

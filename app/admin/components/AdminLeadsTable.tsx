@@ -11,6 +11,10 @@ export type AdminLeadCartLine = {
 export type AdminLeadsTableRow = {
   id: string;
   phone: string;
+  /** From latest matching `Order.customerPhone` in DB when status is ordered. */
+  orderPhone?: string;
+  /** From the same order row as `orderPhone` (`Order.customerName`). */
+  orderCustomerName?: string;
   dateLabel: string;
   status: "ordered" | "non-ordered";
   cartLines: AdminLeadCartLine[];
@@ -48,9 +52,17 @@ export default function AdminLeadsTable({ rows }: Props) {
     return rows.filter((r) => {
       const p = r.phone;
       if (digits.length > 0) {
-        return normalizePhone(p).includes(digits);
+        return (
+          normalizePhone(p).includes(digits) ||
+          (r.orderPhone ? normalizePhone(r.orderPhone).includes(digits) : false)
+        );
       }
-      return p.toLowerCase().includes(raw.toLowerCase());
+      const low = raw.toLowerCase();
+      return (
+        p.toLowerCase().includes(low) ||
+        (r.orderPhone ? r.orderPhone.toLowerCase().includes(low) : false) ||
+        (r.orderCustomerName ? r.orderCustomerName.toLowerCase().includes(low) : false)
+      );
     });
   }, [rows, q]);
 
@@ -120,6 +132,8 @@ export default function AdminLeadsTable({ rows }: Props) {
           <thead>
             <tr>
               <th>Phone number</th>
+              <th>Name</th>
+              <th>Order phone</th>
               <th>Date</th>
               <th>Status</th>
             </tr>
@@ -127,7 +141,7 @@ export default function AdminLeadsTable({ rows }: Props) {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={3} className="muted">
+                <td colSpan={5} className="muted">
                   {rows.length === 0 ? "No leads yet." : "No leads match this phone search."}
                 </td>
               </tr>
@@ -147,6 +161,12 @@ export default function AdminLeadsTable({ rows }: Props) {
                   }}
                 >
                   <td>{r.phone}</td>
+                  <td className="muted">
+                    {r.status === "ordered" && r.orderCustomerName ? r.orderCustomerName : "—"}
+                  </td>
+                  <td className="muted">
+                    {r.status === "ordered" && r.orderPhone ? r.orderPhone : "—"}
+                  </td>
                   <td className="muted">{r.dateLabel}</td>
                   <td>
                     {r.status === "ordered" ? (
@@ -176,6 +196,16 @@ export default function AdminLeadsTable({ rows }: Props) {
             <div className="admin-field" style={{ marginBottom: "0.75rem" }}>
               <div className="admin-form-section-title">Contact</div>
               <p style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>{selected.phone}</p>
+              {selected.status === "ordered" && selected.orderCustomerName ? (
+                <p style={{ margin: "0.35rem 0 0", fontSize: "0.95rem", color: "var(--admin-muted, #64748b)" }}>
+                  Name: <span style={{ fontWeight: 600, color: "inherit" }}>{selected.orderCustomerName}</span>
+                </p>
+              ) : null}
+              {selected.status === "ordered" && selected.orderPhone ? (
+                <p style={{ margin: "0.35rem 0 0", fontSize: "0.95rem", color: "var(--admin-muted, #64748b)" }}>
+                  Order phone: <span style={{ fontWeight: 600, color: "inherit" }}>{selected.orderPhone}</span>
+                </p>
+              ) : null}
             </div>
 
             <div className="admin-field" style={{ marginBottom: "1rem" }}>

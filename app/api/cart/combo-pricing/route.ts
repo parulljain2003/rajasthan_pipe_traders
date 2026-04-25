@@ -8,6 +8,7 @@ import {
   type IncomingCartLineForCombo,
   type LeanProductForCombo,
 } from "@/lib/combo/resolveCartComboPricing";
+import { logApiRouteError } from "@/lib/http/apiError";
 
 function err(message: string, status: number) {
   return NextResponse.json({ message }, { status });
@@ -103,6 +104,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (e) {
+    logApiRouteError("POST /api/cart/combo-pricing", e);
     const message = e instanceof Error ? e.message : "Server error";
     return err(message, 500);
   }

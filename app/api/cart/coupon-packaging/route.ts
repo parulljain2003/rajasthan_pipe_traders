@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { connectDb } from "@/lib/db/connect";
 import { ProductModel } from "@/lib/db/models/Product";
 import { buildPackagingContextFromProduct } from "@/lib/coupons/couponTierQuantity";
+import { logApiRouteError } from "@/lib/http/apiError";
 
 export const dynamic = "force-dynamic";
 
@@ -99,6 +100,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ data: out });
   } catch (e) {
+    logApiRouteError("POST /api/cart/coupon-packaging", e);
     const message = e instanceof Error ? e.message : "Server error";
     return err(message, 500);
   }

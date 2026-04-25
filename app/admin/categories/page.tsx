@@ -387,7 +387,7 @@ export default function AdminCategoriesPage() {
       const res = await fetch("/api/admin/categories/reorder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: newList.map((c) => c._id) }),
+        body: JSON.stringify({ ids: newList.map((c: AdminCategory) => c._id) }),
       });
       if (!res.ok) {
         const json = await res.json();

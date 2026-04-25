@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDb } from "@/lib/db/connect";
 import { BlogModel } from "@/lib/db/models/Blog";
+import { logApiRouteError } from "@/lib/http/apiError";
+import { MONGO_MAX_TIME_MS } from "@/lib/db/mongoTimeout";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,10 +15,10 @@ function err(message: string, status: number) {
 export async function GET() {
   try {
     await connectDb();
-    const blogs = await BlogModel.find({}).sort({ createdAt: -1 }).lean();
+    const blogs = await BlogModel.find({}).sort({ createdAt: -1 }).maxTimeMS(MONGO_MAX_TIME_MS).lean();
     return NextResponse.json({ data: blogs }, { status: 200 });
   } catch (error) {
-    console.error("Failed to fetch blogs:", error);
+    logApiRouteError("GET /api/blogs", error);
     return err("Failed to fetch blogs", 500);
   }
 }
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
     if (error instanceof mongoose.mongo.MongoServerError && error.code === 11000) {
       return err("slug already exists", 409);
     }
-    console.error("Failed to create blog:", error);
+    logApiRouteError("POST /api/blogs", error);
     return err("Failed to create blog", 500);
   }
 }

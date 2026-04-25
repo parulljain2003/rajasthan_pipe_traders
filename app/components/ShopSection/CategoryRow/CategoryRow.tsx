@@ -62,7 +62,7 @@ export default function CategoryRow({ categories, activeCategory, onSelect, prod
 
       <div className={styles.wrapper} ref={trackRef}>
         <div className={styles.track}>
-          {categories.map(cat => {
+          {categories.map((cat, idx) => {
             const isActive = activeCategory === cat.id;
             const count = getCount(cat.id);
             return (
@@ -84,6 +84,8 @@ export default function CategoryRow({ categories, activeCategory, onSelect, prod
                     alt={cat.label}
                     width={58}
                     height={58}
+                    sizes="58px"
+                    priority={idx < 4}
                     style={{ objectFit: 'contain' }}
                   />
                 </div>
