@@ -4,7 +4,7 @@ import type { HeroSlide } from "./heroSlide";
 export const DEFAULT_BANNER_COPY = {
   trustBadgeText: "Ahmedabad · Since 2000 · GST Verified",
   headlinePart1: "Rajasthan",
-  headlinePart2: " Pipe Traders",
+  headlinePart2: "Pipe Traders",
   tagline: "Your Trusted Wholesale Hardware Partner",
   subtextHtml:
     "Established in Ahmedabad, we are a leading wholesale distributor of <strong>premium fittings</strong>, Cable Clips, Ball Valves, Modular Boxes, Nylon Ties, Insulation Tape, Wall Plugs and more.",

@@ -142,7 +142,7 @@ export default function QuotationDetailsModal({
         <div className={styles.fields}>
           <div>
             <label className={styles.label} htmlFor="quotation-fullname">
-              Full Name <span className={styles.optionalHint}>(optional)</span>
+              Full Name
             </label>
             <input
               id="quotation-fullname"
@@ -159,7 +159,7 @@ export default function QuotationDetailsModal({
 
           <div>
             <label className={styles.label} htmlFor="quotation-phone">
-              Phone Number <span className={styles.requiredMark}>(required)</span>
+              Phone Number<span className={styles.requiredAsterisk} aria-hidden="true"> *</span>
             </label>
             <input
               id="quotation-phone"
@@ -173,6 +173,7 @@ export default function QuotationDetailsModal({
               onBlur={() => setPhoneTouched(true)}
               disabled={isBusy}
               placeholder="10-digit mobile number"
+              aria-required
               aria-invalid={phoneShowError}
               aria-describedby="quotation-phone-err"
             />
@@ -183,7 +184,7 @@ export default function QuotationDetailsModal({
 
           <div>
             <label className={styles.label} htmlFor="quotation-email">
-              Email <span className={styles.optionalHint}>(optional)</span>
+              Email
             </label>
             <input
               id="quotation-email"
@@ -216,7 +217,7 @@ export default function QuotationDetailsModal({
               ? "Saving your order..."
               : phase === "generating"
                 ? "Generating your quotation..."
-                : "Confirm & Generate Quotation"}
+                : "Confirm to Place Order"}
           </button>
         </div>
       </div>

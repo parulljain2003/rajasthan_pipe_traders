@@ -89,9 +89,50 @@
   flex-shrink: 0;
 }
 
+.categoryRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
 .category {
   font-size: 0.7rem;
   color: #94a3b8;
+}
+
+/* Same pill look as ShopSection ProductGrid (home / category listings) */
+.listingBrand {
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.12rem 0.4rem;
+  border-radius: 4px;
+}
+
+.listingBrandHitech {
+  color: #6d28d9;
+  background: color-mix(in srgb, #7c3aed 12%, white);
+  border: 1px solid color-mix(in srgb, #7c3aed 25%, white);
+}
+
+.listingBrandTejas {
+  color: #1d4ed8;
+  background: color-mix(in srgb, #2563eb 12%, white);
+  border: 1px solid color-mix(in srgb, #2563eb 25%, white);
+}
+
+.listingBrandNstar {
+  color: #0f766e;
+  background: color-mix(in srgb, #14b8a6 14%, white);
+  border: 1px solid color-mix(in srgb, #0d9488 28%, white);
+}
+
+.listingBrandDefault {
+  color: #6d28d9;
+  background: color-mix(in srgb, #7c3aed 12%, white);
+  border: 1px solid color-mix(in srgb, #7c3aed 25%, white);
 }
 
 .sellerLine {

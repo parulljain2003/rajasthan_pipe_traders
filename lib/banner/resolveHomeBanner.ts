@@ -44,7 +44,11 @@ function mergeCopy(row: LeanBanner | null): Omit<HomeBannerPayload, "slides"> {
   return {
     trustBadgeText: (row?.trustBadgeText ?? d.trustBadgeText).trim() || d.trustBadgeText,
     headlinePart1: (row?.headlinePart1 ?? d.headlinePart1).trim() || d.headlinePart1,
-    headlinePart2: (row?.headlinePart2 ?? d.headlinePart2).trim() || d.headlinePart2,
+    /** Admin values are trimmed; default copy is used verbatim when the field is unset (see `DEFAULT_BANNER_COPY`). */
+    headlinePart2:
+      row?.headlinePart2 != null && String(row.headlinePart2).trim() !== ""
+        ? String(row.headlinePart2).trim()
+        : d.headlinePart2,
     tagline: (row?.tagline ?? d.tagline).trim() || d.tagline,
     subtextHtml: (row?.subtextHtml ?? d.subtextHtml).trim() || d.subtextHtml,
     stats: stats.length ? stats : [...d.stats],

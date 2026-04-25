@@ -12,7 +12,7 @@ import {
   type CartOrderMode,
 } from "@/lib/cart/packetLine";
 import { resolvePackingLabelsForCartLine } from "@/lib/packingLabels";
-import { productHeading } from "../../../lib/productHeading";
+import { productHeading, brandPillLabel, resolveBrandPillVariant } from "../../../lib/productHeading";
 import listingMoqStyles from "@/app/components/ListingMoqCartControls/ListingMoqCartControls.module.css";
 import { useLeadGate } from "@/app/context/LeadPhoneContext";
 
@@ -191,6 +191,18 @@ export default function CartItemCard({
   const pkFromBags = bagLine ? pricedPacketCount(bagLine) : 0;
   const pkLoose = packetLine ? pricedPacketCount(packetLine) : 0;
 
+  const brandSource = (base.brand ?? "").trim();
+  const pillLabel = brandPillLabel(brandSource);
+  const pillVariant = resolveBrandPillVariant(brandSource);
+  const listingBrandPillClass =
+    pillVariant === "hitech"
+      ? styles.listingBrandHitech
+      : pillVariant === "tejas"
+        ? styles.listingBrandTejas
+        : pillVariant === "nstar"
+          ? styles.listingBrandNstar
+          : styles.listingBrandDefault;
+
   const qtySummaryText = (() => {
     if (hasBulk && bagQty > 0 && pktQty > 0) {
       const outerWord = bagQty === 1 ? labels.outer : labels.outerPlural;
@@ -231,7 +243,12 @@ export default function CartItemCard({
                 </span>
               ) : null}
             </div>
-            <span className={styles.category}>{base.category}</span>
+            <div className={styles.categoryRow}>
+              <span className={styles.category}>{base.category}</span>
+              {pillLabel ? (
+                <span className={`${styles.listingBrand} ${listingBrandPillClass}`}>{pillLabel}</span>
+              ) : null}
+            </div>
             {base.sellerId !== "default" && <span className={styles.sellerLine}>Seller: {base.sellerName}</span>}
           </div>
           <button
