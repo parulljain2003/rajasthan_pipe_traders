@@ -123,13 +123,8 @@ export default function AdminMediaPage() {
   return (
     <div>
       <p className="muted" style={{ marginBottom: "1rem", maxWidth: "42rem" }}>
-        Images are stored in your Cloudinary account (folder prefix{" "}
-        <code style={{ fontSize: "0.8rem" }}>rpt/</code> by default). Set{" "}
-        <code style={{ fontSize: "0.8rem" }}>CLOUDINARY_URL</code> or{" "}
-        <code style={{ fontSize: "0.8rem" }}>CLOUDINARY_CLOUD_NAME</code> +{" "}
-        <code style={{ fontSize: "0.8rem" }}>CLOUDINARY_API_KEY</code> +{" "}
-        <code style={{ fontSize: "0.8rem" }}>CLOUDINARY_API_SECRET</code> in{" "}
-        <code style={{ fontSize: "0.8rem" }}>.env.local</code>.
+        All uploaded images are saved in your Cloudinary account. By default, they are grouped inside the{" "}
+        <code style={{ fontSize: "0.8rem" }}>rpt/</code> folder.
       </p>
       {error ? (
         <div className="admin-banner err" role="alert">
@@ -176,7 +171,7 @@ export default function AdminMediaPage() {
         <p className="muted">Loading…</p>
       ) : (
         <div className="admin-table-wrap">
-          <table className="admin-table">
+          <table className="admin-table admin-table--nowrap">
             <thead>
               <tr>
                 <th>Preview</th>
@@ -193,7 +188,7 @@ export default function AdminMediaPage() {
                   <tr key={id || JSON.stringify(row)}>
                     <td>{url ? <img src={url} alt="" className="admin-thumb" /> : "—"}</td>
                     <td>
-                      <code style={{ fontSize: "0.75rem", wordBreak: "break-all" }}>{id || "—"}</code>
+                      <code style={{ fontSize: "0.75rem", whiteSpace: "nowrap" }}>{id || "—"}</code>
                     </td>
                     <td>
                       <span className="muted" style={{ fontSize: "0.8rem" }}>

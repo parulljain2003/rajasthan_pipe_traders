@@ -23,6 +23,12 @@ if (!global.mongooseCache) {
   global.mongooseCache = cached;
 }
 
+/**
+ * Disable Mongoose query buffering so DB issues fail immediately with a clear error
+ * instead of timing out later as `buffering timed out after 10000ms`.
+ */
+mongoose.set("bufferCommands", false);
+
 /** Prefer failing the connection step over buffering queries until bufferTimeoutMS (10s). */
 const connectOptions = {
   serverSelectionTimeoutMS: 8000,
@@ -55,6 +61,8 @@ export async function connectDb(): Promise<typeof mongoose> {
 
   try {
     cached.conn = await cached.promise;
+    // Ensure we can actually reach MongoDB before allowing model queries.
+    await mongoose.connection.db?.admin().ping();
     await Promise.all([
       ProductModel.syncIndexes(),
       CategoryModel.syncIndexes(),

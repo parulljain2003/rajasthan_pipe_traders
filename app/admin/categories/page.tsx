@@ -493,7 +493,7 @@ export default function AdminCategoriesPage() {
             onDragCancel={handleDragCancel}
             modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
           >
-            <table className="admin-table">
+            <table className="admin-table admin-table--nowrap">
               <thead>
                 <tr>
                   <th style={{ width: "40px" }} />
@@ -759,7 +759,7 @@ export default function AdminCategoriesPage() {
                   onDragCancel={() => setActiveProductId(null)}
                   modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
                 >
-                  <table className="admin-table">
+                  <table className="admin-table admin-table--nowrap">
                     <thead>
                       <tr>
                         <th style={{ width: "40px" }} />

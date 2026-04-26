@@ -178,7 +178,7 @@ export default function AdminBlogsPage() {
         <p className="muted">Loading…</p>
       ) : hasBlogs ? (
         <div className="admin-table-wrap">
-          <table className="admin-table">
+          <table className="admin-table admin-table--nowrap">
             <thead>
               <tr>
                 <th>Title</th>

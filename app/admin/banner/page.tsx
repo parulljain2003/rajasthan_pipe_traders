@@ -223,9 +223,8 @@ export default function AdminBannerPage() {
     <div>
       <h1 style={{ marginTop: 0 }}>Home banner</h1>
       <p className="muted" style={{ maxWidth: "42rem" }}>
-        Hero copy, statistics, background image URL, and the featured-product carousel. Carousel products are loaded
-        from the catalog (live prices and cart). Use a path like <code>/banner-1.png</code> or a Cloudinary URL for the
-        background.
+        Update your homepage banner text, key numbers, background image, and featured products. You can use an image
+        path like <code>/banner-1.png</code> or paste a Cloudinary image link.
       </p>
 
       {error ? (
@@ -243,9 +242,9 @@ export default function AdminBannerPage() {
         <p className="muted">Loading…</p>
       ) : (
         <form onSubmit={(e) => void handleSave(e)} className="admin-form-section" style={{ maxWidth: "48rem" }}>
-          <p className="admin-form-section-title">Trust & headline</p>
+          <p className="admin-form-section-title">Top text and heading</p>
           <div className="admin-field">
-            <label htmlFor="trust">Trust badge</label>
+            <label htmlFor="trust">Small top label</label>
             <input
               id="trust"
               className="admin-input"
@@ -255,7 +254,7 @@ export default function AdminBannerPage() {
             />
           </div>
           <div className="admin-field">
-            <label htmlFor="h1a">Headline — first part</label>
+            <label htmlFor="h1a">Main heading - first part</label>
             <input
               id="h1a"
               className="admin-input"
@@ -265,7 +264,7 @@ export default function AdminBannerPage() {
             />
           </div>
           <div className="admin-field">
-            <label htmlFor="h1b">Headline — second part (e.g. “Pipe Traders”; a space is added after the first part)</label>
+            <label htmlFor="h1b">Main heading - second part (example: "Pipe Traders")</label>
             <input
               id="h1b"
               className="admin-input"
@@ -285,7 +284,7 @@ export default function AdminBannerPage() {
             />
           </div>
           <div className="admin-field">
-            <label htmlFor="sub">Intro paragraph (HTML allowed, e.g. &lt;strong&gt;)</label>
+            <label htmlFor="sub">Short intro text</label>
             <textarea
               id="sub"
               className="admin-input"
@@ -295,7 +294,7 @@ export default function AdminBannerPage() {
             />
           </div>
 
-          <p className="admin-form-section-title">Background</p>
+          <p className="admin-form-section-title">Background image</p>
           <BannerBackgroundCloud
             value={backgroundImageUrl}
             onUrlChange={setBackgroundImageUrl}
@@ -314,7 +313,7 @@ export default function AdminBannerPage() {
             }}
           />
 
-          <p className="admin-form-section-title">Statistics</p>
+          <p className="admin-form-section-title">Highlight numbers</p>
           {stats.map((s, i) => (
             <div key={i} className="admin-field" style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}>
               <div style={{ flex: 1 }}>
@@ -341,22 +340,21 @@ export default function AdminBannerPage() {
             </div>
           ))}
           <button type="button" className="admin-btn admin-btn-ghost" onClick={addStat}>
-            Add stat
+            Add number
           </button>
 
-          <p className="admin-form-section-title">Featured carousel</p>
+          <p className="admin-form-section-title">Featured products slider</p>
           <p className="muted" style={{ marginTop: 0 }}>
-            Each row: badge text, colour theme, and catalog product. Order is preserved. Empty carousel falls back to
-            built-in demo slides on the storefront.
+            For each row, choose label text, color theme, and product. The order you set here is shown on the homepage.
           </p>
           <div className="admin-field">
-            <label htmlFor="ps">Filter products</label>
+            <label htmlFor="ps">Search products</label>
             <input
               id="ps"
               className="admin-input"
               value={productSearch}
               onChange={(e) => setProductSearch(e.target.value)}
-              placeholder="Search by name, SKU, category…"
+              placeholder="Search by name, SKU, or category"
               autoComplete="off"
             />
           </div>
@@ -374,7 +372,7 @@ export default function AdminBannerPage() {
             >
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "flex-end" }}>
                 <div style={{ flex: "1 1 12rem" }}>
-                  <label htmlFor={`ct-${i}`}>Badge (e.g. 🔥 Hot Selling)</label>
+                  <label htmlFor={`ct-${i}`}>Label (example: 🔥 Hot Selling)</label>
                   <input
                     id={`ct-${i}`}
                     className="admin-input"
@@ -383,7 +381,7 @@ export default function AdminBannerPage() {
                   />
                 </div>
                 <div style={{ flex: "0 1 10rem" }}>
-                  <label htmlFor={`ck-${i}`}>Theme</label>
+                  <label htmlFor={`ck-${i}`}>Color theme</label>
                   <select
                     id={`ck-${i}`}
                     className="admin-input"
@@ -405,7 +403,7 @@ export default function AdminBannerPage() {
                     value={row.productId}
                     onChange={(e) => updateSlide(i, { productId: e.target.value })}
                   >
-                    <option value="">— Select —</option>
+                    <option value="">Select product</option>
                     {filteredProducts.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
@@ -422,7 +420,7 @@ export default function AdminBannerPage() {
             </div>
           ))}
           <button type="button" className="admin-btn admin-btn-ghost" onClick={addSlide}>
-            Add slide
+            Add product
           </button>
 
           <div style={{ marginTop: "1.25rem" }}>
