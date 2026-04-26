@@ -44,7 +44,7 @@ export default function AdminOrdersTable({ rows }: Props) {
 
   return (
     <div className="admin-table-wrap">
-      <table className="admin-table">
+      <table className="admin-table admin-table--nowrap">
         <thead>
           <tr>
             <th>Order ID</th>

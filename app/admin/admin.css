@@ -484,6 +484,11 @@
   font-size: 0.875rem;
 }
 
+.admin-table--nowrap th,
+.admin-table--nowrap td {
+  white-space: nowrap;
+}
+
 .admin-table th,
 .admin-table td {
   text-align: left;
@@ -545,7 +550,8 @@
 
 .admin-table-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex-direction: row;
   align-items: center;
   gap: 0.5rem;
 }
@@ -696,6 +702,14 @@ textarea.admin-input {
   padding-right: 2.25rem;
 }
 
+/* Force native select popup for problematic mobile dropdown rendering. */
+.admin-field select.admin-select-native {
+  appearance: auto !important;
+  -webkit-appearance: menulist !important;
+  background-image: none !important;
+  padding-right: 0.7rem !important;
+}
+
 .admin-check-pill {
   padding: 0.35rem 0.6rem;
   margin: 0;
@@ -811,6 +825,15 @@ textarea.admin-input {
   min-width: 280px;
 }
 
+.admin-coupon-tier-table th,
+.admin-coupon-tier-table td {
+  white-space: normal;
+}
+
+.admin-coupon-tier-table .admin-btn {
+  white-space: nowrap;
+}
+
 @media (max-width: 900px) {
   .admin-coupon-modal {
     max-width: 100%;
@@ -818,6 +841,13 @@ textarea.admin-input {
 
   .admin-coupon-scope-row .admin-field {
     min-width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-coupon-tier-table th,
+  .admin-coupon-tier-table td {
+    padding: 0.5rem 0.4rem;
   }
 }
 

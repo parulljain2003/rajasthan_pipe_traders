@@ -128,7 +128,7 @@ export default function AdminLeadsTable({ rows }: Props) {
       </div>
 
       <div className="admin-table-wrap">
-        <table className="admin-table">
+        <table className="admin-table admin-table--nowrap">
           <thead>
             <tr>
               <th>Phone number</th>
@@ -228,7 +228,7 @@ export default function AdminLeadsTable({ rows }: Props) {
               </p>
             ) : (
               <div className="admin-table-wrap" style={{ marginBottom: "1rem" }}>
-                <table className="admin-table">
+                <table className="admin-table admin-table--nowrap">
                   <thead>
                     <tr>
                       <th>Product name</th>

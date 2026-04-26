@@ -424,7 +424,7 @@ export default function AdminCouponsPage() {
         <p className="muted">Loading…</p>
       ) : (
         <div className="admin-table-wrap">
-          <table className="admin-table">
+          <table className="admin-table admin-table--nowrap">
             <thead>
               <tr>
                 <th>Code</th>
@@ -493,7 +493,7 @@ export default function AdminCouponsPage() {
 
               <div className="admin-form-section">
                 <h3 className="admin-form-section-title">Coupon details</h3>
-                <div className="admin-field-row">
+                <div>
                   <div className="admin-field">
                     <label htmlFor="cp-code">Code *</label>
                     <input
@@ -536,21 +536,21 @@ export default function AdminCouponsPage() {
                     <label htmlFor="cp-dtype">Discount type *</label>
                     <select
                       id="cp-dtype"
-                      className="admin-input admin-select"
+                      className="admin-input admin-select admin-select-native"
                       value={form.discountType}
                       onChange={(e) =>
                         setForm((f) => ({ ...f, discountType: e.target.value as AdminCoupon["discountType"] }))
                       }
                     >
-                      <option value="percentage">Percentage off eligible subtotal</option>
-                      <option value="flat">Flat INR off eligible subtotal</option>
+                      <option value="percentage">Percent discount</option>
+                      <option value="flat">Flat discount (INR)</option>
                     </select>
                   </div>
                   <div className="admin-field" style={{ marginBottom: 0 }}>
                     <label htmlFor="cp-tier-unit">Tier unit *</label>
                     <select
                       id="cp-tier-unit"
-                      className="admin-input admin-select"
+                      className="admin-input admin-select admin-select-native"
                       value={form.tierUnit ?? "packets"}
                       onChange={(e) =>
                         setForm((f) => ({
@@ -559,8 +559,8 @@ export default function AdminCouponsPage() {
                         }))
                       }
                     >
-                      <option value="packets">Packets (converted from cartons/bags via packaging)</option>
-                      <option value="outer">Outer — cartons & master bags</option>
+                      <option value="packets">Packets</option>
+                      <option value="outer">Cartons + bags</option>
                     </select>
                   </div>
                 </div>
@@ -573,7 +573,7 @@ export default function AdminCouponsPage() {
                     ? "For each row: minimum total outer units (cartons + master bags on eligible lines), then discount value (% or ₹). Column is still named minPackets in the API."
                     : "For each row: minimum eligible packets in the cart, then discount value (% or ₹)."}
                 </p>
-                <table className="admin-table" style={{ marginBottom: 8 }}>
+                <table className="admin-table admin-coupon-tier-table" style={{ marginBottom: 8 }}>
                   <thead>
                     <tr>
                       <th>{form.tierUnit === "outer" ? "Min outer units" : "Min packets"}</th>

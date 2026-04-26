@@ -929,7 +929,7 @@ export default function AdminProductsPage() {
               onDragCancel={handleDragCancel}
               modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
             >
-              <table className="admin-table">
+              <table className="admin-table admin-table--nowrap">
                 <thead>
                   <tr>
                     <th style={{ width: "40px" }} />

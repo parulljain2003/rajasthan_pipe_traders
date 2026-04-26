@@ -78,8 +78,8 @@ export default function AdminSettingsPage() {
     <div>
       <h1 style={{ marginTop: 0 }}>Store settings</h1>
       <p className="muted" style={{ maxWidth: "40rem" }}>
-        Global rules used by checkout and the combo pricing engine. Minimum order is validated against the
-        GST-inclusive cart total (before coupon discount, matching the existing cart policy).
+        These settings control how your store checkout works. The minimum order amount is checked on the full cart total
+        (including GST) before any coupon discount is applied.
       </p>
 
       {error ? (
@@ -98,7 +98,7 @@ export default function AdminSettingsPage() {
       ) : (
         <form onSubmit={(e) => void handleSave(e)} className="admin-form-section" style={{ maxWidth: "24rem" }}>
           <div className="admin-field">
-            <label htmlFor="mov">Minimum order value (incl. GST), ₹</label>
+            <label htmlFor="mov">Minimum order amount (including GST), ₹</label>
             <input
               id="mov"
               className="admin-input"
@@ -111,12 +111,12 @@ export default function AdminSettingsPage() {
             />
           </div>
           <div className="admin-field">
-            <label htmlFor="ped">Prices effective</label>
+            <label htmlFor="ped">Price list date</label>
             <input
               id="ped"
               className="admin-input"
               type="text"
-              placeholder="DD-MM-YYYY"
+              placeholder="For example: 26-04-2026"
               value={pricesEffectiveDate}
               onChange={(e) => setPricesEffectiveDate(e.target.value)}
             />

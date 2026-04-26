@@ -699,7 +699,7 @@ export default function AdminCombosPage() {
         <p className="muted">Loading…</p>
       ) : (
         <div className="admin-table-wrap">
-          <table className="admin-table">
+          <table className="admin-table admin-table--nowrap">
             <thead>
               <tr>
                 <th>Name</th>
