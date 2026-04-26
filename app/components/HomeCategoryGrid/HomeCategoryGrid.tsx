@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import styles from "./HomeCategoryGrid.module.css";
@@ -39,6 +39,8 @@ export default function HomeCategoryGrid() {
   const [countsBySlug, setCountsBySlug] = useState<Map<string, number>>(new Map());
   const [loadState, setLoadState] = useState<"loading" | "error" | "ok">("loading");
   const [maxHomeCategories, setMaxHomeCategories] = useState(12);
+  const [page, setPage] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   const recomputeHomeLimit = useCallback(() => {
     const el = gridWrapRef.current;
@@ -95,7 +97,38 @@ export default function HomeCategoryGrid() {
     };
   }, [recomputeHomeLimit]);
 
-  const homeCategories = categories.slice(0, maxHomeCategories);
+  const pageSize = Math.max(1, maxHomeCategories);
+  const totalPages = Math.max(1, Math.ceil(categories.length / pageSize));
+  const categoryPages = useMemo(() => {
+    const pages: ApiCategory[][] = [];
+    for (let i = 0; i < categories.length; i += pageSize) {
+      pages.push(categories.slice(i, i + pageSize));
+    }
+    return pages.length > 0 ? pages : [[]];
+  }, [categories, pageSize]);
+
+  useEffect(() => {
+    setPage((p) => Math.min(p, Math.max(0, totalPages - 1)));
+  }, [totalPages]);
+
+  const goPrev = useCallback(() => {
+    if (totalPages <= 1) return;
+    setPage((p) => (p - 1 + totalPages) % totalPages);
+  }, [totalPages]);
+
+  const goNext = useCallback(() => {
+    if (totalPages <= 1) return;
+    setPage((p) => (p + 1) % totalPages);
+  }, [totalPages]);
+
+  useEffect(() => {
+    if (totalPages <= 1) return;
+    if (isPaused) return;
+    const timer = window.setInterval(() => {
+      setPage((p) => (p + 1) % totalPages);
+    }, 3500);
+    return () => window.clearInterval(timer);
+  }, [isPaused, totalPages]);
 
   return (
     <section className={styles.section}>
@@ -115,57 +148,101 @@ export default function HomeCategoryGrid() {
               </p>
             )}
           </div>
-          <Link href="/categories" className={styles.viewAllLink}>
-            View all
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
-              <path d="m9 18 6-6-6-6" />
-            </svg>
-          </Link>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            {totalPages > 1 ? (
+              <>
+                <button
+                  type="button"
+                  className={styles.viewAllLink}
+                  onClick={goPrev}
+                  aria-label="Previous category slide"
+                >
+                  ‹
+                </button>
+                <span className={styles.subtitle} style={{ minWidth: "3.25rem", textAlign: "center" }}>
+                  {page + 1}/{totalPages}
+                </span>
+                <button
+                  type="button"
+                  className={styles.viewAllLink}
+                  onClick={goNext}
+                  aria-label="Next category slide"
+                >
+                  ›
+                </button>
+              </>
+            ) : null}
+            <Link href="/categories" className={styles.viewAllLink}>
+              View all
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </Link>
+          </div>
         </div>
 
-        <div className={styles.gridWrap} ref={gridWrapRef}>
-          <div className={styles.track}>
-            {homeCategories.map((cat, i) => {
-              const count = countsBySlug.get(cat.slug) ?? 0;
-              const bgColor = CATEGORY_BG_COLORS[i % CATEGORY_BG_COLORS.length];
-              const imageSrc = CATEGORY_CARD_IMAGES[i % CATEGORY_CARD_IMAGES.length];
-              return (
-                <Link key={cat._id} href={`/category/${cat.slug}`} className={styles.card}>
-                  <div className={styles.imageArea} style={{ background: bgColor }}>
-                    <div className={styles.imageWrap}>
-                      <Image
-                        src={imageSrc}
-                        alt={cat.name}
-                        fill
-                        sizes="(max-width: 640px) 60vw, (max-width: 1280px) 28vw, 20vw"
-                        priority={i < 4}
-                        style={{ objectFit: "contain", padding: "1.25rem" }}
-                      />
-                    </div>
-                  </div>
-                  <div className={styles.info}>
-                    <div className={styles.text}>
-                      <h3 className={styles.name}>{cat.name}</h3>
-                      <p className={styles.count}>{count} items</p>
-                    </div>
-                    <div className={styles.arrowBtn} aria-hidden="true">
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+        <div
+          className={styles.gridWrap}
+          ref={gridWrapRef}
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+        >
+          <div
+            className={styles.pagesTrack}
+            style={{ transform: `translate3d(${-page * 100}%, 0, 0)` }}
+          >
+            {categoryPages.map((pageCategories, pageIndex) => (
+              <div className={styles.pageSlide} key={`cat-page-${pageIndex}`}>
+                <div className={styles.track}>
+                  {pageCategories.map((cat, i) => {
+                    const count = countsBySlug.get(cat.slug) ?? 0;
+                    const idx = pageIndex * pageSize + i;
+                    const bgColor = CATEGORY_BG_COLORS[idx % CATEGORY_BG_COLORS.length];
+                    const imageSrc = CATEGORY_CARD_IMAGES[idx % CATEGORY_CARD_IMAGES.length];
+                    return (
+                      <Link
+                        key={cat._id}
+                        href={`/category/${cat.slug}`}
+                        className={styles.card}
                       >
-                        <path d="m9 18 6-6-6-6" />
-                      </svg>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
+                        <div className={styles.imageArea} style={{ background: bgColor }}>
+                          <div className={styles.imageWrap}>
+                            <Image
+                              src={imageSrc}
+                              alt={cat.name}
+                              fill
+                              sizes="(max-width: 640px) 60vw, (max-width: 1280px) 28vw, 20vw"
+                              priority={idx < 4}
+                              style={{ objectFit: "contain", padding: "1.25rem" }}
+                            />
+                          </div>
+                        </div>
+                        <div className={styles.info}>
+                          <div className={styles.text}>
+                            <h3 className={styles.name}>{cat.name}</h3>
+                            <p className={styles.count}>{count} items</p>
+                          </div>
+                          <div className={styles.arrowBtn} aria-hidden="true">
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="m9 18 6-6-6-6" />
+                            </svg>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

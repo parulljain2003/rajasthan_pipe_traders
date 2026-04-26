@@ -28,6 +28,14 @@ import { CSS } from "@dnd-kit/utilities";
 
 const CATEGORY_PAGE_SIZE = 20;
 
+function slugFromName(name: string): string {
+  return String(name ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 const emptyForm = {
   name: "",
   slug: "",
@@ -250,10 +258,12 @@ export default function AdminCategoriesPage() {
     if (!swapSortOrderWith) setSortConflict(null);
     try {
       const parentId = form.parentId.trim() ? form.parentId.trim() : null;
+      const derivedSlug = editingId ? form.slug.trim().toLowerCase() : slugFromName(form.name);
+      if (!derivedSlug) throw new Error("Name is required to auto-generate slug");
 
       const body: Record<string, unknown> = {
         name: form.name.trim(),
-        slug: form.slug.trim().toLowerCase(),
+        slug: derivedSlug,
         description: form.description.trim() || undefined,
         image: form.image.trim() || null,
         sortOrder: Number(form.sortOrder) || 0,
@@ -286,7 +296,7 @@ export default function AdminCategoriesPage() {
           return;
         }
         if (res.status === 409 && String(base).toLowerCase().includes("slug")) {
-          const s = form.slug.trim().toLowerCase();
+          const s = derivedSlug;
           throw new Error(
             `${base} The slug must be unique. Try a different value (e.g. "${s}-2").`
           );
@@ -605,65 +615,93 @@ export default function AdminCategoriesPage() {
             if (ev.target === ev.currentTarget) setModalOpen(false);
           }}
         >
-          <div className="admin-modal" role="dialog" aria-labelledby="cat-modal-title">
+          <div className="admin-modal admin-category-modal" role="dialog" aria-labelledby="cat-modal-title">
             <h2 id="cat-modal-title">{editingId ? "Edit category" : "New category"}</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="admin-field">
-                <label htmlFor="cat-name">Name</label>
-                <input
-                  id="cat-name"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  required
+            <form onSubmit={handleSubmit} className="admin-modal-form admin-category-modal-form">
+              <div className="admin-form-section">
+                <h3 className="admin-form-section-title">Category details</h3>
+                <div className="admin-field">
+                  <label htmlFor="cat-name">Name</label>
+                  <input
+                    id="cat-name"
+                    className="admin-input"
+                    value={form.name}
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="admin-field">
+                  <label htmlFor="cat-desc">Description</label>
+                  <textarea
+                    id="cat-desc"
+                    className="admin-input"
+                    value={form.description}
+                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="admin-form-section">
+                <h3 className="admin-form-section-title">Image</h3>
+                <MediaImageField
+                  label="Category image (Cloudinary)"
+                  kind="category"
+                  categoryId={editingId ?? undefined}
+                  value={form.image}
+                  onUrlChange={(url) => setForm((f) => ({ ...f, image: url }))}
+                  helpText="Uploads to Cloudinary (folder rpt/category/…). Set CLOUDINARY_URL in .env.local."
                 />
               </div>
-              <div className="admin-field">
-                <label htmlFor="cat-slug">Slug (lowercase, URL-safe)</label>
-                <input
-                  id="cat-slug"
-                  value={form.slug}
-                  onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-                  required
-                />
+
+              <div className="admin-form-section">
+                <h3 className="admin-form-section-title">Display settings</h3>
+                <div className="admin-field-row">
+                  <div className="admin-field">
+                    <label htmlFor="cat-sort">Sort order</label>
+                    <input
+                      id="cat-sort"
+                      type="number"
+                      className="admin-input"
+                      inputMode="numeric"
+                      min={0}
+                      step={1}
+                      value={form.sortOrder}
+                      onChange={(e) => {
+                        setSortConflict(null);
+                        const v = e.target.value;
+                        setForm((f) => ({
+                          ...f,
+                          sortOrder: v === "" ? 0 : Number(v),
+                        }));
+                      }}
+                    />
+                    <p className="muted" style={{ marginTop: 6 }}>
+                      Lower numbers appear first within the same parent group. If this order is already taken, you can swap after save.
+                    </p>
+                  </div>
+                  <div className="admin-field">
+                    <label htmlFor="cat-source">Source section label (optional)</label>
+                    <input
+                      id="cat-source"
+                      className="admin-input"
+                      value={form.sourceSectionLabel}
+                      onChange={(e) => setForm((f) => ({ ...f, sourceSectionLabel: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="admin-field" style={{ marginBottom: 0 }}>
+                  <label className="admin-check">
+                    <input
+                      type="checkbox"
+                      checked={form.isActive}
+                      onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+                    />
+                    Active
+                  </label>
+                </div>
               </div>
-              <div className="admin-field">
-                <label htmlFor="cat-desc">Description</label>
-                <textarea
-                  id="cat-desc"
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                />
-              </div>
-              <MediaImageField
-                label="Category image (Cloudinary)"
-                kind="category"
-                categoryId={editingId ?? undefined}
-                value={form.image}
-                onUrlChange={(url) => setForm((f) => ({ ...f, image: url }))}
-                helpText="Uploads to Cloudinary (folder rpt/category/…). Set CLOUDINARY_URL in .env.local."
-              />
-              <div className="admin-field">
-                <label htmlFor="cat-sort">Sort order</label>
-                <input
-                  id="cat-sort"
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  step={1}
-                  value={form.sortOrder}
-                  onChange={(e) => {
-                    setSortConflict(null);
-                    const v = e.target.value;
-                    setForm((f) => ({
-                      ...f,
-                      sortOrder: v === "" ? 0 : Number(v),
-                    }));
-                  }}
-                />
-                <p className="muted" style={{ marginTop: 6 }}>
-                  Lower numbers appear first within the same parent group. If this order is already taken, you can swap after save.
-                </p>
-              </div>
+
               {sortConflict ? (
                 <div className="admin-banner" role="status" style={{ marginBottom: 12 }}>
                   <p style={{ margin: "0 0 8px" }}>
@@ -681,24 +719,6 @@ export default function AdminCategoriesPage() {
                   </button>
                 </div>
               ) : null}
-              <div className="admin-field">
-                <label htmlFor="cat-source">Source section label (optional)</label>
-                <input
-                  id="cat-source"
-                  value={form.sourceSectionLabel}
-                  onChange={(e) => setForm((f) => ({ ...f, sourceSectionLabel: e.target.value }))}
-                />
-              </div>
-              <div className="admin-field">
-                <label className="admin-check">
-                  <input
-                    type="checkbox"
-                    checked={form.isActive}
-                    onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
-                  />
-                  Active
-                </label>
-              </div>
               <div className="admin-modal-actions">
                 <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setModalOpen(false)}>
                   Cancel

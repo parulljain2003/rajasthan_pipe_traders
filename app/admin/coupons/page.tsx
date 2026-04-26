@@ -127,6 +127,7 @@ function MultiCheckboxBlock({
         <div className="admin-multiselect-toolbar">
           <input
             type="search"
+            className="admin-input"
             placeholder="Filter…"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -481,81 +482,91 @@ export default function AdminCouponsPage() {
             if (ev.target === ev.currentTarget) setModalOpen(false);
           }}
         >
-          <div className="admin-modal wide" role="dialog" aria-labelledby="coupon-modal-title">
+          <div className="admin-modal wide admin-coupon-modal" role="dialog" aria-labelledby="coupon-modal-title">
             <h2 id="coupon-modal-title">{editingId ? "Edit coupon" : "New coupon"}</h2>
-            <form onSubmit={(e) => void handleSubmit(e)}>
+            <form className="admin-modal-form admin-coupon-modal-form" onSubmit={(e) => void handleSubmit(e)}>
               {optionsError ? (
                 <div className="admin-banner err" role="alert" style={{ marginBottom: "0.75rem" }}>
                   {optionsError}
                 </div>
               ) : null}
 
-              <div className="admin-field-row">
-                <div className="admin-field">
-                  <label htmlFor="cp-code">Code *</label>
-                  <input
-                    id="cp-code"
-                    value={form.code}
-                    onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
-                    required
-                    disabled={Boolean(editingId)}
+              <div className="admin-form-section">
+                <h3 className="admin-form-section-title">Coupon details</h3>
+                <div className="admin-field-row">
+                  <div className="admin-field">
+                    <label htmlFor="cp-code">Code *</label>
+                    <input
+                      id="cp-code"
+                      className="admin-input"
+                      value={form.code}
+                      onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+                      required
+                      disabled={Boolean(editingId)}
+                    />
+                  </div>
+                  <div className="admin-field">
+                    <label htmlFor="cp-name">Name *</label>
+                    <input
+                      id="cp-name"
+                      className="admin-input"
+                      value={form.name}
+                      onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="admin-field" style={{ marginBottom: 0 }}>
+                  <label htmlFor="cp-desc">Description</label>
+                  <textarea
+                    id="cp-desc"
+                    className="admin-input"
+                    value={form.description}
+                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                    rows={2}
+                    placeholder="e.g. 7% – 15 cartons & bags (explain in plain language)"
                   />
                 </div>
-                <div className="admin-field">
-                  <label htmlFor="cp-name">Name *</label>
-                  <input
-                    id="cp-name"
-                    value={form.name}
-                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                    required
-                  />
+              </div>
+
+              <div className="admin-form-section">
+                <h3 className="admin-form-section-title">Discount settings</h3>
+                <div className="admin-field-row">
+                  <div className="admin-field">
+                    <label htmlFor="cp-dtype">Discount type *</label>
+                    <select
+                      id="cp-dtype"
+                      className="admin-input admin-select"
+                      value={form.discountType}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, discountType: e.target.value as AdminCoupon["discountType"] }))
+                      }
+                    >
+                      <option value="percentage">Percentage off eligible subtotal</option>
+                      <option value="flat">Flat INR off eligible subtotal</option>
+                    </select>
+                  </div>
+                  <div className="admin-field" style={{ marginBottom: 0 }}>
+                    <label htmlFor="cp-tier-unit">Tier unit *</label>
+                    <select
+                      id="cp-tier-unit"
+                      className="admin-input admin-select"
+                      value={form.tierUnit ?? "packets"}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          tierUnit: e.target.value as AdminCoupon["tierUnit"],
+                        }))
+                      }
+                    >
+                      <option value="packets">Packets (converted from cartons/bags via packaging)</option>
+                      <option value="outer">Outer — cartons & master bags</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <div className="admin-field">
-                <label htmlFor="cp-desc">Description</label>
-                <textarea
-                  id="cp-desc"
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  rows={2}
-                  placeholder="e.g. 7% – 15 cartons & bags (explain in plain language)"
-                />
-              </div>
-
-              <div className="admin-field-row">
-                <div className="admin-field">
-                  <label htmlFor="cp-dtype">Discount type *</label>
-                  <select
-                    id="cp-dtype"
-                    value={form.discountType}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, discountType: e.target.value as AdminCoupon["discountType"] }))
-                    }
-                  >
-                    <option value="percentage">Percentage off eligible subtotal</option>
-                    <option value="flat">Flat INR off eligible subtotal</option>
-                  </select>
-                </div>
-                <div className="admin-field">
-                  <label htmlFor="cp-tier-unit">Tier unit *</label>
-                  <select
-                    id="cp-tier-unit"
-                    value={form.tierUnit ?? "packets"}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        tierUnit: e.target.value as AdminCoupon["tierUnit"],
-                      }))
-                    }
-                  >
-                    <option value="packets">Packets (converted from cartons/bags via packaging)</option>
-                    <option value="outer">Outer — cartons & master bags</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="admin-field">
+              <div className="admin-form-section">
                 <label>{form.tierUnit === "outer" ? "Tier thresholds *" : "Packet tiers *"}</label>
                 <p className="muted" style={{ margin: "0 0 0.5rem", fontSize: "0.85rem" }}>
                   {form.tierUnit === "outer"
@@ -576,6 +587,7 @@ export default function AdminCouponsPage() {
                         <td>
                           <input
                             type="number"
+                            className="admin-input"
                             min={0}
                             step={1}
                             value={row.minPackets}
@@ -586,6 +598,7 @@ export default function AdminCouponsPage() {
                         <td>
                           <input
                             type="number"
+                            className="admin-input"
                             min={0}
                             max={form.discountType === "percentage" ? 100 : undefined}
                             step={form.discountType === "percentage" ? 0.01 : 1}
@@ -613,45 +626,48 @@ export default function AdminCouponsPage() {
                 </button>
               </div>
 
-              <div className="admin-field-row">
-                <MultiCheckboxBlock
-                  title="Applicable categories"
-                  idPrefix="cp-cat"
-                  hint="Leave empty for no category restriction. When you select one or more categories, the product list below is limited to products in those categories only."
-                  search={categorySearch}
-                  onSearchChange={setCategorySearch}
-                  loading={optionsLoading}
-                  emptyMessage="No categories match the filter."
-                  options={categoryRows}
-                  selectedIds={form.applicableCategoryIds}
-                  onToggle={(id, checked) =>
-                    setForm((f) => ({ ...f, applicableCategoryIds: toggleId(f.applicableCategoryIds, id, checked) }))
-                  }
-                  onClear={() => setForm((f) => ({ ...f, applicableCategoryIds: [] }))}
-                />
-                <MultiCheckboxBlock
-                  title="Applicable products"
-                  idPrefix="cp-prod"
-                  hint={
-                    form.applicableCategoryIds.length > 0
-                      ? "Only products belonging to the categories selected above are listed. Leave none checked to apply the coupon to all products in those categories, or pick specific SKUs."
-                      : "Select categories above to narrow this list. With no categories selected, all products are shown. A cart line matches if it belongs to a selected category or a selected product (OR)."
-                  }
-                  search={productSearch}
-                  onSearchChange={setProductSearch}
-                  loading={optionsLoading}
-                  emptyMessage={
-                    form.applicableCategoryIds.length > 0
-                      ? "No products in the selected categories match the filter."
-                      : "No products match the filter."
-                  }
-                  options={productRows}
-                  selectedIds={form.applicableProductIds}
-                  onToggle={(id, checked) =>
-                    setForm((f) => ({ ...f, applicableProductIds: toggleId(f.applicableProductIds, id, checked) }))
-                  }
-                  onClear={() => setForm((f) => ({ ...f, applicableProductIds: [] }))}
-                />
+              <div className="admin-form-section">
+                <h3 className="admin-form-section-title">Applicability</h3>
+                <div className="admin-field-row admin-coupon-scope-row">
+                  <MultiCheckboxBlock
+                    title="Applicable categories"
+                    idPrefix="cp-cat"
+                    hint="Leave empty for no category restriction. When you select one or more categories, the product list below is limited to products in those categories only."
+                    search={categorySearch}
+                    onSearchChange={setCategorySearch}
+                    loading={optionsLoading}
+                    emptyMessage="No categories match the filter."
+                    options={categoryRows}
+                    selectedIds={form.applicableCategoryIds}
+                    onToggle={(id, checked) =>
+                      setForm((f) => ({ ...f, applicableCategoryIds: toggleId(f.applicableCategoryIds, id, checked) }))
+                    }
+                    onClear={() => setForm((f) => ({ ...f, applicableCategoryIds: [] }))}
+                  />
+                  <MultiCheckboxBlock
+                    title="Applicable products"
+                    idPrefix="cp-prod"
+                    hint={
+                      form.applicableCategoryIds.length > 0
+                        ? "Only products belonging to the categories selected above are listed. Leave none checked to apply the coupon to all products in those categories, or pick specific SKUs."
+                        : "Select categories above to narrow this list. With no categories selected, all products are shown. A cart line matches if it belongs to a selected category or a selected product (OR)."
+                    }
+                    search={productSearch}
+                    onSearchChange={setProductSearch}
+                    loading={optionsLoading}
+                    emptyMessage={
+                      form.applicableCategoryIds.length > 0
+                        ? "No products in the selected categories match the filter."
+                        : "No products match the filter."
+                    }
+                    options={productRows}
+                    selectedIds={form.applicableProductIds}
+                    onToggle={(id, checked) =>
+                      setForm((f) => ({ ...f, applicableProductIds: toggleId(f.applicableProductIds, id, checked) }))
+                    }
+                    onClear={() => setForm((f) => ({ ...f, applicableProductIds: [] }))}
+                  />
+                </div>
               </div>
 
               <p className="muted" style={{ margin: "0 0 0.75rem", fontSize: "0.8rem" }}>

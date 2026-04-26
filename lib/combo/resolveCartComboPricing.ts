@@ -723,12 +723,6 @@ export async function resolveCartComboPricing(
               const k = normalizeSlugToken(s);
               if (k) toRemove.add(k);
             }
-            if (Array.isArray(r.fallbackTargetSlugs)) {
-              for (const s of r.fallbackTargetSlugs) {
-                const k = normalizeSlugToken(s);
-                if (k) toRemove.add(k);
-              }
-            }
           }
           return toRemove.size > 0 ? [...toRemove].sort() : undefined;
         })()

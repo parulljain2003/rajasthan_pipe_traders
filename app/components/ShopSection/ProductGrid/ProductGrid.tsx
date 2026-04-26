@@ -99,9 +99,11 @@ export default function ProductGrid({
 
             {/* Card info */}
             <div className={styles.info}>
-              {pillLabel ? (
+              {pillLabel || showComboOfferBadge ? (
                 <div className={styles.meta}>
-                  <span className={`${styles.listingBrand} ${pillClass}`}>{pillLabel}</span>
+                  {pillLabel ? (
+                    <span className={`${styles.listingBrand} ${pillClass}`}>{pillLabel}</span>
+                  ) : null}
                   {showComboOfferBadge ? (
                     <span className={styles.listingComboOffer}>Combo Offer</span>
                   ) : null}

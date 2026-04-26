@@ -756,6 +756,155 @@ textarea.admin-input {
   border-top: 1px solid #f3f4f6;
 }
 
+/* Category modal polish */
+.admin-category-modal {
+  max-width: 680px;
+}
+
+.admin-category-modal-form {
+  gap: 0.65rem;
+}
+
+.admin-category-modal .admin-form-section {
+  padding: 0.95rem 1rem;
+}
+
+@media (max-width: 640px) {
+  .admin-category-modal {
+    max-width: 100%;
+    border-radius: 12px;
+    padding: 1rem 0.9rem 1rem;
+  }
+
+  .admin-category-modal .admin-form-section {
+    padding: 0.8rem 0.75rem;
+    border-radius: 10px;
+  }
+
+  .admin-category-modal .admin-form-section-title {
+    margin-bottom: 0.65rem;
+  }
+
+  .admin-category-modal .admin-field-row {
+    gap: 0.35rem;
+  }
+}
+
+/* Coupon modal polish + responsive stacking */
+.admin-coupon-modal {
+  max-width: 920px;
+}
+
+.admin-coupon-modal-form {
+  gap: 0.55rem;
+}
+
+.admin-coupon-modal .admin-form-section {
+  padding: 0.95rem 1rem;
+}
+
+.admin-coupon-scope-row {
+  align-items: flex-start;
+}
+
+.admin-coupon-scope-row .admin-field {
+  min-width: 280px;
+}
+
+@media (max-width: 900px) {
+  .admin-coupon-modal {
+    max-width: 100%;
+  }
+
+  .admin-coupon-scope-row .admin-field {
+    min-width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-coupon-modal {
+    border-radius: 12px;
+    padding: 1rem 0.85rem 1rem;
+  }
+
+  .admin-coupon-modal .admin-form-section {
+    padding: 0.8rem 0.72rem;
+    border-radius: 10px;
+  }
+
+  .admin-coupon-modal .admin-form-section-title {
+    margin-bottom: 0.65rem;
+  }
+}
+
+/* Combo modal polish + responsive */
+.admin-combo-modal {
+  max-width: 980px;
+}
+
+.admin-combo-modal-form {
+  gap: 0.55rem;
+}
+
+.admin-combo-modal .admin-form-section {
+  padding: 0.95rem 1rem;
+}
+
+.admin-combo-grid-two {
+  gap: 0.9rem;
+  align-items: flex-start;
+}
+
+.admin-combo-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-combo-actions-cell {
+  white-space: nowrap;
+}
+
+.admin-combo-actions-cell .admin-btn + .admin-btn {
+  margin-left: 6px;
+}
+
+@media (max-width: 900px) {
+  .admin-combo-modal {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-combo-grid-two {
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .admin-combo-col {
+    width: 100%;
+  }
+
+  .admin-combo-actions-cell {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-combo-modal {
+    border-radius: 12px;
+    padding: 1rem 0.85rem 1rem;
+  }
+
+  .admin-combo-modal .admin-form-section {
+    padding: 0.8rem 0.72rem;
+    border-radius: 10px;
+  }
+
+  .admin-combo-modal .admin-form-section-title {
+    margin-bottom: 0.65rem;
+  }
+}
+
 .admin-pagination {
   display: flex;
   align-items: center;

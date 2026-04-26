@@ -232,6 +232,23 @@ function sortOrderFromForm(sortOrder: number): number {
   return Math.trunc(n);
 }
 
+function slugFromName(name: string): string {
+  return String(name ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function skuFromName(name: string): string {
+  const base = String(name ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return base || "PRODUCT";
+}
+
 const emptyForm = {
   sku: "",
   name: "",
@@ -656,12 +673,12 @@ export default function AdminProductsPage() {
         }
       } else {
         if (!f.categoryId) throw new Error("Category is required");
-        const skuTrim = String(f.sku ?? "").trim().toUpperCase();
-        if (!skuTrim) throw new Error("SKU is required");
-        const slugTrim = String(f.slug ?? "").trim().toLowerCase();
-        if (!slugTrim) throw new Error("Slug is required");
+        const nameTrim = String(f.name ?? "").trim();
+        const skuTrim = skuFromName(nameTrim);
+        const slugTrim = slugFromName(nameTrim);
+        if (!slugTrim) throw new Error("Name is required to auto-generate slug");
         const body: Record<string, unknown> = {
-          name: String(f.name ?? "").trim(),
+          name: nameTrim,
           productKind: f.productKind,
           slug: slugTrim,
           category: f.categoryId,
@@ -1037,35 +1054,22 @@ export default function AdminProductsPage() {
             <form className="admin-modal-form" onSubmit={handleSubmit}>
               <div className="admin-form-section">
                 <h3 className="admin-form-section-title">Product details</h3>
-                <div className="admin-field-row">
-                  <div className="admin-field">
-                    <label htmlFor="p-sku">SKU {editingId ? "(optional)" : "*"}</label>
-                    <input
-                      id="p-sku"
-                      className="admin-input"
-                      value={form.sku}
-                      onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
-                      autoComplete="off"
-                      required={!editingId}
-                    />
-                  </div>
-                  <div className="admin-field">
-                    <label htmlFor="p-kind">Product kind</label>
-                    <select
-                      id="p-kind"
-                      className="admin-input admin-select"
-                      value={form.productKind}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          productKind: e.target.value as "sku" | "catalog",
-                        }))
-                      }
-                    >
-                      <option value="catalog">Catalog</option>
-                      <option value="sku">SKU line item</option>
-                    </select>
-                  </div>
+                <div className="admin-field">
+                  <label htmlFor="p-kind">Product kind</label>
+                  <select
+                    id="p-kind"
+                    className="admin-input admin-select"
+                    value={form.productKind}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        productKind: e.target.value as "sku" | "catalog",
+                      }))
+                    }
+                  >
+                    <option value="catalog">Catalog</option>
+                    <option value="sku">SKU line item</option>
+                  </select>
                 </div>
                 <div className="admin-field">
                   <label htmlFor="p-name">Name</label>
@@ -1077,17 +1081,11 @@ export default function AdminProductsPage() {
                     required
                   />
                 </div>
-                <div className="admin-field">
-                  <label htmlFor="p-slug">Slug (URL) {editingId ? "(optional)" : "*"}</label>
-                  <input
-                    id="p-slug"
-                    className="admin-input"
-                    value={form.slug}
-                    onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-                    placeholder="e.g. cable-nail-clips"
-                    required={!editingId}
-                  />
-                </div>
+                {!editingId ? (
+                  <p className="muted" style={{ marginTop: "-0.1rem", marginBottom: "0.4rem" }}>
+                    SKU and slug will be auto-generated from product name.
+                  </p>
+                ) : null}
                 <div className="admin-field">
                   <label htmlFor="p-cat">Category</label>
                   <select
