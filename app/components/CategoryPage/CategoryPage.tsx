@@ -205,6 +205,7 @@ export default function CategoryPage({ category, products, comboTriggerSlugs = [
               <ProductGrid
                 listingEntries={filteredListingEntries}
                 gridDensity="four"
+                categoryCardLayout
                 comboTriggerSlugs={comboTriggerSlugs}
               />
             ) : listingEntries.length === 0 ? (

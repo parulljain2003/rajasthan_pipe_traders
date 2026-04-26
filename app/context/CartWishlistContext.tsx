@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react";
 import Link from "next/link";
+import styles from "./CartWishlistContext.module.css";
 import {
   normalizeOrderMode,
   pricedPacketCount,
@@ -449,45 +450,25 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
       {comboTargetCapNotice || comboAddBlockedNotice ? (
         <div
           role="alert"
+          className={styles.noticeShell}
           style={{
-            position: "fixed",
-            bottom: "1.25rem",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 9999,
-            maxWidth: "min(32rem, calc(100vw - 2rem))",
-            padding: "0.85rem 1.1rem",
-            background: comboTargetCapNotice ? "#fef2f2" : "#fffbeb",
-            border: comboTargetCapNotice ? "1px solid #fecaca" : "1px solid #fcd34d",
-            borderRadius: "12px",
-            boxShadow: "0 10px 40px rgba(0,0,0,0.12)",
-            fontSize: "0.9rem",
-            lineHeight: 1.45,
+            backgroundColor: comboTargetCapNotice ? "#fef2f2" : "#fffbeb",
+            borderColor: comboTargetCapNotice ? "#fecaca" : "#fcd34d",
             color: comboTargetCapNotice ? "#7f1d1d" : "#78350f",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "0.75rem",
           }}
         >
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className={styles.noticeContent}>
             {comboTargetCapNotice ? (
               <span>{comboTargetCapNotice}</span>
             ) : comboAddBlockedNotice ? (
               <>
                 <div>{comboAddBlockedNotice.message}</div>
                 {comboAddBlockedNotice.qualifyingProductSlugs.length > 0 ? (
-                  <div style={{ marginTop: "0.55rem" }}>
-                    <div style={{ fontWeight: 700, marginBottom: "0.3rem", fontSize: "0.82rem" }}>
+                  <div className={styles.noticeLinksBlock}>
+                    <div className={styles.noticeLinksHeading}>
                       {comboQualifyingTriggersSectionHeading(comboAddBlockedNotice.qualifyingProductSlugs.length)}
                     </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: "0.35rem 0.65rem",
-                        alignItems: "center",
-                      }}
-                    >
+                    <div className={styles.noticeLinksWrap}>
                       {comboAddBlockedNotice.qualifyingProductSlugs.slice(0, 12).map((slug) => (
                         <Link
                           key={slug}
@@ -497,13 +478,7 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
                             clearComboAddBlockedNotice();
                             clearComboTargetCapNotice();
                           }}
-                          style={{
-                            color: "inherit",
-                            textDecoration: "underline",
-                            textUnderlineOffset: "2px",
-                            fontWeight: 600,
-                            fontSize: "0.84rem",
-                          }}
+                          className={styles.noticeLink}
                         >
                           {slug
                             .split("-")
@@ -514,7 +489,7 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
                       ))}
                     </div>
                     {comboAddBlockedNotice.qualifyingProductSlugs.length > 12 ? (
-                      <div style={{ marginTop: "0.35rem", fontSize: "0.8rem", opacity: 0.92 }}>
+                      <div className={styles.noticeExtraText}>
                         +{comboAddBlockedNotice.qualifyingProductSlugs.length - 12} aur qualifying{" "}
                         {comboAddBlockedNotice.qualifyingProductSlugs.length - 12 === 1 ? "product" : "products"} is
                         offer mein — search ya category browse karke add kar sakte ho.
@@ -531,14 +506,9 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
               clearComboTargetCapNotice();
               clearComboAddBlockedNotice();
             }}
+            className={styles.noticeCloseBtn}
             style={{
-              flexShrink: 0,
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              fontWeight: 700,
               color: comboTargetCapNotice ? "#991b1b" : "#92400e",
-              padding: "0 0.25rem",
             }}
             aria-label="Dismiss"
           >

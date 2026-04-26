@@ -116,10 +116,8 @@ export default async function AdminHomePage() {
         <p className="admin-dashboard-kicker">Welcome back</p>
         <h1 className="admin-dashboard-title">Store administration</h1>
         <p className="admin-dashboard-lead">
-          Manage categories, products, and media in MongoDB. API response shapes match{" "}
-          <span className="admin-dashboard-code">docs/FRONTEND_API_INTEGRATION.md</span>. Set{" "}
-          <span className="admin-dashboard-code">MONGODB_URI</span> in{" "}
-          <span className="admin-dashboard-code">.env.local</span> so admin routes can connect.
+          Use this panel to manage categories, products, coupons, banners, and media for your store.
+          If admin pages are not loading, ask your developer to check the database connection settings.
         </p>
       </header>
 

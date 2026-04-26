@@ -197,10 +197,10 @@ function MultiCheckboxBlock({
           <button
             type="button"
             className="admin-btn admin-btn-ghost"
-            onClick={() => onSelectAll?.(filtered.map((o) => o.key))}
-            disabled={loading || filtered.length === 0 || !onSelectAll}
+            onClick={() => onSelectAll?.(options.map((o) => o.key))}
+            disabled={loading || options.length === 0 || !onSelectAll}
           >
-            Select all ({filtered.length})
+            Select all ({options.length})
           </button>
           <button
             type="button"
@@ -531,7 +531,6 @@ export default function AdminCombosPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setModalSaveError(null);
-
     const nextErrors: Partial<Record<ComboFormFieldErrorKey, string>> = {};
     const nameTrim = form.name.trim();
     if (!nameTrim) nextErrors.name = "Enter a rule name.";
@@ -575,11 +574,6 @@ export default function AdminCombosPage() {
       }
     }
 
-    const msgTrim = form.suggestionMessage.trim();
-    if (!msgTrim) {
-      nextErrors.suggestion = "Enter a customer message (shown on product and cart).";
-    }
-
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors);
       return;
@@ -606,16 +600,19 @@ export default function AdminCombosPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Delete this combo rule?")) return;
+  async function handleToggleActive(rule: AdminComboRule) {
     setError(null);
     try {
-      const res = await fetch(`/api/admin/combo-rules/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/combo-rules/${rule._id}`, {
+        method: "PATCH",    
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !rule.isActive }),
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(err instanceof Error ? err.message : "Update failed");
     }
   }
 
@@ -680,15 +677,19 @@ export default function AdminCombosPage() {
       ) : null}
 
       <div className="admin-toolbar">
-        <button
-          type="button"
-          className="admin-btn admin-btn-primary"
-          onClick={openCreate}
-          disabled={list.length > 0}
-          title={list.length > 0 ? "Only one combo rule is allowed. Edit the existing rule." : undefined}
-        >
-          New combo rule
-        </button>
+        {list.length === 0 ? (
+          <button
+            type="button"
+            className="admin-btn admin-btn-primary"
+            onClick={openCreate}
+          >
+            Create combo rule
+          </button>
+        ) : (
+          <span className="muted" style={{ fontSize: "0.9rem" }}>
+            Only one combo rule is allowed. Use Edit or toggle Active/Inactive.
+          </span>
+        )}
         <button type="button" className="admin-btn admin-btn-ghost" onClick={() => void load()} disabled={loading}>
           Refresh
         </button>
@@ -733,17 +734,21 @@ export default function AdminCombosPage() {
                     {r.targetThresholdUnit ?? "bags"}
                   </td>
                   <td>{r.isActive ? "Yes" : "No"}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>
+                  <td className="admin-combo-actions-cell">
+                    <button
+                      type="button"
+                      className={`admin-btn ${r.isActive ? "admin-btn-ghost" : "admin-btn-primary"}`}
+                      style={{ marginRight: 6 }}
+                      onClick={() => void handleToggleActive(r)}
+                    >
+                      {r.isActive ? "Turn Off" : "Turn On"}
+                    </button>
                     <button
                       type="button"
                       className="admin-btn admin-btn-ghost"
-                      style={{ marginRight: 6 }}
                       onClick={() => openEdit(r)}
                     >
                       Edit
-                    </button>
-                    <button type="button" className="admin-btn admin-btn-danger" onClick={() => void handleDelete(r._id)}>
-                      Delete
                     </button>
                   </td>
                 </tr>
@@ -762,83 +767,102 @@ export default function AdminCombosPage() {
             if (ev.target === ev.currentTarget) closeModal();
           }}
         >
-          <div className="admin-modal" role="dialog" aria-labelledby="combo-modal-title" style={{ maxWidth: "42rem" }}>
+          <div className="admin-modal wide admin-combo-modal" role="dialog" aria-labelledby="combo-modal-title">
             <h2 id="combo-modal-title">{editingId ? "Edit combo rule" : "New combo rule"}</h2>
-            <form key={editingId ?? "new"} onSubmit={(e) => void handleSubmit(e)}>
+            <form key={editingId ?? "new"} className="admin-modal-form admin-combo-modal-form" onSubmit={(e) => void handleSubmit(e)}>
               {modalSaveError ? (
                 <div className="admin-banner err" role="alert" style={{ marginBottom: "0.75rem" }}>
                   {modalSaveError}
                 </div>
               ) : null}
+              <div className="admin-form-section">
+                <h3 className="admin-form-section-title">Combo details</h3>
+                <div className="admin-field">
+                  <label htmlFor="combo-name">Name *</label>
+                  <input
+                    id="combo-name"
+                    className="admin-input"
+                    value={form.name}
+                    onChange={(e) => {
+                      clearFieldError("name");
+                      setForm((f) => ({ ...f, name: e.target.value }));
+                    }}
+                    placeholder="e.g. Standard Combo Offer"
+                    aria-invalid={fieldErrors.name ? true : undefined}
+                    aria-describedby={fieldErrors.name ? "combo-name-err" : undefined}
+                  />
+                  {fieldErrors.name ? (
+                    <p id="combo-name-err" className="admin-multiselect-hint" role="alert" style={{ color: "#991b1b", fontWeight: 500 }}>
+                      {fieldErrors.name}
+                    </p>
+                  ) : null}
+                </div>
 
-              <div className="admin-field">
-                <label htmlFor="combo-name">Name *</label>
-                <input
-                  id="combo-name"
-                  value={form.name}
-                  onChange={(e) => {
-                    clearFieldError("name");
-                    setForm((f) => ({ ...f, name: e.target.value }));
+                <MultiCheckboxBlock
+                  title="Trigger categories *"
+                  hint="Select one or more categories. The trigger product list only shows products from these categories."
+                  error={fieldErrors.triggerCategories}
+                  idPrefix="trig-cat"
+                  search={searchTrigCat}
+                  onSearchChange={setSearchTrigCat}
+                  loading={optionsLoading}
+                  emptyMessage="No categories found."
+                  options={categoryRowsForMulti}
+                  selectedKeys={form.triggerCategoryIds}
+                  onToggle={(key, checked) => {
+                    clearFieldError("triggerCategories");
+                    setForm((f) => ({ ...f, triggerCategoryIds: toggleId(f.triggerCategoryIds, key, checked) }));
                   }}
-                  placeholder="e.g. Standard Combo Offer"
-                  aria-invalid={fieldErrors.name ? true : undefined}
-                  aria-describedby={fieldErrors.name ? "combo-name-err" : undefined}
+                  onSelectAll={(keys) => {
+                    clearFieldError("triggerCategories");
+                    setForm((f) => ({
+                      ...f,
+                      triggerCategoryIds: [...new Set([...f.triggerCategoryIds, ...keys])],
+                    }));
+                  }}
+                  onClear={() => {
+                    clearFieldError("triggerCategories");
+                    setForm((f) => ({ ...f, triggerCategoryIds: [] }));
+                  }}
                 />
-                {fieldErrors.name ? (
-                  <p id="combo-name-err" className="admin-multiselect-hint" role="alert" style={{ color: "#991b1b", fontWeight: 500 }}>
-                    {fieldErrors.name}
-                  </p>
-                ) : null}
+
+                <MultiCheckboxBlock
+                  title="Trigger products *"
+                  hint="Qualifying products (from trigger categories). These products are not listed under target or fallback."
+                  error={fieldErrors.triggerProducts}
+                  idPrefix="trig-prod"
+                  search={searchTrigProd}
+                  onSearchChange={setSearchTrigProd}
+                  loading={optionsLoading}
+                  emptyMessage={
+                    form.triggerCategoryIds.length > 0
+                      ? "No products in the selected categories."
+                      : "Please select a trigger category first."
+                  }
+                  options={triggerProdRows}
+                  selectedKeys={form.triggerProductSlugs}
+                  onToggle={(key, checked) => {
+                    clearFieldError("triggerProducts");
+                    setForm((f) => ({ ...f, triggerProductSlugs: toggleSlug(f.triggerProductSlugs, key, checked) }));
+                  }}
+                  onSelectAll={(keys) => {
+                    clearFieldError("triggerProducts");
+                    setForm((f) => ({
+                      ...f,
+                      triggerProductSlugs: [...new Set([...f.triggerProductSlugs, ...keys])],
+                    }));
+                  }}
+                  onClear={() => {
+                    clearFieldError("triggerProducts");
+                    setForm((f) => ({ ...f, triggerProductSlugs: [] }));
+                  }}
+                />
               </div>
 
-              <MultiCheckboxBlock
-                title="Trigger categories *"
-                hint="Select one or more categories. The trigger product list only shows products from these categories."
-                error={fieldErrors.triggerCategories}
-                idPrefix="trig-cat"
-                search={searchTrigCat}
-                onSearchChange={setSearchTrigCat}
-                loading={optionsLoading}
-                emptyMessage="No categories found."
-                options={categoryRowsForMulti}
-                selectedKeys={form.triggerCategoryIds}
-                onToggle={(key, checked) => {
-                  clearFieldError("triggerCategories");
-                  setForm((f) => ({ ...f, triggerCategoryIds: toggleId(f.triggerCategoryIds, key, checked) }));
-                }}
-                onClear={() => {
-                  clearFieldError("triggerCategories");
-                  setForm((f) => ({ ...f, triggerCategoryIds: [] }));
-                }}
-              />
-
-              <MultiCheckboxBlock
-                title="Trigger products *"
-                hint="Qualifying products (from trigger categories). These products are not listed under target or fallback."
-                error={fieldErrors.triggerProducts}
-                idPrefix="trig-prod"
-                search={searchTrigProd}
-                onSearchChange={setSearchTrigProd}
-                loading={optionsLoading}
-                emptyMessage={
-                  form.triggerCategoryIds.length > 0
-                    ? "No products in the selected categories."
-                    : "Please select a trigger category first."
-                }
-                options={triggerProdRows}
-                selectedKeys={form.triggerProductSlugs}
-                onToggle={(key, checked) => {
-                  clearFieldError("triggerProducts");
-                  setForm((f) => ({ ...f, triggerProductSlugs: toggleSlug(f.triggerProductSlugs, key, checked) }));
-                }}
-                onClear={() => {
-                  clearFieldError("triggerProducts");
-                  setForm((f) => ({ ...f, triggerProductSlugs: [] }));
-                }}
-              />
-
-              <div className="admin-field-row" style={{ gap: "1rem", alignItems: "flex-start" }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="admin-form-section">
+              <h3 className="admin-form-section-title">Target and fallback setup</h3>
+              <div className="admin-field-row admin-combo-grid-two">
+                <div className="admin-combo-col">
                   <MultiCheckboxBlock
                     title="Target categories *"
                     hint="Categories for combo-priced target products."
@@ -854,13 +878,20 @@ export default function AdminCombosPage() {
                       clearFieldError("targetCategories");
                       setForm((f) => ({ ...f, targetCategoryIds: toggleId(f.targetCategoryIds, key, checked) }));
                     }}
+                    onSelectAll={(keys) => {
+                      clearFieldError("targetCategories");
+                      setForm((f) => ({
+                        ...f,
+                        targetCategoryIds: [...new Set([...f.targetCategoryIds, ...keys])],
+                      }));
+                    }}
                     onClear={() => {
                       clearFieldError("targetCategories");
                       setForm((f) => ({ ...f, targetCategoryIds: [] }));
                     }}
                   />
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="admin-combo-col">
                   <MultiCheckboxBlock
                     title="Target products (combo) *"
                     hint="Combo-priced products after the trigger condition is met. Trigger products are hidden here."
@@ -907,8 +938,8 @@ export default function AdminCombosPage() {
                 </div>
               </div>
 
-              <div className="admin-field-row" style={{ gap: "1rem", alignItems: "flex-start" }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="admin-field-row admin-combo-grid-two">
+                <div className="admin-combo-col">
                   <MultiCheckboxBlock
                     title="Fallback categories *"
                     hint="Categories for regular-priced fallback products (before combo unlocks)."
@@ -924,13 +955,20 @@ export default function AdminCombosPage() {
                       clearFieldError("fallbackCategories");
                       setForm((f) => ({ ...f, fallbackCategoryIds: toggleId(f.fallbackCategoryIds, key, checked) }));
                     }}
+                    onSelectAll={(keys) => {
+                      clearFieldError("fallbackCategories");
+                      setForm((f) => ({
+                        ...f,
+                        fallbackCategoryIds: [...new Set([...f.fallbackCategoryIds, ...keys])],
+                      }));
+                    }}
                     onClear={() => {
                       clearFieldError("fallbackCategories");
                       setForm((f) => ({ ...f, fallbackCategoryIds: [] }));
                     }}
                   />
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="admin-combo-col">
                   <MultiCheckboxBlock
                     title="Fallback products *"
                     hint="Regular price before combo unlocks. Same product cannot be both target and fallback; trigger products are hidden here."
@@ -976,6 +1014,10 @@ export default function AdminCombosPage() {
                   />
                 </div>
               </div>
+              </div>
+
+              <div className="admin-form-section">
+              <h3 className="admin-form-section-title">Threshold and messaging</h3>
               <div className="admin-field">
                 <span className="muted" style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.85rem" }}>
                   Trigger minimum quantity
@@ -1082,7 +1124,7 @@ export default function AdminCombosPage() {
                     setForm((f) => ({ ...f, suggestionMessage: e.target.value }));
                   }}
                   rows={2}
-                  placeholder="Shown on product detail and cart ."
+                  placeholder="Shown on product detail and cart (required)."
                   // aria-invalid={fieldErrors.suggestion ? true : undefined}
                   // aria-describedby={fieldErrors.suggestion ? "combo-msg-err" : undefined}
                 />
@@ -1102,6 +1144,7 @@ export default function AdminCombosPage() {
                   />
                   Active
                 </label>
+              </div>
               </div>
 
               <div className="admin-modal-actions">
