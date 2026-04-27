@@ -391,6 +391,26 @@
   gap: 0.3rem;
 }
 
+/* Hero banner product card only (current usage: compact + stackRows + cardListingLayout) */
+.compact.stackRows.cardListingLayout .cardListingUnitChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.35rem;
+  margin-left: 0.2rem;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #0369a1;
+  white-space: nowrap;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%);
+  border: 1px solid #7dd3fc;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
 .compact .rowLabel {
   font-size: 0.53rem;
   letter-spacing: 0.03em;

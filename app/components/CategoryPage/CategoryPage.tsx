@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useMemo, useCallback } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import styles from './CategoryPage.module.css';
 import FilterSidebar from './FilterSidebar/FilterSidebar';
@@ -100,17 +99,6 @@ export default function CategoryPage({ category, products, comboTriggerSlugs = [
             <p className={styles.heroDesc}>{category.description}</p>
             <span className={styles.heroCount}>{products.length} products</span>
           </div>
-          <div className={styles.heroImage}>
-            <Image
-              src={category.image}
-              alt={category.name}
-              width={160}
-              height={160}
-              sizes="(max-width: 640px) 40vw, 160px"
-              priority
-              style={{ objectFit: 'contain' }}
-            />
-          </div>
         </div>
       </div>
 
@@ -204,8 +192,7 @@ export default function CategoryPage({ category, products, comboTriggerSlugs = [
             {filteredListingEntries.length > 0 ? (
               <ProductGrid
                 listingEntries={filteredListingEntries}
-                gridDensity="four"
-                categoryCardLayout
+                cardListingLayout
                 comboTriggerSlugs={comboTriggerSlugs}
               />
             ) : listingEntries.length === 0 ? (

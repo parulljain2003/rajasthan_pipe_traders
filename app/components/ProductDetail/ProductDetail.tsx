@@ -52,10 +52,8 @@ export default function ProductDetail({
 
       {/* ── Main Content ── */}
       <div className={styles.container}>
-        {/* Top Section: Gallery + Info */}
-        <div className={styles.topGrid}>
-          <ImageGallery product={product} />
-          <div className={styles.pdpInfoColumn}>
+        {comboTriggerPdpMessage || comboTargetPdpNotice ? (
+          <div className={styles.comboHeaderStack}>
             {comboTriggerPdpMessage ? (
               <ComboTriggerPdpHint
                 productSlug={product.slug}
@@ -66,6 +64,13 @@ export default function ProductDetail({
             {comboTargetPdpNotice ? (
               <ComboTargetPdpNotice productSlug={product.slug} info={comboTargetPdpNotice} />
             ) : null}
+          </div>
+        ) : null}
+
+        {/* Top Section: Gallery + Info */}
+        <div className={styles.topGrid}>
+          <ImageGallery product={product} />
+          <div className={styles.pdpInfoColumn}>
             <ProductInfo key={product.slug} product={product} />
           </div>
         </div>

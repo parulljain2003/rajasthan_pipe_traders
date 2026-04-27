@@ -648,8 +648,8 @@
 }
 
 .carousel {
-  width: min(100%, 460px);
-  max-width: 460px;
+  width: min(100%, 400px);
+  max-width: 400px;
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
@@ -664,6 +664,7 @@
   backdrop-filter: blur(14px);
   display: flex;
   flex-direction: column;
+  height: 460px;
   transition: box-shadow 0.3s ease;
 }
 
@@ -814,6 +815,7 @@
   padding: 0.9rem 1rem 1rem;
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   gap: 0.32rem;
   background: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(8px);
@@ -911,7 +913,8 @@
   display: flex;
   align-items: flex-start;
   gap: 0.55rem;
-  margin-top: 0.2rem;
+  margin-top: auto;
+  padding-top: 0.3rem;
   flex-wrap: wrap;
   width: 100%;
 }
@@ -1223,7 +1226,8 @@
   }
 
   .carousel {
-    max-width: 500px;
+    width: min(100%, 400px);
+    max-width: 400px;
     margin: 0 auto;
   }
 
@@ -1282,6 +1286,10 @@
 
   .slideImg {
     height: 175px;
+  }
+
+  .slideCard {
+    height: 500px;
   }
 
   .slideCtaRow {
@@ -1391,6 +1399,7 @@
 
   .slideCard {
     border-radius: 16px;
+    height: 470px;
   }
 
   .slideTag {

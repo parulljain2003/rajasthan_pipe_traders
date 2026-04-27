@@ -6,6 +6,7 @@ import Link from "next/link";
 import styles from "./RelatedProducts.module.css";
 import { getSellerOffers, type Product } from "../../../data/products";
 import { productHeading, brandPillLabel, resolveBrandPillVariant } from "../../../lib/productHeading";
+import { categoryToSlug } from "@/app/data/categories";
 import { resolvePackingUnitLabels } from "@/lib/packingLabels";
 import ListingMoqCartControls, { listingEntryToModel } from "@/app/components/ListingMoqCartControls/ListingMoqCartControls";
 
@@ -15,6 +16,8 @@ interface RelatedProductsProps {
 
 export default function RelatedProducts({ products }: RelatedProductsProps) {
   if (products.length === 0) return null;
+  const categorySlug = categoryToSlug(products[0].category);
+  const viewAllHref = categorySlug ? `/category/${encodeURIComponent(categorySlug)}` : "/categories";
 
   return (
     <section className={styles.section}>
@@ -25,7 +28,7 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
             More products from the same category
           </p>
         </div>
-        <Link href="/" className={styles.viewAllBtn}>
+        <Link href={viewAllHref} className={styles.viewAllBtn}>
           View All
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="m9 18 6-6-6-6" />

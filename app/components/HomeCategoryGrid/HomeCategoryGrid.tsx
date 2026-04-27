@@ -148,44 +148,13 @@ export default function HomeCategoryGrid() {
               </p>
             )}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            {totalPages > 1 ? (
-              <>
-                <button
-                  type="button"
-                  className={styles.viewAllLink}
-                  onClick={goPrev}
-                  aria-label="Previous category slide"
-                >
-                  ‹
-                </button>
-                <span className={styles.subtitle} style={{ minWidth: "3.25rem", textAlign: "center" }}>
-                  {page + 1}/{totalPages}
-                </span>
-                <button
-                  type="button"
-                  className={styles.viewAllLink}
-                  onClick={goNext}
-                  aria-label="Next category slide"
-                >
-                  ›
-                </button>
-              </>
-            ) : null}
-            <Link href="/categories" className={styles.viewAllLink}>
-              View all
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
-                <path d="m9 18 6-6-6-6" />
-              </svg>
-            </Link>
-          </div>
         </div>
 
         <div
           className={styles.gridWrap}
           ref={gridWrapRef}
           onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
+          onMouseLeave={() => setIsPaused(true)}
         >
           <div
             className={styles.pagesTrack}
@@ -213,16 +182,16 @@ export default function HomeCategoryGrid() {
                               fill
                               sizes="(max-width: 640px) 60vw, (max-width: 1280px) 28vw, 20vw"
                               priority={idx < 4}
-                              style={{ objectFit: "contain", padding: "1.25rem" }}
+                              style={{ objectFit: "contain", padding: "0.8rem" }}
                             />
                           </div>
                         </div>
                         <div className={styles.info}>
                           <div className={styles.text}>
                             <h3 className={styles.name}>{cat.name}</h3>
+                            <div className={styles.metaRow}>
                             <p className={styles.count}>{count} items</p>
-                          </div>
-                          <div className={styles.arrowBtn} aria-hidden="true">
+                            <div className={styles.arrowBtn} aria-hidden="true">
                             <svg
                               width="14"
                               height="14"
@@ -236,6 +205,9 @@ export default function HomeCategoryGrid() {
                               <path d="m9 18 6-6-6-6" />
                             </svg>
                           </div>
+                          </div>
+                          </div>
+
                         </div>
                       </Link>
                     );
@@ -244,6 +216,37 @@ export default function HomeCategoryGrid() {
               </div>
             ))}
           </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginTop: "0.9rem" }}>
+          {totalPages > 1 ? (
+            <>
+              <button
+                type="button"
+                className={styles.viewAllLink}
+                onClick={goPrev}
+                aria-label="Previous category slide"
+              >
+                ‹
+              </button>
+              <span className={styles.subtitle} style={{ minWidth: "3.25rem", textAlign: "center" }}>
+                {page + 1}/{totalPages}
+              </span>
+              <button
+                type="button"
+                className={styles.viewAllLink}
+                onClick={goNext}
+                aria-label="Next category slide"
+              >
+                ›
+              </button>
+            </>
+          ) : null}
+          <Link href="/categories" className={styles.viewAllLink}>
+            View all
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </Link>
         </div>
       </div>
     </section>

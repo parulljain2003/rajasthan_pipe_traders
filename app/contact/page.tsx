@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from "react";
+import { MapPin, UserRound, PhoneCall } from "lucide-react";
 import styles from "./contact.module.css";
 
 export default function ContactPage() {
@@ -54,27 +55,25 @@ export default function ContactPage() {
             <form onSubmit={handleSendEmail} className={styles.contactForm}>
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label htmlFor="name" className={styles.label}>Name *</label>
+                  <label htmlFor="name" className={styles.label}>Name</label>
                   <input
                     type="text"
                     id="name"
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
-                    required
                     placeholder="Your name"
                     className={styles.input}
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label htmlFor="email" className={styles.label}>Email *</label>
+                  <label htmlFor="email" className={styles.label}>Email</label>
                   <input
                     type="email"
                     id="email"
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    required
                     placeholder="your.email@example.com"
                     className={styles.input}
                   />
@@ -96,14 +95,13 @@ export default function ContactPage() {
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label htmlFor="city" className={styles.label}>City *</label>
+                  <label htmlFor="city" className={styles.label}>City</label>
                   <input
                     type="text"
                     id="city"
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
-                    required
                     placeholder="Your city"
                     className={styles.input}
                   />
@@ -111,13 +109,12 @@ export default function ContactPage() {
               </div>
 
               <div className={styles.formGroup}>
-                <label htmlFor="comment" className={styles.label}>Comment *</label>
+                <label htmlFor="comment" className={styles.label}>Comment</label>
                 <textarea
                   id="comment"
                   name="comment"
                   value={formData.comment}
                   onChange={handleInputChange}
-                  required
                   placeholder="Tell us about your inquiry..."
                   rows={5}
                   className={styles.textarea}
@@ -140,7 +137,9 @@ export default function ContactPage() {
             <div className={styles.contactInfoGrid}>
               {/* Address Card */}
               <div className={styles.infoCard}>
-                <div className={styles.infoCardIcon}>📍</div>
+                <div className={styles.infoCardIcon}>
+                  <MapPin aria-hidden />
+                </div>
                 <h3 className={styles.infoCardTitle}>Location</h3>
                 <h4 className={styles.infoCardCompany}>Rajasthan Pipe Traders</h4>
                 <p className={styles.infoCardText}>SARASPUR, Ahmedabad - 380018, Gujarat, India</p>
@@ -148,14 +147,18 @@ export default function ContactPage() {
 
               {/* Proprietor Card */}
               <div className={styles.infoCard}>
-                <div className={styles.infoCardIcon}>👤</div>
-                <h3 className={styles.infoCardTitle}>Proprietor</h3>
-                <p className={styles.infoCardText}>L JAIN</p>
+                <div className={styles.infoCardIcon}>
+                  <UserRound aria-hidden />
+                </div>
+                <h3 className={styles.infoCardTitle}>CEO</h3>
+                <p className={styles.infoCardText}>CHETAN JAIN</p>
               </div>
 
               {/* Call Card */}
               <div className={styles.infoCard}>
-                <div className={styles.infoCardIcon}>📞</div>
+                <div className={styles.infoCardIcon}>
+                  <PhoneCall aria-hidden />
+                </div>
                 <h3 className={styles.infoCardTitle}>Call</h3>
                 <a href="tel:08047844816" className={styles.infoCardPhone}>
                   08047844816

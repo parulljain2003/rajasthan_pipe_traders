@@ -172,7 +172,7 @@ function ProductCarousel({ slides }: { slides: HeroSlide[] }) {
           : styles.slideListingBrandDefault;
 
   return (
-    <div className={styles.carousel} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+    <div className={styles.carousel} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(true)}>
       <div
         key={active}
         className={`${styles.slideCard} ${styles[`tag_${s.tagKey}`]} ${styles[dir === "l" ? "animL" : "animR"]}`}
@@ -210,6 +210,8 @@ function ProductCarousel({ slides }: { slides: HeroSlide[] }) {
               model={heroSlideProductToModel(p)}
               labels={heroLabels}
               className={styles.slideListingMoq}
+              compact
+              stackRows
               cardListingLayout
             />
           </div>

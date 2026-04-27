@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import pageStyles from "./page.module.css";
-import cardStyles from "../components/HomeCategoryGrid/HomeCategoryGrid.module.css";
 import { fetchCategoriesList, fetchProductsList } from "../lib/api/client";
 import type { ApiCategory, ApiProduct } from "../lib/api/types";
 
@@ -74,36 +73,40 @@ export default function AllCategoriesPage() {
             const bgColor = CATEGORY_BG_COLORS[i % CATEGORY_BG_COLORS.length];
             const imageSrc = CATEGORY_CARD_IMAGES[i % CATEGORY_CARD_IMAGES.length];
             return (
-              <Link key={cat._id} href={`/category/${cat.slug}`} className={cardStyles.card}>
-                <div className={cardStyles.imageArea} style={{ background: bgColor }}>
-                  <div className={cardStyles.imageWrap}>
+              <Link key={cat._id} href={`/category/${cat.slug}`} className={pageStyles.card}>
+                <div className={pageStyles.imageArea} style={{ background: bgColor }}>
+                  <div className={pageStyles.imageWrap}>
                     <Image
                       src={imageSrc}
                       alt={cat.name}
                       fill
                       sizes="(max-width: 640px) 45vw, (max-width: 1280px) 20vw, 200px"
-                      style={{ objectFit: "contain", padding: "1.25rem" }}
+                      style={{ objectFit: "contain", padding: "0.8rem" }}
                     />
                   </div>
                 </div>
-                <div className={cardStyles.info}>
-                  <div className={cardStyles.text}>
-                    <h2 className={cardStyles.name}>{cat.name}</h2>
-                    <p className={cardStyles.count}>{count} items</p>
-                  </div>
-                  <div className={cardStyles.arrowBtn} aria-hidden="true">
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="m9 18 6-6-6-6" />
-                    </svg>
+                <div className={pageStyles.info}>
+                  <div className={pageStyles.text}>
+                  <div className={pageStyles.metaRow}>
+
+                    <h2 className={pageStyles.name}>{cat.name}</h2>
+                      <p className={pageStyles.count}>{count} items</p>
+           
+                    </div>
+                    <div className={pageStyles.arrowBtn} aria-hidden="true">
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="m9 18 6-6-6-6" />
+                        </svg>
+                      </div>
                   </div>
                 </div>
               </Link>
