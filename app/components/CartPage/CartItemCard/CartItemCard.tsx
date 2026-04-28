@@ -272,129 +272,132 @@ export default function CartItemCard({
           </button>
         </div>
 
-        <div className={styles.cartUnitQtyMeta}>
-          <div className={styles.cartMetaRow}>
-            <span className={styles.cartMetaLabel}>Unit price</span>
-            <div className={styles.pricingValues}>
-              <span className={styles.strike}>₹{mrpUnit.toFixed(2)}</span>
-              <span className={styles.priceMain}>₹{safePrice.toFixed(2)}</span>
+        <div className={styles.metaControlsRow}>
+          <div className={styles.cartUnitQtyMeta}>
+            <div className={styles.cartMetaRow}>
+              <span className={styles.cartMetaLabel}>Unit price</span>
+              <div className={styles.pricingValues}>
+                <span className={styles.strike}>₹{mrpUnit.toFixed(2)}</span>
+                <span className={styles.priceMain}>₹{safePrice.toFixed(2)}</span>
+              </div>
+            </div>
+            <div className={styles.cartMetaRow}>
+              <span className={styles.cartMetaLabel}>Quantity</span>
+              <p className={styles.qtySummaryLine}>{qtySummaryText}</p>
             </div>
           </div>
-          <div className={styles.cartMetaRow}>
-            <span className={styles.cartMetaLabel}>Quantity</span>
-            <p className={styles.qtySummaryLine}>{qtySummaryText}</p>
+          <div className={styles.cartControlsCol}>
+            <div
+              className={`${listingMoqStyles.root} ${listingMoqStyles.cardListingLayout} ${listingMoqStyles.cartCardListing} ${styles.cartMoqRoot}`}
+            >
+              {hasBulk ? (
+                <div className={listingMoqStyles.bulkRows}>
+                  <div className={listingMoqStyles.cardListingOuterBox}>
+                    <div className={`${listingMoqStyles.stepper} ${listingMoqStyles.stepperCardListing}`}>
+                      <button
+                        type="button"
+                        className={listingMoqStyles.stepBtn}
+                        onClick={() => setBagQty(Math.max(0, bagQty - 1))}
+                        disabled={bagQty <= 0}
+                        aria-label={`Decrease ${labels.outerPlural}`}
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        className={listingMoqStyles.stepInput}
+                        value={bagInput}
+                        min={0}
+                        step={1}
+                        onChange={(e) => setBagInput(e.target.value)}
+                        onBlur={(e) => commitBag(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                        }}
+                        aria-label={`Quantity in ${labels.outerPlural}`}
+                      />
+                      <button type="button" className={listingMoqStyles.stepBtn} onClick={() => setBagQty(bagQty + 1)} aria-label={`Increase ${labels.outerPlural}`}>
+                        +
+                      </button>
+                      <span className={listingMoqStyles.cardListingUnitChip}>{labels.outerPlural}</span>
+                    </div>
+                  </div>
+                  <div className={listingMoqStyles.cardListingOuterBox}>
+                    <div className={`${listingMoqStyles.stepper} ${listingMoqStyles.stepperCardListing}`}>
+                      <button
+                        type="button"
+                        className={listingMoqStyles.stepBtn}
+                        onClick={() =>
+                          qpb > 0 ? setPacketQty(Math.max(0, pktQty - qpb)) : setPacketQty(Math.max(0, pktQty - 1))
+                        }
+                        disabled={pktQty <= 0}
+                        aria-label={qpb > 0 ? `Decrease packets by ${qpb}` : "Decrease packets"}
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        className={listingMoqStyles.stepInput}
+                        value={pktInput}
+                        min={0}
+                        step={1}
+                        onChange={(e) => setPktInput(e.target.value)}
+                        onBlur={(e) => commitPkt(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                        }}
+                        aria-label={
+                          qpb > 0
+                            ? `Quantity in ${labels.innerPlural}; +/- buttons change by ${qpb}`
+                            : `Quantity in ${labels.innerPlural}`
+                        }
+                      />
+                      <button
+                        type="button"
+                        className={listingMoqStyles.stepBtn}
+                        onClick={() => (qpb > 0 ? setPacketQty(pktQty + qpb) : setPacketQty(pktQty + 1))}
+                        aria-label={qpb > 0 ? `Increase packets by ${qpb}` : "Increase packets"}
+                      >
+                        +
+                      </button>
+                      <span className={listingMoqStyles.cardListingUnitChip}>{labels.innerPlural}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className={listingMoqStyles.cardListingOuterBox}>
+                  <div className={`${listingMoqStyles.stepper} ${listingMoqStyles.stepperCardListing}`}>
+                    <button
+                      type="button"
+                      className={listingMoqStyles.stepBtn}
+                      onClick={() => setPacketQty(Math.max(0, pktQty - 1))}
+                      disabled={pktQty <= 0}
+                      aria-label="Decrease packets"
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      className={listingMoqStyles.stepInput}
+                      value={pktInput}
+                      min={0}
+                      step={1}
+                      onChange={(e) => setPktInput(e.target.value)}
+                      onBlur={(e) => commitPkt(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      }}
+                      aria-label={`Quantity in ${labels.innerPlural}`}
+                    />
+                    <button type="button" className={listingMoqStyles.stepBtn} onClick={() => setPacketQty(pktQty + 1)} aria-label="Increase packets">
+                      +
+                    </button>
+                    <span className={listingMoqStyles.cardListingUnitChip}>{labels.innerPlural}</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-
-        <div
-          className={`${listingMoqStyles.root} ${listingMoqStyles.cardListingLayout} ${listingMoqStyles.cartCardListing} ${styles.cartMoqRoot}`}
-        >
-          {hasBulk ? (
-            <div className={listingMoqStyles.bulkRows}>
-              <div className={listingMoqStyles.cardListingOuterBox}>
-                <div className={`${listingMoqStyles.stepper} ${listingMoqStyles.stepperCardListing}`}>
-                  <button
-                    type="button"
-                    className={listingMoqStyles.stepBtn}
-                    onClick={() => setBagQty(Math.max(0, bagQty - 1))}
-                    disabled={bagQty <= 0}
-                    aria-label={`Decrease ${labels.outerPlural}`}
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    className={listingMoqStyles.stepInput}
-                    value={bagInput}
-                    min={0}
-                    step={1}
-                    onChange={(e) => setBagInput(e.target.value)}
-                    onBlur={(e) => commitBag(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                    }}
-                    aria-label={`Quantity in ${labels.outerPlural}`}
-                  />
-                  <button type="button" className={listingMoqStyles.stepBtn} onClick={() => setBagQty(bagQty + 1)} aria-label={`Increase ${labels.outerPlural}`}>
-                    +
-                  </button>
-                  <span className={listingMoqStyles.cardListingUnitChip}>{labels.outerPlural}</span>
-                </div>
-              </div>
-              <div className={listingMoqStyles.cardListingOuterBox}>
-                <div className={`${listingMoqStyles.stepper} ${listingMoqStyles.stepperCardListing}`}>
-                  <button
-                    type="button"
-                    className={listingMoqStyles.stepBtn}
-                    onClick={() =>
-                      qpb > 0 ? setPacketQty(Math.max(0, pktQty - qpb)) : setPacketQty(Math.max(0, pktQty - 1))
-                    }
-                    disabled={pktQty <= 0}
-                    aria-label={qpb > 0 ? `Decrease packets by ${qpb}` : "Decrease packets"}
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    className={listingMoqStyles.stepInput}
-                    value={pktInput}
-                    min={0}
-                    step={1}
-                    onChange={(e) => setPktInput(e.target.value)}
-                    onBlur={(e) => commitPkt(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                    }}
-                    aria-label={
-                      qpb > 0
-                        ? `Quantity in ${labels.innerPlural}; +/- buttons change by ${qpb}`
-                        : `Quantity in ${labels.innerPlural}`
-                    }
-                  />
-                  <button
-                    type="button"
-                    className={listingMoqStyles.stepBtn}
-                    onClick={() => (qpb > 0 ? setPacketQty(pktQty + qpb) : setPacketQty(pktQty + 1))}
-                    aria-label={qpb > 0 ? `Increase packets by ${qpb}` : "Increase packets"}
-                  >
-                    +
-                  </button>
-                  <span className={listingMoqStyles.cardListingUnitChip}>{labels.innerPlural}</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className={listingMoqStyles.cardListingOuterBox}>
-              <div className={`${listingMoqStyles.stepper} ${listingMoqStyles.stepperCardListing}`}>
-                <button
-                  type="button"
-                  className={listingMoqStyles.stepBtn}
-                  onClick={() => setPacketQty(Math.max(0, pktQty - 1))}
-                  disabled={pktQty <= 0}
-                  aria-label="Decrease packets"
-                >
-                  −
-                </button>
-                <input
-                  type="number"
-                  className={listingMoqStyles.stepInput}
-                  value={pktInput}
-                  min={0}
-                  step={1}
-                  onChange={(e) => setPktInput(e.target.value)}
-                  onBlur={(e) => commitPkt(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                  }}
-                  aria-label={`Quantity in ${labels.innerPlural}`}
-                />
-                <button type="button" className={listingMoqStyles.stepBtn} onClick={() => setPacketQty(pktQty + 1)} aria-label="Increase packets">
-                  +
-                </button>
-                <span className={listingMoqStyles.cardListingUnitChip}>{labels.innerPlural}</span>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
