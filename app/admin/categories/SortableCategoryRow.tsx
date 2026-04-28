@@ -77,9 +77,6 @@ export function SortableCategoryRow({
         )}
       </td>
       <td>{category.name}</td>
-      <td>
-        <span className="muted">{category.slug}</span>
-      </td>
       <td>{category.sortOrder ?? 0}</td>
       <td>{category.isActive ? "Yes" : "No"}</td>
       <td style={{ whiteSpace: "nowrap" }}>

@@ -33,6 +33,12 @@ function countCatalogByCategorySlug(products: ApiProduct[]): Map<string, number>
   return map;
 }
 
+function truncateToWords(input: string, maxWords: number): { text: string; truncated: boolean } {
+  const words = String(input ?? "").trim().split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return { text: input, truncated: false };
+  return { text: `${words.slice(0, maxWords).join(" ")}...`, truncated: true };
+}
+
 export default function HomeCategoryGrid() {
   const gridWrapRef = useRef<HTMLDivElement>(null);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
@@ -168,6 +174,7 @@ export default function HomeCategoryGrid() {
                     const idx = pageIndex * pageSize + i;
                     const bgColor = CATEGORY_BG_COLORS[idx % CATEGORY_BG_COLORS.length];
                     const imageSrc = CATEGORY_CARD_IMAGES[idx % CATEGORY_CARD_IMAGES.length];
+                    const displayName = truncateToWords(cat.name, 4);
                     return (
                       <Link
                         key={cat._id}
@@ -188,7 +195,12 @@ export default function HomeCategoryGrid() {
                         </div>
                         <div className={styles.info}>
                           <div className={styles.text}>
-                            <h3 className={styles.name}>{cat.name}</h3>
+                            <h3 className={styles.name}>
+                              <span className={styles.nameTooltipWrap}>
+                                {displayName.text}
+                                <span className={styles.nameTooltip}>{cat.name}</span>
+                              </span>
+                            </h3>
                             <div className={styles.metaRow}>
                             <p className={styles.count}>{count} items</p>
                             <div className={styles.arrowBtn} aria-hidden="true">

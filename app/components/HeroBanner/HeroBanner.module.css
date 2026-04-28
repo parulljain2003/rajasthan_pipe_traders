@@ -175,7 +175,8 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   line-height: 1.2;
-  opacity: 0.85;
+  opacity: 1;
+  color: white;
 }
 
 /* Dashed sep */

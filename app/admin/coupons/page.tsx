@@ -104,6 +104,7 @@ function MultiCheckboxBlock({
   options,
   selectedIds,
   onToggle,
+  onSelectAll,
   onClear,
 }: {
   title: string;
@@ -116,6 +117,7 @@ function MultiCheckboxBlock({
   options: { id: string; primary: string; secondary?: string }[];
   selectedIds: string[];
   onToggle: (id: string, checked: boolean) => void;
+  onSelectAll?: (ids: string[]) => void;
   onClear: () => void;
 }) {
   const n = selectedIds.length;
@@ -135,6 +137,14 @@ function MultiCheckboxBlock({
             autoComplete="off"
             aria-label={`Filter ${title}`}
           />
+          <button
+            type="button"
+            className="admin-btn admin-btn-ghost"
+            onClick={() => onSelectAll?.(options.map((o) => o.id))}
+            disabled={loading || options.length === 0 || !onSelectAll}
+          >
+            Select all ({options.length})
+          </button>
           <button
             type="button"
             className="admin-btn admin-btn-ghost"
@@ -355,6 +365,22 @@ export default function AdminCouponsPage() {
     }
   }
 
+  async function handleToggleActive(coupon: AdminCoupon) {
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/coupons/${coupon._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !coupon.isActive }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || res.statusText);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Toggle failed");
+    }
+  }
+
   function updateTier(i: number, patch: Partial<CouponPacketTier>) {
     setForm((f) => {
       const next = f.packetTiers.map((row, j) => (j === i ? { ...row, ...patch } : row));
@@ -400,9 +426,15 @@ export default function AdminCouponsPage() {
       ) : null}
 
       <div className="admin-toolbar">
-        <button type="button" className="admin-btn admin-btn-primary" onClick={openCreate}>
-          New coupon
-        </button>
+        {list.length < 5 ? (
+          <button
+            type="button"
+            className="admin-btn admin-btn-primary"
+            onClick={openCreate}
+          >
+            New coupon
+          </button>
+        ) : null}
         <button
           type="button"
           className="admin-btn admin-btn-ghost"
@@ -411,6 +443,9 @@ export default function AdminCouponsPage() {
         >
           Refresh
         </button>
+        <span className="muted" style={{ fontSize: "0.875rem" }}>
+          {list.length} / 5 coupons
+        </span>
       </div>
 
       <p className="muted" style={{ maxWidth: "48rem", marginBottom: "1rem" }}>
@@ -452,18 +487,18 @@ export default function AdminCouponsPage() {
                   <td style={{ whiteSpace: "nowrap" }}>
                     <button
                       type="button"
-                      className="admin-btn admin-btn-ghost"
+                      className={`admin-btn ${c.isActive ? "admin-btn-ghost" : "admin-btn-primary"}`}
                       style={{ marginRight: 6 }}
-                      onClick={() => openEdit(c)}
+                      onClick={() => void handleToggleActive(c)}
                     >
-                      Edit
+                      {c.isActive ? "Turn Off" : "Turn On"}
                     </button>
                     <button
                       type="button"
-                      className="admin-btn admin-btn-danger"
-                      onClick={() => void handleDelete(c._id)}
+                      className="admin-btn admin-btn-ghost"
+                      onClick={() => openEdit(c)}
                     >
-                      Delete
+                      Edit
                     </button>
                   </td>
                 </tr>
@@ -664,6 +699,12 @@ export default function AdminCouponsPage() {
                     selectedIds={form.applicableProductIds}
                     onToggle={(id, checked) =>
                       setForm((f) => ({ ...f, applicableProductIds: toggleId(f.applicableProductIds, id, checked) }))
+                    }
+                    onSelectAll={(ids) =>
+                      setForm((f) => ({
+                        ...f,
+                        applicableProductIds: [...new Set([...f.applicableProductIds, ...ids])],
+                      }))
                     }
                     onClear={() => setForm((f) => ({ ...f, applicableProductIds: [] }))}
                   />

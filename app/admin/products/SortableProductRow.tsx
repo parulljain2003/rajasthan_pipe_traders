@@ -13,6 +13,21 @@ interface Props {
   skip: number;
 }
 
+function brandBadgeStyle(brandRaw: string): React.CSSProperties {
+  const brand = brandRaw.trim();
+  if (!brand) return {};
+  let hash = 0;
+  for (let i = 0; i < brand.length; i++) {
+    hash = (hash * 31 + brand.charCodeAt(i)) | 0;
+  }
+  const hue = Math.abs(hash) % 360;
+  return {
+    color: `hsl(${hue} 65% 28%)`,
+    background: `hsl(${hue} 85% 96%)`,
+    border: `1px solid hsl(${hue} 70% 82%)`,
+  };
+}
+
 export function SortableProductRow({
   product,
   index,
@@ -72,6 +87,27 @@ export function SortableProductRow({
         <code style={{ fontSize: "0.8rem" }}>{product.sku ?? "—"}</code>
       </td>
       <td>{product.name}</td>
+      <td>
+        {product.brand ? (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              borderRadius: 999,
+              padding: "0.14rem 0.52rem",
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.03em",
+              ...brandBadgeStyle(product.brand),
+            }}
+          >
+            {product.brand}
+          </span>
+        ) : (
+          "—"
+        )}
+      </td>
       <td>{product.category?.name ?? "—"}</td>
       <td>{product.sortOrder ?? 0}</td>
       <td>{product.productKind}</td>

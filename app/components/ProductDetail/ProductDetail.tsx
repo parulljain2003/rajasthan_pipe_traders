@@ -84,7 +84,7 @@ export default function ProductDetail({
         ) : null}
 
         {/* Specs Table (Tabs) */}
-        <SpecsTable product={product} />
+        <SpecsTable product={product} categoryProducts={relatedProducts} />
 
 
 
