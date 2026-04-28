@@ -556,6 +556,68 @@
   gap: 0.5rem;
 }
 
+@media (max-width: 900px) {
+  .admin-orders-table {
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .admin-orders-table thead {
+    display: none;
+  }
+
+  .admin-orders-table tbody,
+  .admin-orders-table tr,
+  .admin-orders-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .admin-orders-table tbody tr {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0.55rem 0.75rem 0.65rem;
+  }
+
+  .admin-orders-table tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .admin-orders-table td {
+    border-bottom: none;
+    padding: 0.35rem 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    white-space: normal;
+  }
+
+  .admin-orders-table td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 7.5rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+
+  .admin-orders-table td[data-label="Actions"] {
+    align-items: stretch;
+  }
+
+  .admin-orders-table .admin-table-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .admin-orders-table .admin-table-actions .admin-btn {
+    flex: 1 1 10rem;
+  }
+}
+
 .admin-modal-backdrop {
   position: fixed;
   inset: 0;
