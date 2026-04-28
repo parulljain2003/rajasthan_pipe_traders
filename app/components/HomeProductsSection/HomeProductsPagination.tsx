@@ -1,33 +1,36 @@
-import Link from "next/link";
+"use client";
+
 import styles from "./HomeProductsSection.module.css";
 
 type Props = {
   page: number;
   totalPages: number;
+  onPageChange: (nextPage: number) => void;
+  isLoading?: boolean;
 };
 
-export default function HomeProductsPagination({ page, totalPages }: Props) {
+export default function HomeProductsPagination({ page, totalPages, onPageChange, isLoading = false }: Props) {
   if (totalPages <= 1) return null;
 
-  const prevHref = page <= 1 ? null : page === 2 ? "/" : `/?page=${page - 1}`;
-  const nextHref = page >= totalPages ? null : `/?page=${page + 1}`;
+  const canPrev = page > 1 && !isLoading;
+  const canNext = page < totalPages && !isLoading;
 
   return (
     <nav className={styles.pagination} aria-label="Product list pagination">
-      {prevHref ? (
-        <Link href={prevHref} className={styles.paginationLink} prefetch>
+      {canPrev ? (
+        <button type="button" className={styles.paginationLink} onClick={() => onPageChange(page - 1)}>
           Previous
-        </Link>
+        </button>
       ) : (
         <span className={styles.paginationDisabled}>Previous</span>
       )}
       <span className={styles.paginationStatus}>
         Page {page} of {totalPages}
       </span>
-      {nextHref ? (
-        <Link href={nextHref} className={styles.paginationLink} prefetch>
+      {canNext ? (
+        <button type="button" className={styles.paginationLink} onClick={() => onPageChange(page + 1)}>
           Next
-        </Link>
+        </button>
       ) : (
         <span className={styles.paginationDisabled}>Next</span>
       )}

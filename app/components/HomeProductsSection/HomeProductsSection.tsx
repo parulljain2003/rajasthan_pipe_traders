@@ -1,9 +1,11 @@
-import React from "react";
-import { getStorefrontProductsFromSearchParams } from "@/lib/catalog/storefront";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import styles from "./HomeProductsSection.module.css";
 import HomeProductsPagination from "./HomeProductsPagination";
 import HomeProductsSortedGrid from "./HomeProductsSortedGrid";
 import StorefrontPolicyFooterNote from "@/app/components/StorefrontPolicyFooterNote";
+import { fetchProductsList } from "@/app/lib/api/client";
 import type { ApiProduct } from "../../lib/api/types";
 
 const PAGE_SIZE = 10;
@@ -12,35 +14,56 @@ type Props = {
   page?: number;
 };
 
-export default async function HomeProductsSection({ page: pageProp = 1 }: Props) {
-  let page = Math.max(1, Math.floor(Number(pageProp)) || 1);
-  const sp = new URLSearchParams();
-  sp.set("productKind", "catalog");
-  sp.set("limit", String(PAGE_SIZE));
-  sp.set("skip", String((page - 1) * PAGE_SIZE));
+export default function HomeProductsSection({ page: pageProp = 1 }: Props) {
+  const [page, setPage] = useState(Math.max(1, Math.floor(Number(pageProp)) || 1));
+  const [pageProducts, setPageProducts] = useState<ApiProduct[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
 
-  let result = await getStorefrontProductsFromSearchParams(sp);
-  let pageProducts: ApiProduct[] = [];
-  let total = 0;
-  let totalPages = 1;
+  useEffect(() => {
+    setPage(Math.max(1, Math.floor(Number(pageProp)) || 1));
+  }, [pageProp]);
 
-  if (result.ok) {
-    let rows = result.data as unknown as ApiProduct[];
-    total = result.meta.total;
-    totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    if (page > totalPages) {
-      page = totalPages;
-      const corrected = new URLSearchParams();
-      corrected.set("productKind", "catalog");
-      corrected.set("limit", String(PAGE_SIZE));
-      corrected.set("skip", String((page - 1) * PAGE_SIZE));
-      result = await getStorefrontProductsFromSearchParams(corrected);
-      if (result.ok) {
-        rows = result.data as unknown as ApiProduct[];
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetchProductsList({
+          productKind: "catalog",
+          limit: PAGE_SIZE,
+          skip: (page - 1) * PAGE_SIZE,
+        });
+        if (cancelled) return;
+
+        const nextTotal = res.meta.total;
+        const nextTotalPages = Math.max(1, Math.ceil(nextTotal / PAGE_SIZE));
+        const correctedPage = Math.min(page, nextTotalPages);
+
+        if (correctedPage !== page) {
+          setPage(correctedPage);
+          return;
+        }
+
+        setPageProducts(res.data as ApiProduct[]);
+        setTotal(nextTotal);
+        setTotalPages(nextTotalPages);
+      } catch {
+        if (!cancelled) {
+          setPageProducts([]);
+          setTotal(0);
+          setTotalPages(1);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
-    }
-    pageProducts = rows;
-  }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [page]);
 
   const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const end = total === 0 ? 0 : Math.min(page * PAGE_SIZE, total);
@@ -56,7 +79,9 @@ export default async function HomeProductsSection({ page: pageProp = 1 }: Props)
             </span>
           </div>
           <p className={styles.subtitle}>
-            {total > 0
+            {isLoading
+              ? "Loading products..."
+              : total > 0
               ? `Showing ${start}–${end} of ${total} · Browse our hardware and plumbing catalog`
               : "Our catalog will appear here when products are available"}
           </p>
@@ -64,7 +89,12 @@ export default async function HomeProductsSection({ page: pageProp = 1 }: Props)
 
         <HomeProductsSortedGrid apiProducts={pageProducts} />
 
-        <HomeProductsPagination page={page} totalPages={totalPages} />
+        <HomeProductsPagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          isLoading={isLoading}
+        />
 
         <div className={styles.footer}>
           <StorefrontPolicyFooterNote className={styles.footerNote} />

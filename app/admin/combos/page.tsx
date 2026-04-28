@@ -245,8 +245,6 @@ function MultiCheckboxBlock({
 const emptyForm = {
   name: "",
   triggerCategoryIds: [] as string[],
-  targetCategoryIds: [] as string[],
-  fallbackCategoryIds: [] as string[],
   triggerProductSlugs: [] as string[],
   targetProductSlugs: [] as string[],
   fallbackTargetProductSlugs: [] as string[],
@@ -262,9 +260,7 @@ type ComboFormFieldErrorKey =
   | "name"
   | "triggerCategories"
   | "triggerProducts"
-  | "targetCategories"
   | "targetProducts"
-  | "fallbackCategories"
   | "fallbackProducts"
   | "minTrigger"
   | "maxTargetCombo"
@@ -368,28 +364,18 @@ export default function AdminCombosPage() {
   );
 
   const targetProductsForPicker = useMemo(() => {
-    const selectedCategoryIds = form.targetCategoryIds;
-    if (selectedCategoryIds.length === 0) return [];
-    const selectedCategorySet = new Set(selectedCategoryIds);
     return productOptions.filter(
       (p) =>
-        p.categoryId &&
-        selectedCategorySet.has(p.categoryId) &&
         !triggerSlugSetForPicker.has(normSlug(p.slug))
     );
-  }, [productOptions, form.targetCategoryIds, triggerSlugSetForPicker]);
+  }, [productOptions, triggerSlugSetForPicker]);
 
   const fallbackProductsForPicker = useMemo(() => {
-    const selectedCategoryIds = form.fallbackCategoryIds;
-    if (selectedCategoryIds.length === 0) return [];
-    const selectedCategorySet = new Set(selectedCategoryIds);
     return productOptions.filter(
       (p) =>
-        p.categoryId &&
-        selectedCategorySet.has(p.categoryId) &&
         !triggerSlugSetForPicker.has(normSlug(p.slug))
     );
-  }, [productOptions, form.fallbackCategoryIds, triggerSlugSetForPicker]);
+  }, [productOptions, triggerSlugSetForPicker]);
 
   useEffect(() => {
     if (productOptions.length === 0) return;
@@ -430,36 +416,6 @@ export default function AdminCombosPage() {
     });
   }, [form.triggerProductSlugs]);
 
-  useEffect(() => {
-    if (productOptions.length === 0) return;
-    const catIds = form.targetCategoryIds;
-    if (catIds.length === 0) return;
-    const catSet = new Set(catIds);
-    const allowed = new Set(
-      productOptions.filter((p) => p.categoryId && catSet.has(p.categoryId)).map((p) => normSlug(p.slug))
-    );
-    setForm((f) => {
-      const next = f.targetProductSlugs.filter((s) => allowed.has(normSlug(s)));
-      if (next.length === f.targetProductSlugs.length) return f;
-      return { ...f, targetProductSlugs: next };
-    });
-  }, [form.targetCategoryIds, productOptions]);
-
-  useEffect(() => {
-    if (productOptions.length === 0) return;
-    const catIds = form.fallbackCategoryIds;
-    if (catIds.length === 0) return;
-    const catSet = new Set(catIds);
-    const allowed = new Set(
-      productOptions.filter((p) => p.categoryId && catSet.has(p.categoryId)).map((p) => normSlug(p.slug))
-    );
-    setForm((f) => {
-      const next = f.fallbackTargetProductSlugs.filter((s) => allowed.has(normSlug(s)));
-      if (next.length === f.fallbackTargetProductSlugs.length) return f;
-      return { ...f, fallbackTargetProductSlugs: next };
-    });
-  }, [form.fallbackCategoryIds, productOptions]);
-
   function clearFieldError(key: ComboFormFieldErrorKey) {
     setFieldErrors((er) => {
       if (!(key in er)) return er;
@@ -484,13 +440,10 @@ export default function AdminCombosPage() {
   }
 
   function openEdit(rule: AdminComboRule) {
-    const maybe = rule as AdminComboRule & { fallbackCategoryIds?: string[] };
     setEditingId(rule._id);
     setForm({
       name: rule.name,
       triggerCategoryIds: rule.triggerCategoryIds ?? [],
-      targetCategoryIds: rule.targetCategoryIds ?? [],
-      fallbackCategoryIds: maybe.fallbackCategoryIds ?? [],
       triggerProductSlugs: [...(rule.triggerSlugs ?? [])],
       targetProductSlugs: [...(rule.targetSlugs ?? [])],
       fallbackTargetProductSlugs: [...(rule.fallbackTargetSlugs ?? [])],
@@ -517,8 +470,6 @@ export default function AdminCombosPage() {
       targetSlugs: form.targetProductSlugs,
       fallbackTargetSlugs: form.fallbackTargetProductSlugs,
       triggerCategoryIds: form.triggerCategoryIds,
-      targetCategoryIds: form.targetCategoryIds,
-      fallbackCategoryIds: form.fallbackCategoryIds,
       minTriggerBags: parseMinTriggerBags(trigStr === "" ? undefined : trigStr, 3),
       minTargetBags: parseMinTriggerBags(tgtStr === "" ? undefined : tgtStr, 1),
       triggerThresholdUnit: form.triggerThresholdUnit,
@@ -541,14 +492,8 @@ export default function AdminCombosPage() {
     if (form.triggerProductSlugs.length === 0) {
       nextErrors.triggerProducts = "Select at least one trigger product.";
     }
-    if (form.targetCategoryIds.length === 0) {
-      nextErrors.targetCategories = "Select at least one target category.";
-    }
     if (form.targetProductSlugs.length === 0) {
       nextErrors.targetProducts = "Select at least one combo target product.";
-    }
-    if (form.fallbackCategoryIds.length === 0) {
-      nextErrors.fallbackCategories = "Select at least one fallback category.";
     }
     if (form.fallbackTargetProductSlugs.length === 0) {
       nextErrors.fallbackProducts = "Select at least one fallback product.";
@@ -864,37 +809,8 @@ export default function AdminCombosPage() {
               <div className="admin-field-row admin-combo-grid-two">
                 <div className="admin-combo-col">
                   <MultiCheckboxBlock
-                    title="Target categories *"
-                    hint="Categories for combo-priced target products."
-                    error={fieldErrors.targetCategories}
-                    idPrefix="target-cat"
-                    search={searchTrigCat}
-                    onSearchChange={setSearchTrigCat}
-                    loading={optionsLoading}
-                    emptyMessage="No categories found."
-                    options={categoryRowsForMulti}
-                    selectedKeys={form.targetCategoryIds}
-                    onToggle={(key, checked) => {
-                      clearFieldError("targetCategories");
-                      setForm((f) => ({ ...f, targetCategoryIds: toggleId(f.targetCategoryIds, key, checked) }));
-                    }}
-                    onSelectAll={(keys) => {
-                      clearFieldError("targetCategories");
-                      setForm((f) => ({
-                        ...f,
-                        targetCategoryIds: [...new Set([...f.targetCategoryIds, ...keys])],
-                      }));
-                    }}
-                    onClear={() => {
-                      clearFieldError("targetCategories");
-                      setForm((f) => ({ ...f, targetCategoryIds: [] }));
-                    }}
-                  />
-                </div>
-                <div className="admin-combo-col">
-                  <MultiCheckboxBlock
                     title="Target products (combo) *"
-                    hint="Combo-priced products after the trigger condition is met. Trigger products are hidden here."
+                    hint="Combo-priced products after trigger condition is met. Search across all products; trigger products are hidden here."
                     error={fieldErrors.targetProducts}
                     idPrefix="tgt-prod"
                     search={searchTgtProd}
@@ -902,11 +818,11 @@ export default function AdminCombosPage() {
                     onSearchChange={setSearchTgtProd}
                     loading={optionsLoading}
                     emptyMessage={
-                      form.targetCategoryIds.length > 0
-                        ? "No products found in selected categories."
-                        : "Please select a target category first."
+                      searchTgtProd.trim()
+                        ? "No products found."
+                        : "Type in search to see products."
                     }
-                    options={targetProdRows}
+                    options={searchTgtProd.trim() ? targetProdRows : []}
                     selectedKeys={form.targetProductSlugs}
                     onToggle={(key, checked) => {
                       clearFieldError("targetProducts");
@@ -936,42 +852,10 @@ export default function AdminCombosPage() {
                     }}
                   />
                 </div>
-              </div>
-
-              <div className="admin-field-row admin-combo-grid-two">
-                <div className="admin-combo-col">
-                  <MultiCheckboxBlock
-                    title="Fallback categories *"
-                    hint="Categories for regular-priced fallback products (before combo unlocks)."
-                    error={fieldErrors.fallbackCategories}
-                    idPrefix="fallback-cat"
-                    search={searchTrigCat}
-                    onSearchChange={setSearchTrigCat}
-                    loading={optionsLoading}
-                    emptyMessage="No categories found."
-                    options={categoryRowsForMulti}
-                    selectedKeys={form.fallbackCategoryIds}
-                    onToggle={(key, checked) => {
-                      clearFieldError("fallbackCategories");
-                      setForm((f) => ({ ...f, fallbackCategoryIds: toggleId(f.fallbackCategoryIds, key, checked) }));
-                    }}
-                    onSelectAll={(keys) => {
-                      clearFieldError("fallbackCategories");
-                      setForm((f) => ({
-                        ...f,
-                        fallbackCategoryIds: [...new Set([...f.fallbackCategoryIds, ...keys])],
-                      }));
-                    }}
-                    onClear={() => {
-                      clearFieldError("fallbackCategories");
-                      setForm((f) => ({ ...f, fallbackCategoryIds: [] }));
-                    }}
-                  />
-                </div>
                 <div className="admin-combo-col">
                   <MultiCheckboxBlock
                     title="Fallback products *"
-                    hint="Regular price before combo unlocks. Same product cannot be both target and fallback; trigger products are hidden here."
+                    hint="Regular price before combo unlocks. Search across all products. Same product cannot be both target and fallback; trigger products are hidden here."
                     error={fieldErrors.fallbackProducts}
                     idPrefix="fallback-tgt-prod"
                     search={searchFallbackTgtProd}
@@ -979,11 +863,11 @@ export default function AdminCombosPage() {
                     onSearchChange={setSearchFallbackTgtProd}
                     loading={optionsLoading}
                     emptyMessage={
-                      form.fallbackCategoryIds.length > 0
-                        ? "No products found in selected categories."
-                        : "Please select a fallback category first."
+                      searchFallbackTgtProd.trim()
+                        ? "No products found."
+                        : "Type in search to see products."
                     }
-                    options={fallbackProdRows}
+                    options={searchFallbackTgtProd.trim() ? fallbackProdRows : []}
                     selectedKeys={form.fallbackTargetProductSlugs}
                     onToggle={(key, checked) => {
                       clearFieldError("fallbackProducts");

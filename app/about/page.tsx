@@ -48,24 +48,24 @@ export default function AboutPage() {
           <p className={styles.bodyText}>
             We provide a wide and practical range of products designed to support residential, commercial, and industrial projects. Our product categories include:
           </p>
-          <div className={styles.productList}>
-            <div className={styles.listItem}>
+          <ul className={styles.productList}>
+            <li className={styles.listItem}>
               <h3 className={styles.listTitle}>Cable Management Solutions</h3>
               <p>Cable Clips (Single & Double Nail), Nylon Cable Ties, Casing Clips</p>
-            </div>
-            <div className={styles.listItem}>
+            </li>
+            <li className={styles.listItem}>
               <h3 className={styles.listTitle}>Fastening Products</h3>
               <p>Concrete Nails, Drywall Screws, Wall Plugs (PVC Gitti)</p>
-            </div>
-            <div className={styles.listItem}>
+            </li>
+            <li className={styles.listItem}>
               <h3 className={styles.listTitle}>Electrical Fittings</h3>
               <p>UPVC & CPVC Pipe Clamps, Modular Boxes, MCB Boxes, Electrical Holders, Plugs, and Sockets</p>
-            </div>
-            <div className={styles.listItem}>
+            </li>
+            <li className={styles.listItem}>
               <h3 className={styles.listTitle}>General Hardware Accessories</h3>
               <p>Essential installation materials for everyday site requirements</p>
-            </div>
-          </div>
+            </li>
+          </ul>
           <p className={styles.bodyText}>
             Every product is manufactured using premium-grade raw materials and modern techniques to ensure durability, safety, and long-term performance.
           </p>

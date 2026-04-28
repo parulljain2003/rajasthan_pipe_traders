@@ -266,12 +266,14 @@ export default function AdminCategoriesPage() {
         slug: derivedSlug,
         description: form.description.trim() || undefined,
         image: form.image.trim() || null,
-        sortOrder: Number(form.sortOrder) || 0,
         sourceSectionLabel: form.sourceSectionLabel.trim() || undefined,
         isActive: form.isActive,
         parent: parentId,
       };
-      if (swapSortOrderWith) {
+      if (!editingId) {
+        body.sortOrder = Number(form.sortOrder) || 0;
+      }
+      if (swapSortOrderWith && !editingId) {
         body.swapSortOrderWith = swapSortOrderWith;
       }
       const url = editingId ? `/api/admin/categories/${editingId}` : "/api/admin/categories";
@@ -477,6 +479,9 @@ export default function AdminCategoriesPage() {
           >
             Refresh
           </button>
+          <span className="muted" style={{ fontSize: "0.875rem" }}>
+            {total} category(s) total
+          </span>
         </div>
         {!loading ? <AdminCategorySearchBar categories={list} /> : null}
       </div>
@@ -500,7 +505,6 @@ export default function AdminCategoriesPage() {
                   <th>S.No</th>
                   <th>Image</th>
                   <th>Name</th>
-                  <th>Slug</th>
                   <th>Order</th>
                   <th>Active</th>
                   <th />
@@ -561,17 +565,6 @@ export default function AdminCategoriesPage() {
                       }}
                     >
                       {activeCategory.name}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--admin-muted, #64748b)",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {activeCategory.slug}
                     </div>
                   </div>
                 </div>
@@ -657,29 +650,31 @@ export default function AdminCategoriesPage() {
               <div className="admin-form-section">
                 <h3 className="admin-form-section-title">Display settings</h3>
                 <div className="admin-field-row">
-                  <div className="admin-field">
-                    <label htmlFor="cat-sort">Sort order</label>
-                    <input
-                      id="cat-sort"
-                      type="number"
-                      className="admin-input"
-                      inputMode="numeric"
-                      min={0}
-                      step={1}
-                      value={form.sortOrder}
-                      onChange={(e) => {
-                        setSortConflict(null);
-                        const v = e.target.value;
-                        setForm((f) => ({
-                          ...f,
-                          sortOrder: v === "" ? 0 : Number(v),
-                        }));
-                      }}
-                    />
-                    <p className="muted" style={{ marginTop: 6 }}>
-                      Lower numbers appear first within the same parent group. If this order is already taken, you can swap after save.
-                    </p>
-                  </div>
+                  {!editingId ? (
+                    <div className="admin-field">
+                      <label htmlFor="cat-sort">Sort order</label>
+                      <input
+                        id="cat-sort"
+                        type="number"
+                        className="admin-input"
+                        inputMode="numeric"
+                        min={0}
+                        step={1}
+                        value={form.sortOrder}
+                        onChange={(e) => {
+                          setSortConflict(null);
+                          const v = e.target.value;
+                          setForm((f) => ({
+                            ...f,
+                            sortOrder: v === "" ? 0 : Number(v),
+                          }));
+                        }}
+                      />
+                      <p className="muted" style={{ marginTop: 6 }}>
+                        Lower numbers appear first within the same parent group. If this order is already taken, you can swap after save.
+                      </p>
+                    </div>
+                  ) : null}
                   <div className="admin-field">
                     <label htmlFor="cat-source">Source section label (optional)</label>
                     <input
@@ -702,12 +697,10 @@ export default function AdminCategoriesPage() {
                 </div>
               </div>
 
-              {sortConflict ? (
+              {!editingId && sortConflict ? (
                 <div className="admin-banner" role="status" style={{ marginBottom: 12 }}>
                   <p style={{ margin: "0 0 8px" }}>
-                    {editingId
-                      ? `Swap: this category will take sort order ${sortConflict.sortOrder}, and “${sortConflict.name}” will take your current order.`
-                      : `“${sortConflict.name}” uses this order. Move it to the end of the list and use ${sortConflict.sortOrder} for this category.`}
+                    {`“${sortConflict.name}” uses this order. Move it to the end of the list and use ${sortConflict.sortOrder} for this category.`}
                   </p>
                   <button
                     type="button"
@@ -715,7 +708,7 @@ export default function AdminCategoriesPage() {
                     disabled={saving}
                     onClick={() => void handleSwapSortOrder()}
                   >
-                    {editingId ? "Swap sort order" : "Apply and move other category"}
+                    Apply and move other category
                   </button>
                 </div>
               ) : null}
