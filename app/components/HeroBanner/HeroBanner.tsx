@@ -42,13 +42,6 @@ function normalizeBannerCoupon(raw: Record<string, unknown>): BannerCoupon {
    COUPON CARD COMPONENT
 ════════════════════════════════════ */
 function CouponCard({ c }: { c: BannerCoupon }) {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    navigator.clipboard.writeText(c.code).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div className={`${styles.coupon} ${styles[`coupon_${c.theme}`]}`}>
       <div className={styles.couponNotchL} aria-hidden />
@@ -66,28 +59,9 @@ function CouponCard({ c }: { c: BannerCoupon }) {
       <div className={styles.couponBody}>
         <p className={styles.couponCond}>{c.condition}</p>
         <p className={styles.couponDescTxt}>{c.desc}</p>
-        <button
-          type="button"
-          className={`${styles.couponCopy} ${styles[`couponCopy_${c.theme}`]}`}
-          onClick={copy}
-        >
-          {copied ? (
-            <>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                <path d="M20 7 9 18l-5-5" />
-              </svg>
-              Copied!
-            </>
-          ) : (
-            <>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect width="14" height="14" x="8" y="8" rx="2" />
-                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-              </svg>
-              {c.code}
-            </>
-          )}
-        </button>
+        <div className={`${styles.couponCode} ${styles[`couponCode_${c.theme}`]}`}>
+          {c.code}
+        </div>
       </div>
     </div>
   );
