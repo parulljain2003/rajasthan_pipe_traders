@@ -14,10 +14,11 @@ const CATEGORY_CARD_IMAGES = ["/Cable_Clip.png", "/Nail_Cable_Clip.png"];
 const GRID_GAP_PX = 20;
 const GRID_MIN_TRACK_PX = 220;
 const MOBILE_MAX_WIDTH = 768;
+const AUTOPLAY_INTERVAL_MS = 2500;
 
-function maxCategoriesForTwoRows(gridWidthPx: number, isMobileTwoCol: boolean): number {
-  if (isMobileTwoCol) {
-    return 4;
+function maxCategoriesForTwoRows(gridWidthPx: number, isMobileView: boolean): number {
+  if (isMobileView) {
+    return 1;
   }
   const cols = Math.max(1, Math.floor((gridWidthPx + GRID_GAP_PX) / (GRID_MIN_TRACK_PX + GRID_GAP_PX)));
   return cols * 2;
@@ -53,8 +54,8 @@ export default function HomeCategoryGrid() {
     if (!el) return;
     const w = el.clientWidth;
     if (w <= 0) return;
-    const isMobileTwoCol = typeof window !== "undefined" && window.matchMedia(`(max-width: ${MOBILE_MAX_WIDTH}px)`).matches;
-    setMaxHomeCategories(maxCategoriesForTwoRows(w, isMobileTwoCol));
+    const isMobileView = typeof window !== "undefined" && window.matchMedia(`(max-width: ${MOBILE_MAX_WIDTH}px)`).matches;
+    setMaxHomeCategories(maxCategoriesForTwoRows(w, isMobileView));
   }, []);
 
   useEffect(() => {
@@ -132,7 +133,7 @@ export default function HomeCategoryGrid() {
     if (isPaused) return;
     const timer = window.setInterval(() => {
       setPage((p) => (p + 1) % totalPages);
-    }, 3500);
+    }, AUTOPLAY_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [isPaused, totalPages]);
 
@@ -160,7 +161,7 @@ export default function HomeCategoryGrid() {
           className={styles.gridWrap}
           ref={gridWrapRef}
           onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
         >
           <div
             className={styles.pagesTrack}
