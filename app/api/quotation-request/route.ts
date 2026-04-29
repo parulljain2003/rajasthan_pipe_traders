@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { put } from "@vercel/blob";
 import { connectDb } from "@/lib/db/connect";
 import { OrderModel } from "@/lib/db/models/Order";
 import { LeadModel } from "@/lib/db/models/Lead";
 import { orderSerialFromMongoId } from "@/lib/utils/orderSerialFromId";
 import { logApiRouteError } from "@/lib/http/apiError";
+import {
+  generateQuotationPDF,
+  type QuotationPdfOrderData,
+} from "@/lib/utils/generateQuotationPDF";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -169,6 +174,53 @@ export async function POST(req: NextRequest) {
     const dateIso = cAt instanceof Date ? cAt.toISOString() : new Date().toISOString();
     const serialNo = orderSerialFromMongoId(id);
 
+    let quotationPdfBlobUrl: string | undefined;
+    try {
+      const pdfOrderSummary =
+        o.orderSummary && typeof o.orderSummary === "object" && !Array.isArray(o.orderSummary)
+          ? (o.orderSummary as QuotationPdfOrderData["orderSummary"])
+          : {};
+      const pdfCartItems = Array.isArray(o.cartItems) ? o.cartItems : [];
+      const pdfName =
+        (typeof o.fullName === "string" && o.fullName.trim() ? o.fullName : "") ||
+        (typeof o.customerName === "string" ? o.customerName : "");
+      const pdfPhone =
+        (typeof o.phoneNumber === "string" && o.phoneNumber.trim() ? o.phoneNumber : "") ||
+        (typeof o.customerPhone === "string" ? o.customerPhone : "");
+      const quotationPdfPayload: QuotationPdfOrderData = {
+        id,
+        serialNo,
+        createdAt: dateIso,
+        fullName: typeof o.fullName === "string" ? o.fullName : "",
+        customerName: pdfName,
+        customerPhone: pdfPhone,
+        customerEmail: typeof o.customerEmail === "string" ? o.customerEmail : "",
+        companyName: typeof o.companyName === "string" ? o.companyName : "",
+        gstin: typeof o.gstin === "string" ? o.gstin : "",
+        streetAddress: typeof o.streetAddress === "string" ? o.streetAddress : "",
+        city: typeof o.city === "string" ? o.city : "",
+        state: typeof o.state === "string" ? o.state : "",
+        pincode: typeof o.pincode === "string" ? o.pincode : "",
+        totalPrice:
+          typeof o.totalPrice === "number" && Number.isFinite(o.totalPrice) ? o.totalPrice : 0,
+        orderSummary: pdfOrderSummary,
+        cartItems: pdfCartItems as QuotationPdfOrderData["cartItems"],
+      };
+
+      const { blob: pdfBlob } = await generateQuotationPDF(quotationPdfPayload, {
+        saveDownload: false,
+      });
+
+      const uploaded = await put(`quotations/Quotation-${id}.pdf`, pdfBlob, {
+        access: "public",
+        contentType: "application/pdf",
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+      quotationPdfBlobUrl = uploaded.url;
+    } catch (e) {
+      logApiRouteError("POST /api/quotation-request quotation PDF blob upload", e);
+    }
+
     return NextResponse.json(
       {
         data: {
@@ -193,6 +245,7 @@ export async function POST(req: NextRequest) {
           totalPrice: o.totalPrice,
           orderSummary: (o.orderSummary as Record<string, unknown> | undefined) ?? {},
           cartItems: (o.cartItems as unknown[]) ?? [],
+          quotationPdfUrl: quotationPdfBlobUrl ?? null,
         },
       },
       { status: 201 }
