@@ -14,8 +14,7 @@ import {
   type ComboTargetAddBlockedInfo,
 } from "@/lib/combo/comboAddGuard";
 
-const RELATED_FETCH_LIMIT = 80;
-const RELATED_SHOW_COUNT = 4;
+const RELATED_FETCH_LIMIT = 50;
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -66,7 +65,7 @@ export default async function ProductPage({ params }: PageProps) {
 
   const staticProduct = getProductBySlug(slug);
   if (staticProduct) {
-    const relatedProducts = getRelatedProducts(staticProduct, 4);
+    const relatedProducts = getRelatedProducts(staticProduct, Number.MAX_SAFE_INTEGER);
     return <ProductDetail product={staticProduct} relatedProducts={relatedProducts} />;
   }
 
@@ -83,7 +82,7 @@ export default async function ProductPage({ params }: PageProps) {
     String(doc._id),
     RELATED_FETCH_LIMIT
   );
-  const relatedProducts = sortProductsForDisplayOrder(relatedCandidates).slice(0, RELATED_SHOW_COUNT);
+  const relatedProducts = sortProductsForDisplayOrder(relatedCandidates);
 
   let comboTargetPdpNotice: ComboTargetAddBlockedInfo | undefined;
   let comboTriggerPdpMessage: string | undefined;

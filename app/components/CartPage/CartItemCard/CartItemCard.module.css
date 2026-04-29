@@ -21,7 +21,7 @@
 .imageWrap {
   position: relative;
   width: 150px;
-  height: 200px;
+  height: 150px;
   border-radius: 12px;
   background: #f8fafc;
   border: 1px solid #f1f5f9;
@@ -184,13 +184,26 @@
   max-width: 100%;
 }
 
+.metaControlsRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+  width: 100%;
+}
+
 /* Unit price + quantity summary above steppers (moved from pricing column) */
 .cartUnitQtyMeta {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-  width: 100%;
-  max-width: min(100%, 22rem);
+  flex: 1;
+  min-width: 0;
+}
+
+.cartControlsCol {
+  width: min(100%, 320px);
+  flex-shrink: 0;
 }
 
 .cartMetaRow {
@@ -341,6 +354,15 @@
 
   .cartUnitQtyMeta {
     max-width: 100%;
+  }
+
+  .metaControlsRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cartControlsCol {
+    width: 100%;
   }
 
   .pricingCol {

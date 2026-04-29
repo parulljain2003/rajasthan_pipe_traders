@@ -52,10 +52,11 @@ const INNER_UNIT_OPTIONS = [
 
 /** Select value for “Add new” — stored as `custom:label` */
 const UNIT_ADD_NEW = "__add_new__";
+const BRAND_ADD_NEW = "__add_new_brand__";
 
 const KEY_FEATURE_ICON_OPTIONS: { value: KeyFeatureIcon; label: string }[] = [
   { value: "check", label: "Checkmark" },
-  { value: "material", label: "Info / material" },
+  // { value: "material", label: "Info / material" },
   { value: "dot", label: "Dot" },
 ];
 
@@ -126,6 +127,33 @@ function primaryPricingUnit(inner: string[], bulk: string[]): PackagingPricingUn
   if (inner[0]) return segmentToPricing(inner[0]);
   if (bulk[0]) return segmentToPricing(bulk[0]);
   return "per_piece";
+}
+
+function pluralizeUnit(word: string): string {
+  const t = String(word ?? "").trim();
+  if (!t) return "";
+  if (/(s|x|z|ch|sh)$/i.test(t)) return `${t}es`;
+  if (/[^aeiou]y$/i.test(t)) return `${t.slice(0, -1)}ies`;
+  return `${t}s`;
+}
+
+function unitWordsFromSegment(
+  segment: string | undefined,
+  fallbackSingular: string,
+  fallbackPlural: string
+): { singular: string; plural: string } {
+  const s = String(segment ?? "").trim();
+  if (!s) return { singular: fallbackSingular, plural: fallbackPlural };
+  if (s === "per_bag") return { singular: "bag", plural: "bags" };
+  if (s === "per_cartoon") return { singular: "carton", plural: "cartons" };
+  if (s === "per_packet") return { singular: "packet", plural: "packets" };
+  if (s === "per_box") return { singular: "box", plural: "boxes" };
+  if (s.startsWith("custom:")) {
+    const label = s.slice(7).trim().toLowerCase();
+    if (!label) return { singular: fallbackSingular, plural: fallbackPlural };
+    return { singular: label, plural: pluralizeUnit(label) };
+  }
+  return { singular: fallbackSingular, plural: fallbackPlural };
 }
 
 /** Human-readable min-order line for admin / listings */
@@ -284,6 +312,7 @@ export default function AdminProductsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [creatingBrandMode, setCreatingBrandMode] = useState<"select" | "custom">("select");
   const [saving, setSaving] = useState(false);
   const [sortConflict, setSortConflict] = useState<{
     _id: string;
@@ -319,6 +348,17 @@ export default function AdminProductsPage() {
     () => list.slice(page * pageSize, page * pageSize + pageSize),
     [list, page]
   );
+  const brandOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          list
+            .map((p) => String(p.brand ?? "").trim())
+            .filter((b) => b.length > 0)
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [list]
+  );
 
   /** Both packing fields set → storefront uses packing only; separate MOQ fields hidden and cleared on save */
   const packingReplacesMoq = useMemo(() => {
@@ -330,6 +370,14 @@ export default function AdminProductsPage() {
     const ppp = Math.max(1, Math.floor(Number(form.pcsPerPacket) || 1));
     return ppp >= 1;
   }, [form.productKind, form.packetsPerBag, form.pcsPerPacket]);
+  const currentBulkUnit = useMemo(
+    () => unitWordsFromSegment(form.bulkUnits[0], "bag", "bags"),
+    [form.bulkUnits]
+  );
+  const currentInnerUnit = useMemo(
+    () => unitWordsFromSegment(form.innerUnits[0], "packet", "packets"),
+    [form.innerUnits]
+  );
 
   const loadCategories = useCallback(async () => {
     try {
@@ -409,6 +457,7 @@ export default function AdminProductsPage() {
   function openCreate() {
     setEditingId(null);
     setForm(emptyForm);
+    setCreatingBrandMode("select");
     setSortConflict(null);
     setSortOrderCheckOk(false);
     setEditBaselineSortOrder(null);
@@ -617,7 +666,6 @@ export default function AdminProductsPage() {
           productKind: f.productKind,
           slug: String(f.slug ?? "").trim().toLowerCase() || undefined,
           category: f.categoryId,
-          sortOrder: sortOrderFromForm(f.sortOrder),
           description: String(f.description ?? "").trim() || undefined,
           brand: String(f.brand ?? "").trim(),
           image: primaryImage,
@@ -639,9 +687,6 @@ export default function AdminProductsPage() {
             ? { keyFeatures: keyRows, features: [] }
             : { keyFeatures: null, features: [] }),
         };
-        if (swapSortOrderWith) {
-          body.swapSortOrderWith = swapSortOrderWith;
-        }
         if (f.productKind === "catalog" && catalog.sizes) {
           body.sizes = catalog.sizes;
         } else {
@@ -674,12 +719,13 @@ export default function AdminProductsPage() {
       } else {
         if (!f.categoryId) throw new Error("Category is required");
         const nameTrim = String(f.name ?? "").trim();
-        const skuTrim = skuFromName(nameTrim);
+        const skuInput = String(f.sku ?? "").trim().toUpperCase();
+        const skuTrim = skuInput || skuFromName(nameTrim);
         const slugTrim = slugFromName(nameTrim);
         if (!slugTrim) throw new Error("Name is required to auto-generate slug");
         const body: Record<string, unknown> = {
           name: nameTrim,
-          productKind: f.productKind,
+          productKind: "catalog",
           slug: slugTrim,
           category: f.categoryId,
           sortOrder: sortOrderFromForm(f.sortOrder),
@@ -937,6 +983,7 @@ export default function AdminProductsPage() {
                     <th>Img</th>
                     <th>SKU</th>
                     <th>Name</th>
+                    <th>Brand</th>
                     <th>Category</th>
                     <th>Order</th>
                     <th>Kind</th>
@@ -1060,6 +1107,7 @@ export default function AdminProductsPage() {
                     id="p-kind"
                     className="admin-input admin-select"
                     value={form.productKind}
+                    disabled={!editingId}
                     onChange={(e) =>
                       setForm((f) => ({
                         ...f,
@@ -1068,7 +1116,7 @@ export default function AdminProductsPage() {
                     }
                   >
                     <option value="catalog">Catalog</option>
-                    <option value="sku">SKU line item</option>
+                    {editingId ? <option value="sku">SKU line item</option> : null}
                   </select>
                 </div>
                 <div className="admin-field">
@@ -1082,8 +1130,22 @@ export default function AdminProductsPage() {
                   />
                 </div>
                 {!editingId ? (
+                  <div className="admin-field">
+                    <label htmlFor="p-sku">SKU (Product Code)</label>
+                    <input
+                      id="p-sku"
+                      className="admin-input"
+                      value={form.sku}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, sku: e.target.value.toUpperCase() }))
+                      }
+                      placeholder="Leave empty to auto-generate from product name"
+                    />
+                  </div>
+                ) : null}
+                {!editingId ? (
                   <p className="muted" style={{ marginTop: "-0.1rem", marginBottom: "0.4rem" }}>
-                    SKU and slug will be auto-generated from product name.
+                    Slug is auto-generated from product name. SKU is optional.
                   </p>
                 ) : null}
                 <div className="admin-field">
@@ -1107,55 +1169,55 @@ export default function AdminProductsPage() {
                     ))}
                   </select>
                 </div>
-                <div className="admin-field">
-                  <label htmlFor="p-sort">Sort order</label>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn-ghost"
-                      disabled={sortChecking || saving}
-                      onClick={() => void checkSortOrder()}
-                      title="Check MongoDB for another product using this order in the full product list"
-                    >
-                      {sortChecking ? "Checking…" : "Check"}
-                    </button>
-                    <input
-                      id="p-sort"
-                      type="number"
-                      className="admin-input"
-                      style={{ flex: "1 1 140px", minWidth: 120, maxWidth: 220 }}
-                      inputMode="numeric"
-                      min={0}
-                      step={1}
-                      value={form.sortOrder}
-                      onChange={(e) => {
-                        setSortConflict(null);
-                        setSortOrderCheckOk(false);
-                        const v = e.target.value;
-                        setForm((f) => ({
-                          ...f,
-                          sortOrder: v === "" ? 0 : Number(v),
-                        }));
-                      }}
-                    />
-                  </div>
-                  <p className="muted" style={{ marginTop: 6 }}>
-                    Lower numbers appear first in ordering. Click Check to see if this number is free
-                    in the full product list; if another product already uses it, you can Swap.
-                  </p>
-                  {sortOrderCheckOk ? (
-                    <p className="admin-banner" role="status" style={{ marginTop: 8, marginBottom: 0 }}>
-                      This sort order is available in the full product list. You can save the rest of
-                      the form as usual.
+                {!editingId ? (
+                  <div className="admin-field">
+                    <label htmlFor="p-sort">Sort order</label>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn-ghost"
+                        disabled={sortChecking || saving}
+                        onClick={() => void checkSortOrder()}
+                        title="Check MongoDB for another product using this order in the full product list"
+                      >
+                        {sortChecking ? "Checking…" : "Check"}
+                      </button>
+                      <input
+                        id="p-sort"
+                        type="number"
+                        className="admin-input"
+                        style={{ flex: "1 1 140px", minWidth: 120, maxWidth: 220 }}
+                        inputMode="numeric"
+                        min={0}
+                        step={1}
+                        value={form.sortOrder}
+                        onChange={(e) => {
+                          setSortConflict(null);
+                          setSortOrderCheckOk(false);
+                          const v = e.target.value;
+                          setForm((f) => ({
+                            ...f,
+                            sortOrder: v === "" ? 0 : Number(v),
+                          }));
+                        }}
+                      />
+                    </div>
+                    <p className="muted" style={{ marginTop: 6 }}>
+                      Lower numbers appear first in ordering. Click Check to see if this number is free
+                      in the full product list; if another product already uses it, you can Swap.
                     </p>
-                  ) : null}
-                </div>
-                {sortConflict ? (
+                    {sortOrderCheckOk ? (
+                      <p className="admin-banner" role="status" style={{ marginTop: 8, marginBottom: 0 }}>
+                        This sort order is available in the full product list. You can save the rest of
+                        the form as usual.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+                {!editingId && sortConflict ? (
                   <div className="admin-banner warn" role="status" style={{ marginBottom: 12 }}>
                     <p style={{ margin: "0 0 8px" }}>
-                      {editingId
-                        ? `Conflict: sort order ${sortConflict.sortOrder} is already used by “${sortConflict.name}”. Click Swap to exchange positions (this product takes ${sortConflict.sortOrder}, the other takes your previous order).`
-                        : `Conflict: sort order ${sortConflict.sortOrder} is already used by “${sortConflict.name}”. Click Swap to move that product to the end of the list and use this order for the new product.`}
+                      {`Conflict: sort order ${sortConflict.sortOrder} is already used by “${sortConflict.name}”. Click Swap to move that product to the end of the list and use this order for the new product.`}
                     </p>
                     <button
                       type="button"
@@ -1169,13 +1231,50 @@ export default function AdminProductsPage() {
                 ) : null}
                 <div className="admin-field">
                   <label htmlFor="p-brand">Brand</label>
-                  <input
-                    id="p-brand"
-                    className="admin-input"
-                    value={form.brand}
-                    onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
-                    placeholder="Optional"
-                  />
+                  {!editingId ? (
+                    <>
+                      <select
+                        id="p-brand"
+                        className="admin-input admin-select"
+                        value={creatingBrandMode === "custom" ? BRAND_ADD_NEW : form.brand}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === BRAND_ADD_NEW) {
+                            setCreatingBrandMode("custom");
+                            setForm((f) => ({ ...f, brand: "" }));
+                            return;
+                          }
+                          setCreatingBrandMode("select");
+                          setForm((f) => ({ ...f, brand: v }));
+                        }}
+                      >
+                        <option value="">Select brand (optional)…</option>
+                        {brandOptions.map((b) => (
+                          <option key={b} value={b}>
+                            {b}
+                          </option>
+                        ))}
+                        <option value={BRAND_ADD_NEW}>+ Add new brand</option>
+                      </select>
+                      {creatingBrandMode === "custom" ? (
+                        <input
+                          className="admin-input"
+                          style={{ marginTop: 8 }}
+                          value={form.brand}
+                          onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
+                          placeholder="Enter new brand name"
+                        />
+                      ) : null}
+                    </>
+                  ) : (
+                    <input
+                      id="p-brand"
+                      className="admin-input"
+                      value={form.brand}
+                      onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
+                      placeholder="Optional"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -1335,23 +1434,7 @@ export default function AdminProductsPage() {
               </div>
 
               <div className="admin-form-section">
-                <h3 className="admin-form-section-title">Size &amp; quantity units</h3>
-                <p className="muted" style={{ fontSize: "0.875rem", marginTop: 0 }}>
-                  One <strong>size</strong> per product. Pick a preset or <strong>Add new</strong> and type your unit
-                  (e.g. bundle). Primary cart unit: packet or box first, then bags or carton; custom labels use
-                  &quot;other&quot; pricing mode.
-                </p>
-                <div className="admin-field">
-                  <label htmlFor="p-size">Size / model</label>
-                  <input
-                    id="p-size"
-                    className="admin-input"
-                    value={form.sizeLabel}
-                    onChange={(e) => setForm((f) => ({ ...f, sizeLabel: e.target.value }))}
-                    placeholder="e.g. 5 MM"
-                    autoComplete="off"
-                  />
-                </div>
+                <h3 className="admin-form-section-title">Quantity units</h3>
 
                 <div style={{ marginTop: "1rem" }}>
                   <p style={{ margin: "0 0 0.5rem", fontWeight: 600 }}>Bags / carton</p>
@@ -1495,7 +1578,7 @@ export default function AdminProductsPage() {
 
                 <div className="admin-field-row" style={{ marginTop: "1.25rem", alignItems: "flex-end" }}>
                   <div className="admin-field">
-                    <label htmlFor="p-pcs-per-pkt">PCS per packet</label>
+                    <label htmlFor="p-pcs-per-pkt">PCS per {currentInnerUnit.singular}</label>
                     <input
                       id="p-pcs-per-pkt"
                       className="admin-input"
@@ -1507,7 +1590,9 @@ export default function AdminProductsPage() {
                     />
                   </div>
                   <div className="admin-field">
-                    <label htmlFor="p-pkt-per-bag">Packets per master bag</label>
+                    <label htmlFor="p-pkt-per-bag">
+                      {currentInnerUnit.plural} per master {currentBulkUnit.singular}
+                    </label>
                     <input
                       id="p-pkt-per-bag"
                       className="admin-input"
@@ -1516,18 +1601,21 @@ export default function AdminProductsPage() {
                       step={1}
                       value={form.packetsPerBag ?? ""}
                       onChange={(e) => setForm((f) => ({ ...f, packetsPerBag: e.target.value }))}
-                      placeholder="e.g. 750 — empty = packet-only"
+                      placeholder={`e.g. 750 - empty = ${currentInnerUnit.singular}-only`}
                     />
                   </div>
                 </div>
                 <p className="muted" style={{ fontSize: "0.8rem", margin: "0.25rem 0 0" }}>
-                  Drives storefront <strong>PACKING DETAILS</strong> (pcs/packet and pkts/master bag) and the bag
-                  quantity stepper. Leave &quot;packets per master bag&quot; empty if you only sell by packet.
+                  Drives storefront <strong>PACKING DETAILS</strong> (pcs/{currentInnerUnit.singular} and{" "}
+                  {currentInnerUnit.plural}/{currentBulkUnit.singular}) and the {currentBulkUnit.singular}
+                  quantity stepper. Leave &quot;{currentInnerUnit.plural} per {currentBulkUnit.singular}&quot; empty
+                  if you only sell by {currentInnerUnit.singular}.
                   {packingReplacesMoq ? (
                     <>
                       {" "}
                       With <strong>both</strong> values set, separate MOQ fields are hidden — packing defines sellable
-                      units (customers order in packets and/or master bags; no extra minimum quantity fields).
+                      units (customers order in {currentInnerUnit.plural} and/or {currentBulkUnit.plural}; no extra
+                      minimum quantity fields).
                     </>
                   ) : null}
                 </p>
@@ -1536,7 +1624,7 @@ export default function AdminProductsPage() {
                   <>
                     <div className="admin-field-row" style={{ marginTop: "1rem", alignItems: "flex-end" }}>
                       <div className="admin-field">
-                        <label htmlFor="p-moq">MOQ (packets)</label>
+                        <label htmlFor="p-moq">MOQ ({currentInnerUnit.plural})</label>
                         <input
                           id="p-moq"
                           name="moq"
@@ -1553,7 +1641,7 @@ export default function AdminProductsPage() {
                         />
                       </div>
                       <div className="admin-field">
-                        <label htmlFor="p-moq-bags">MOQ (bags)</label>
+                        <label htmlFor="p-moq-bags">MOQ ({currentBulkUnit.plural})</label>
                         <input
                           id="p-moq-bags"
                           name="moqBags"

@@ -1,12 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import styles from "./SpecsTable.module.css";
 import { getSellerOffers, type Product } from "../../../data/products";
 import { usePricesEffectiveDate } from "@/lib/usePricesEffectiveDate";
+import { listingEntryToModel } from "@/app/components/ListingMoqCartControls/ListingMoqCartControls";
+import { useMoqCartForModel } from "@/lib/cart/useMoqCartForModel";
 
 interface SpecsTableProps {
   product: Product;
+  categoryProducts?: Product[];
 }
 
 type TabKey = "specs" | "terms";
@@ -16,10 +19,51 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: "terms", label: "Terms & Conditions" },
 ];
 
-export default function SpecsTable({ product }: SpecsTableProps) {
+const PAGE_SIZE = 10;
+
+function SpecsTableRow({ p, idx }: { p: Product; idx: number }) {
+  const offer = getSellerOffers(p)[0];
+  const s = offer?.sizes?.[0];
+  const moq = useMoqCartForModel(listingEntryToModel({ product: p, offer }));
+  if (!s) return null;
+  const inCart = moq.pktQty > 0 || moq.bagQty > 0;
+
+  return (
+    <tr className={idx % 2 === 0 ? styles.rowEven : styles.rowOdd}>
+      <td className={styles.sizeCell}>{p.name}</td>
+      <td className={styles.basicPriceCell}>₹{s.basicPrice.toFixed(2)}</td>
+      <td className={styles.gstPriceCell}>₹{s.withGST.toFixed(2)}</td>
+      <td className={styles.centerCell}>{s.qtyPerBag}</td>
+      <td className={styles.centerCell}>{s.pcsPerPacket}</td>
+      <td className={styles.actionCell}>
+        <button
+          type="button"
+          className={`${styles.addCartBtn} ${inCart ? styles.removeCartBtn : ""}`}
+          onClick={() => {
+            moq.setPacketTarget(inCart ? 0 : 1);
+          }}
+        >
+          {inCart ? "Remove from Cart" : "Add to Cart"}
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+export default function SpecsTable({ product, categoryProducts = [] }: SpecsTableProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("specs");
-  const offers = getSellerOffers(product);
   const pricesEffectiveDate = usePricesEffectiveDate();
+  const tableProducts = categoryProducts.length > 0 ? categoryProducts : [product];
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(tableProducts.length / PAGE_SIZE));
+  const pageItems = useMemo(
+    () => tableProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [tableProducts, page]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [tableProducts.length]);
 
   return (
     <div className={styles.container}>
@@ -39,37 +83,48 @@ export default function SpecsTable({ product }: SpecsTableProps) {
       {/* ── Tab: Size & Price List ── */}
       {activeTab === "specs" && (
         <div className={styles.tabContent}>
-          {offers.map((offer) => (
-            <div key={offer.sellerId} className={styles.sellerTableBlock}>
-              {offers.length > 1 && (
-                <h3 className={styles.sellerTableTitle}>{offer.sellerName}</h3>
-              )}
-              <div className={styles.tableWrapper}>
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th>Size / Variant</th>
-                      <th>Basic Price</th>
-                      <th>Price with GST</th>
-                      <th>Pkts / Master Bag</th>
-                      <th>Pcs / Packet</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {offer.sizes.map((s, i) => (
-                      <tr key={i} className={i % 2 === 0 ? styles.rowEven : styles.rowOdd}>
-                        <td className={styles.sizeCell}>{s.size}</td>
-                        <td className={styles.basicPriceCell}>₹{s.basicPrice.toFixed(2)}</td>
-                        <td className={styles.gstPriceCell}>₹{s.withGST.toFixed(2)}</td>
-                        <td className={styles.centerCell}>{s.qtyPerBag}</td>
-                        <td className={styles.centerCell}>{s.pcsPerPacket}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+          <div className={styles.tableWrapper}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Product Name</th>
+                  <th>Basic Price</th>
+                  <th>Price with GST</th>
+                  <th>Pkts / Master Bag</th>
+                  <th>Pcs / Packet</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageItems.map((p, i) => (
+                  <SpecsTableRow key={`${p.slug}-${i}`} p={p} idx={i} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {totalPages > 1 ? (
+            <div className={styles.pagination}>
+              <button
+                type="button"
+                className={styles.pageBtn}
+                disabled={page <= 1}
+                onClick={() => setPage((x) => Math.max(1, x - 1))}
+              >
+                Previous
+              </button>
+              <span className={styles.pageText}>
+                Page {page} of {totalPages}
+              </span>
+              <button
+                type="button"
+                className={styles.pageBtn}
+                disabled={page >= totalPages}
+                onClick={() => setPage((x) => Math.min(totalPages, x + 1))}
+              >
+                Next
+              </button>
             </div>
-          ))}
+          ) : null}
           <p className={styles.tableNote}>
             * All prices are per packet (excluding transport).
             {pricesEffectiveDate ? ` Prices effective ${pricesEffectiveDate}.` : null}

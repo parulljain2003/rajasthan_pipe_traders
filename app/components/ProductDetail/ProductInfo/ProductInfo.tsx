@@ -262,7 +262,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
           </p>
         </div>
 
-        <div className={styles.bagActionControls}>
+        <div id="pdp-add-to-cart" className={styles.bagActionControls}>
           <ListingMoqCartControlsView
             labels={labels}
             moq={moq}
