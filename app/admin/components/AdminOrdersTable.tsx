@@ -10,6 +10,8 @@ export type AdminOrdersTableRow = {
   orderId: string;
   dateLabel: string;
   customerName: string;
+  companyName: string;
+  city: string;
   phone: string;
   totalLabel: string;
   pdfPayload: QuotationPdfOrderData;
@@ -36,7 +38,14 @@ export default function AdminOrdersTable({ rows }: Props) {
   const onViewPdf = useCallback(async (payload: QuotationPdfOrderData) => {
     setLoadingId(payload.id);
     try {
-      await generateQuotationPDF(payload);
+      const { blob } = await generateQuotationPDF(payload, { saveDownload: false });
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, "_blank", "noopener,noreferrer");
+      if (!win) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
     } finally {
       setLoadingId(null);
     }
@@ -50,6 +59,8 @@ export default function AdminOrdersTable({ rows }: Props) {
             <th>Order ID</th>
             <th>Date</th>
             <th>Customer name</th>
+            <th>Company name</th>
+            <th>City</th>
             <th>Phone</th>
             <th>Total amount</th>
             <th scope="col">Actions</th>
@@ -58,7 +69,7 @@ export default function AdminOrdersTable({ rows }: Props) {
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={6} className="muted">
+              <td colSpan={8} className="muted">
                 No orders yet.
               </td>
             </tr>
@@ -72,6 +83,8 @@ export default function AdminOrdersTable({ rows }: Props) {
                   </td>
                   <td className="muted">{r.dateLabel}</td>
                   <td>{r.customerName}</td>
+                  <td className="muted">{r.companyName}</td>
+                  <td className="muted">{r.city}</td>
                   <td className="muted">{r.phone}</td>
                   <td>{r.totalLabel}</td>
                   <td>

@@ -88,9 +88,6 @@
   animation: couponScroll 28s linear infinite;
 }
 
-.couponRow:hover {
-  animation-play-state: paused;
-}
 
 @keyframes couponScroll {
   from {
@@ -114,6 +111,7 @@
   flex-shrink: 0;
   min-width: 190px;
   max-width: 300px;
+  user-select: none;
 }
 
 .coupon:hover {
@@ -228,7 +226,7 @@
   text-overflow: ellipsis;
 }
 
-.couponCopy {
+.couponCode {
   display: inline-flex;
   align-items: center;
   gap: 0.28rem;
@@ -239,10 +237,10 @@
   padding: 0.18rem 0.5rem;
   border-radius: 4px;
   border: none;
-  cursor: pointer;
   transition: all 0.18s ease;
   width: fit-content;
   margin-top: 0.12rem;
+  user-select: none;
 }
 
 /* COLOUR THEMES */
@@ -263,14 +261,9 @@
   border-color: #60a5fa;
 }
 
-.couponCopy_blue {
+.couponCode_blue {
   background: rgba(37, 99, 235, 0.25);
   color: #93c5fd;
-}
-
-.couponCopy_blue:hover {
-  background: #2563eb;
-  color: #fff;
 }
 
 .coupon_indigo {
@@ -290,14 +283,9 @@
   border-color: #a5b4fc;
 }
 
-.couponCopy_indigo {
+.couponCode_indigo {
   background: rgba(99, 102, 241, 0.25);
   color: #c7d2fe;
-}
-
-.couponCopy_indigo:hover {
-  background: #6366f1;
-  color: #fff;
 }
 
 .coupon_green {
@@ -317,14 +305,9 @@
   border-color: #34d399;
 }
 
-.couponCopy_green {
+.couponCode_green {
   background: rgba(16, 185, 129, 0.25);
   color: #6ee7b7;
-}
-
-.couponCopy_green:hover {
-  background: #10b981;
-  color: #fff;
 }
 
 .coupon_amber {
@@ -344,14 +327,9 @@
   border-color: #f59e0b;
 }
 
-.couponCopy_amber {
+.couponCode_amber {
   background: rgba(245, 158, 11, 0.25);
   color: #fcd34d;
-}
-
-.couponCopy_amber:hover {
-  background: #f59e0b;
-  color: #fff;
 }
 
 .coupon_brown {
@@ -371,14 +349,9 @@
   border-color: #d97706;
 }
 
-.couponCopy_brown {
+.couponCode_brown {
   background: rgba(180, 83, 9, 0.28);
   color: #fcd34d;
-}
-
-.couponCopy_brown:hover {
-  background: #b45309;
-  color: #fff;
 }
 
 /* ═══════════════════════════════════════
@@ -1297,6 +1270,7 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 0.45rem;
+    margin-top: 0.2rem;
   }
 
   .slideBtn {

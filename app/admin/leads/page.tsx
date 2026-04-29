@@ -38,7 +38,7 @@ export default async function AdminLeadsPage() {
       .exec(),
     OrderModel.find({})
       .sort({ createdAt: -1 })
-      .select("customerPhone customerName")
+      .select("customerPhone customerName phoneNumber fullName")
       .limit(10000)
       .lean()
       .exec(),
@@ -48,13 +48,17 @@ export default async function AdminLeadsPage() {
   const orderPhoneByKey = new Map<string, string>();
   const orderNameByKey = new Map<string, string>();
   for (const o of orders) {
-    const raw = typeof o.customerPhone === "string" ? o.customerPhone.trim() : "";
+    const raw =
+      (typeof o.phoneNumber === "string" ? o.phoneNumber.trim() : "") ||
+      (typeof o.customerPhone === "string" ? o.customerPhone.trim() : "");
     if (!raw) continue;
     const k = last10PhoneKey(raw);
     if (k.length < 10) continue;
     if (!orderPhoneByKey.has(k)) {
       orderPhoneByKey.set(k, raw);
-      const name = typeof o.customerName === "string" ? o.customerName.trim() : "";
+      const name =
+        (typeof o.fullName === "string" ? o.fullName.trim() : "") ||
+        (typeof o.customerName === "string" ? o.customerName.trim() : "");
       orderNameByKey.set(k, name);
     }
   }

@@ -120,7 +120,8 @@
 /* ── Image Area ── */
 .imageArea {
   position: relative;
-  width: 25%;
+  width: 34%;
+  min-width: 84px;
   aspect-ratio: 4 / 3;
   overflow: hidden;
   border-radius: 16px 0 0 16px;
@@ -139,7 +140,7 @@
   height: 100%;
   object-fit: contain;
   color: transparent;
-  padding: 0.25rem;
+  padding: 0.1rem;
 }
 
 .card:hover .imageWrap {
@@ -256,15 +257,24 @@
     font-size: 1.4rem;
   }
 
+  .card {
+    min-height: 138px;
+  }
+
   .track {
-    grid-template-columns: repeat(2, minmax(138px, 200px));
-    justify-content: center;
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
     gap: 0.72rem;
     padding: 0.2rem 0 0.65rem;
   }
 
   .name {
     font-size: 0.82rem;
+  }
+
+  .imageArea {
+    width: 32%;
+    min-width: 72px;
   }
 }
 
@@ -278,10 +288,19 @@
     padding: 0.4rem 0.6rem;
   }
 
+  .card {
+    min-height: 132px;
+  }
+
   .track {
-    grid-template-columns: repeat(2, minmax(124px, 150px));
-    justify-content: center;
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
     gap: 0.56rem;
     padding: 0.2rem 0 0.56rem;
+  }
+
+  .imageArea {
+    width: 30%;
+    min-width: 64px;
   }
 }

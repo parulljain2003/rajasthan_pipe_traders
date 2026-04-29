@@ -8,6 +8,7 @@ import type { ProductListingEntry } from '../../../data/products';
 import { productHeading, brandPillLabel, resolveBrandPillVariant } from '../../../lib/productHeading';
 import { resolvePackingUnitLabels } from '@/lib/packingLabels';
 import ListingMoqCartControls, { listingEntryToModel } from '@/app/components/ListingMoqCartControls/ListingMoqCartControls';
+import listingMoqStyles from '@/app/components/ListingMoqCartControls/ListingMoqCartControls.module.css';
 
 interface ProductGridProps {
   /** One row per product × seller (already filtered/sorted when applicable). */
@@ -136,7 +137,7 @@ export default function ProductGrid({
               <ListingMoqCartControls
                 model={listingEntryToModel(entry)}
                 labels={listLabels}
-                className={styles.listingMoqWrap}
+                className={`${styles.listingMoqWrap} ${categoryCardLayout ? listingMoqStyles.categoryCardListing : ""}`}
                 cardListingLayout={useCardListing}
                 labeledBulkCardRows={categoryCardLayout}
               />

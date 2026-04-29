@@ -18,6 +18,16 @@ export interface QuotationFormValues {
   fullName: string;
   phone: string;
   email: string;
+  companyName: string;
+  gstin: string;
+  addressTitle: string;
+  streetAddress: string;
+  area: string;
+  landmark: string;
+  pincode: string;
+  city: string;
+  state: string;
+  country: string;
 }
 
 interface QuotationDetailsModalProps {
@@ -32,7 +42,26 @@ interface QuotationDetailsModalProps {
   onQuotationSuccess: () => void;
 }
 
-type LoadPhase = "idle" | "saving" | "generating";
+type LoadPhase = "idle" | "saving" | "generating" | "sending";
+
+async function sendQuotationOnWhatsApp(args: {
+  blob: Blob;
+  filename: string;
+  customerPhone: string;
+  customerName: string;
+  serialNo: string;
+}): Promise<void> {
+  const fd = new FormData();
+  fd.append("file", args.blob, args.filename);
+  fd.append("customerPhone", args.customerPhone);
+  fd.append("customerName", args.customerName);
+  fd.append("serialNo", args.serialNo);
+  const res = await fetch("/api/whatsapp/send-quotation", { method: "POST", body: fd });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new Error(j.message ?? `WhatsApp send failed (HTTP ${res.status})`);
+  }
+}
 
 export default function QuotationDetailsModal({
   isOpen,
@@ -43,6 +72,16 @@ export default function QuotationDetailsModal({
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [gstin, setGstin] = useState("");
+  const [addressTitle, setAddressTitle] = useState("");
+  const [streetAddress, setStreetAddress] = useState("");
+  const [area, setArea] = useState("");
+  const [landmark, setLandmark] = useState("");
+  const [pincode, setPincode] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [country, setCountry] = useState("India");
   const [phoneTouched, setPhoneTouched] = useState(false);
   const [phase, setPhase] = useState<LoadPhase>("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -66,6 +105,16 @@ export default function QuotationDetailsModal({
       setFullName("");
       setPhone("");
       setEmail("");
+      setCompanyName("");
+      setGstin("");
+      setAddressTitle("");
+      setStreetAddress("");
+      setArea("");
+      setLandmark("");
+      setPincode("");
+      setCity("");
+      setState("");
+      setCountry("India");
       setPhoneTouched(false);
       setPhase("idle");
       setSubmitError(null);
@@ -84,12 +133,42 @@ export default function QuotationDetailsModal({
     if (!canSubmit) return;
     setPhase("saving");
     setSubmitError(null);
-    const form: QuotationFormValues = { fullName: fullName.trim(), phone, email: email.trim() };
+    const form: QuotationFormValues = {
+      fullName: fullName.trim(),
+      phone,
+      email: email.trim(),
+      companyName: companyName.trim(),
+      gstin: gstin.trim(),
+      addressTitle: addressTitle.trim(),
+      streetAddress: streetAddress.trim(),
+      area: area.trim(),
+      landmark: landmark.trim(),
+      pincode: pincode.trim(),
+      city: city.trim(),
+      state: state.trim(),
+      country: country.trim() || "India",
+    };
     try {
       const orderData = await submitQuotation(form);
       setPhase("generating");
       // PDF uses only this API payload (orderSummary + totalPrice + cart lines) so totals match the cart.
-      await generateQuotationPDF(orderData);
+      const pdf = await generateQuotationPDF(orderData);
+
+      setPhase("sending");
+      /** WhatsApp delivery is best-effort: order is already saved & PDF downloaded, so a failure here must not block success. */
+      try {
+        await sendQuotationOnWhatsApp({
+          blob: pdf.blob,
+          filename: pdf.suggestedFilename,
+          customerPhone: orderData.customerPhone,
+          customerName:
+            orderData.fullName?.trim() || orderData.customerName?.trim() || form.fullName,
+          serialNo: orderData.serialNo,
+        });
+      } catch (whatsappErr) {
+        console.warn("WhatsApp delivery failed (order still placed):", whatsappErr);
+      }
+
       onQuotationSuccess();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not complete your request.";
@@ -97,7 +176,24 @@ export default function QuotationDetailsModal({
     } finally {
       setPhase("idle");
     }
-  }, [canSubmit, submitQuotation, fullName, phone, email, onQuotationSuccess]);
+  }, [
+    canSubmit,
+    submitQuotation,
+    fullName,
+    phone,
+    email,
+    companyName,
+    gstin,
+    addressTitle,
+    streetAddress,
+    area,
+    landmark,
+    pincode,
+    city,
+    state,
+    country,
+    onQuotationSuccess,
+  ]);
 
   if (!isOpen) return null;
 
@@ -198,6 +294,185 @@ export default function QuotationDetailsModal({
               placeholder="you@example.com"
             />
           </div>
+
+          <div className={styles.section} aria-labelledby="quotation-section-company">
+            <h3 className={styles.sectionTitle} id="quotation-section-company">
+              Company information
+            </h3>
+            <div className={styles.row2}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="quotation-company">
+                  Company name
+                </label>
+                <input
+                  id="quotation-company"
+                  className={styles.input}
+                  type="text"
+                  name="companyName"
+                  autoComplete="organization"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  disabled={isBusy}
+                  placeholder="Registered business name"
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="quotation-gstin">
+                  GSTIN / Tax code
+                </label>
+                <input
+                  id="quotation-gstin"
+                  className={styles.input}
+                  type="text"
+                  name="gstin"
+                  autoComplete="off"
+                  value={gstin}
+                  onChange={(e) => setGstin(e.target.value)}
+                  disabled={isBusy}
+                  placeholder="e.g. 22AAAAA0000A1Z5"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.section} aria-labelledby="quotation-section-address">
+            <h3 className={styles.sectionTitle} id="quotation-section-address">
+              Address
+            </h3>
+            <div>
+              <label className={styles.label} htmlFor="quotation-address-title">
+                Title
+              </label>
+              <input
+                id="quotation-address-title"
+                className={styles.input}
+                type="text"
+                name="addressTitle"
+                autoComplete="off"
+                value={addressTitle}
+                onChange={(e) => setAddressTitle(e.target.value)}
+                disabled={isBusy}
+                placeholder="e.g. Office, Home, Site"
+              />
+            </div>
+            <div>
+              <label className={styles.label} htmlFor="quotation-street">
+                Street address
+              </label>
+              <input
+                id="quotation-street"
+                className={styles.input}
+                type="text"
+                name="streetAddress"
+                autoComplete="street-address"
+                value={streetAddress}
+                onChange={(e) => setStreetAddress(e.target.value)}
+                disabled={isBusy}
+                placeholder="Building, street, number"
+              />
+            </div>
+            <div className={styles.row2}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="quotation-area">
+                  Area
+                </label>
+                <input
+                  id="quotation-area"
+                  className={styles.input}
+                  type="text"
+                  name="area"
+                  autoComplete="address-level2"
+                  value={area}
+                  onChange={(e) => setArea(e.target.value)}
+                  disabled={isBusy}
+                  placeholder="Locality / area"
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="quotation-landmark">
+                  Landmark
+                </label>
+                <input
+                  id="quotation-landmark"
+                  className={styles.input}
+                  type="text"
+                  name="landmark"
+                  autoComplete="off"
+                  value={landmark}
+                  onChange={(e) => setLandmark(e.target.value)}
+                  disabled={isBusy}
+                  placeholder="Nearby landmark"
+                />
+              </div>
+            </div>
+            <div className={styles.row3}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="quotation-pincode">
+                  Pincode
+                </label>
+                <input
+                  id="quotation-pincode"
+                  className={styles.input}
+                  type="text"
+                  name="pincode"
+                  autoComplete="postal-code"
+                  inputMode="numeric"
+                  value={pincode}
+                  onChange={(e) => setPincode(e.target.value)}
+                  disabled={isBusy}
+                  placeholder="Postal code"
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="quotation-city">
+                  City
+                </label>
+                <input
+                  id="quotation-city"
+                  className={styles.input}
+                  type="text"
+                  name="city"
+                  autoComplete="address-level2"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  disabled={isBusy}
+                  placeholder="City"
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="quotation-state">
+                  State
+                </label>
+                <input
+                  id="quotation-state"
+                  className={styles.input}
+                  type="text"
+                  name="state"
+                  autoComplete="address-level1"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  disabled={isBusy}
+                  placeholder="State / province"
+                />
+              </div>
+            </div>
+            <div>
+              <label className={styles.label} htmlFor="quotation-country">
+                Country
+              </label>
+              <input
+                id="quotation-country"
+                className={styles.input}
+                type="text"
+                name="country"
+                autoComplete="country-name"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                disabled={isBusy}
+                placeholder="India"
+              />
+            </div>
+          </div>
         </div>
 
         {submitError ? <p className={styles.apiError}>{submitError}</p> : null}
@@ -217,7 +492,9 @@ export default function QuotationDetailsModal({
               ? "Saving your order..."
               : phase === "generating"
                 ? "Generating your quotation..."
-                : "Confirm to Place Order"}
+                : phase === "sending"
+                  ? "Sending on WhatsApp..."
+                  : "Confirm to Place Order"}
           </button>
         </div>
       </div>
