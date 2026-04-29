@@ -42,7 +42,26 @@ interface QuotationDetailsModalProps {
   onQuotationSuccess: () => void;
 }
 
-type LoadPhase = "idle" | "saving" | "generating";
+type LoadPhase = "idle" | "saving" | "generating" | "sending";
+
+async function sendQuotationOnWhatsApp(args: {
+  blob: Blob;
+  filename: string;
+  customerPhone: string;
+  customerName: string;
+  serialNo: string;
+}): Promise<void> {
+  const fd = new FormData();
+  fd.append("file", args.blob, args.filename);
+  fd.append("customerPhone", args.customerPhone);
+  fd.append("customerName", args.customerName);
+  fd.append("serialNo", args.serialNo);
+  const res = await fetch("/api/whatsapp/send-quotation", { method: "POST", body: fd });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new Error(j.message ?? `WhatsApp send failed (HTTP ${res.status})`);
+  }
+}
 
 export default function QuotationDetailsModal({
   isOpen,
@@ -133,7 +152,23 @@ export default function QuotationDetailsModal({
       const orderData = await submitQuotation(form);
       setPhase("generating");
       // PDF uses only this API payload (orderSummary + totalPrice + cart lines) so totals match the cart.
-      await generateQuotationPDF(orderData);
+      const pdf = await generateQuotationPDF(orderData);
+
+      setPhase("sending");
+      /** WhatsApp delivery is best-effort: order is already saved & PDF downloaded, so a failure here must not block success. */
+      try {
+        await sendQuotationOnWhatsApp({
+          blob: pdf.blob,
+          filename: pdf.suggestedFilename,
+          customerPhone: orderData.customerPhone,
+          customerName:
+            orderData.fullName?.trim() || orderData.customerName?.trim() || form.fullName,
+          serialNo: orderData.serialNo,
+        });
+      } catch (whatsappErr) {
+        console.warn("WhatsApp delivery failed (order still placed):", whatsappErr);
+      }
+
       onQuotationSuccess();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not complete your request.";
@@ -457,7 +492,9 @@ export default function QuotationDetailsModal({
               ? "Saving your order..."
               : phase === "generating"
                 ? "Generating your quotation..."
-                : "Confirm to Place Order"}
+                : phase === "sending"
+                  ? "Sending on WhatsApp..."
+                  : "Confirm to Place Order"}
           </button>
         </div>
       </div>
