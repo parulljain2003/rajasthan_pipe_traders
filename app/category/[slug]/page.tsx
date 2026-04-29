@@ -120,14 +120,14 @@ export default async function CategorySlugPage({ params }: PageProps) {
 
   try {
     const rules = await loadActiveComboGuardRules();
-    const trigger = new Set<string>();
+    const target = new Set<string>();
     for (const r of rules) {
-      for (const s of r.triggerSlugs ?? []) {
+      for (const s of r.targetSlugs ?? []) {
         const n = String(s).trim().toLowerCase();
-        if (n) trigger.add(n);
+        if (n) target.add(n);
       }
     }
-    comboTriggerSlugs = [...trigger];
+    comboTriggerSlugs = [...target];
   } catch {
     comboTriggerSlugs = [];
   }

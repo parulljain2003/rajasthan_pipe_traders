@@ -35,6 +35,7 @@ export function SortableProductRow({
   onDelete,
   skip,
 }: Props) {
+  const thumb = (product.image && String(product.image).trim()) || product.images?.[0] || "";
   const {
     attributes,
     listeners,
@@ -77,8 +78,8 @@ export function SortableProductRow({
       </td>
       <td>{skip + index + 1}</td>
       <td>
-        {product.image ? (
-          <img src={product.image} alt="" className="admin-thumb" />
+        {thumb ? (
+          <img src={thumb} alt="" className="admin-thumb" />
         ) : (
           "—"
         )}

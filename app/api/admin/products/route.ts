@@ -29,6 +29,23 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+async function findCreateDuplicateByNameBrand(params: {
+  name: string;
+  brand: string;
+}): Promise<{ _id: mongoose.Types.ObjectId; name?: string; brand?: string } | null> {
+  const nameRx = new RegExp(`^${escapeRegex(params.name)}$`, "i");
+  const brandTrim = params.brand.trim();
+  if (brandTrim) {
+    const brandRx = new RegExp(`^${escapeRegex(brandTrim)}$`, "i");
+    const row = await ProductModel.findOne({ name: nameRx, brand: brandRx })
+      .select("_id name brand")
+      .lean();
+    return row as { _id: mongoose.Types.ObjectId; name?: string; brand?: string } | null;
+  }
+  const row = await ProductModel.findOne({ name: nameRx }).select("_id name brand").lean();
+  return row as { _id: mongoose.Types.ObjectId; name?: string; brand?: string } | null;
+}
+
 export async function GET(req: NextRequest) {
   try {
     await connectDb();
@@ -89,9 +106,17 @@ export async function POST(req: NextRequest) {
     const skuRaw = typeof body.sku === "string" ? body.sku.trim().toUpperCase() : "";
     const sku = skuRaw || undefined;
     const name = typeof body.name === "string" ? body.name.trim() : "";
+    const brand = typeof body.brand === "string" ? body.brand.trim() : "";
     const categoryId = typeof body.category === "string" ? body.category : "";
     if (!name || !mongoose.Types.ObjectId.isValid(categoryId)) {
       return err("name and valid category (ObjectId) are required", 400);
+    }
+    const duplicate = await findCreateDuplicateByNameBrand({ name, brand });
+    if (duplicate) {
+      if (brand) {
+        return err("Product with same name and brand already exists", 409);
+      }
+      return err("Product with same name already exists", 409);
     }
     const cat = await CategoryModel.findById(categoryId).lean();
     if (!cat) return err("Category not found", 400);

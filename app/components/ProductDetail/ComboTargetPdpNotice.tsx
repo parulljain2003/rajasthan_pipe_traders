@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useCartWishlist } from "@/app/context/CartWishlistContext";
 import { pricedPacketCount } from "@/lib/cart/packetLine";
 import {
@@ -27,6 +27,7 @@ type Props = {
 
 export default function ComboTargetPdpNotice({ productSlug, info }: Props) {
   const { cartItems, cartHydrated, comboGuardRules } = useCartWishlist();
+  const [showAllTriggersModal, setShowAllTriggersModal] = useState(false);
 
   const normalizedProductSlug = productSlug.trim().toLowerCase();
   const lines = useMemo(
@@ -62,10 +63,18 @@ export default function ComboTargetPdpNotice({ productSlug, info }: Props) {
     targetLinesInCart.find((l) => (l.comboPricedPackets ?? 0) > 0 || l.isComboApplied) ?? targetLinesInCart[0];
   const comboNetUnit = comboLineForUnit?.pricePerUnit ?? null;
 
-  const shown = info.qualifyingProductSlugs.slice(0, 12);
+  const shouldUseTriggerModal = !conditionMet && info.qualifyingProductSlugs.length > 5;
+  const shown = shouldUseTriggerModal
+    ? info.qualifyingProductSlugs.slice(0, 5)
+    : info.qualifyingProductSlugs.slice(0, 12);
   const rest = info.qualifyingProductSlugs.length - shown.length;
 
   const isClaimedState = conditionMet && targetInCart;
+  const triggerCount = info.qualifyingProductSlugs.length;
+  const lockedComboMessage =
+    triggerCount > 1
+      ? "Yeh combo product hai. 👉 Isse lene ke liye pehle ek aur product add karna zaroori hai. 👉 Neeche se koi bhi item add karein."
+      : "Yeh combo product hai. 👉 Isse lene ke liye pehle ek aur product add karna zaroori hai. 👉 Neeche se item add karein.";
 
   return (
     <aside
@@ -85,9 +94,9 @@ export default function ComboTargetPdpNotice({ productSlug, info }: Props) {
         {conditionMet ? (
           targetInCart ? (
             <p className={styles.comboPdpNoticeLead}>
-              🎉 Combo offer claimed on this product.
-              {comboNetUnit != null ? ` Combo net price: ₹${comboNetUnit.toFixed(2)} per packet.` : ""}
-              {` Current line total: ₹${targetLineTotal.toFixed(2)}.`}
+              🎉 Combo Offer Lag Gaya!
+              {comboNetUnit != null ? ` Ab is product ka rate sirf ₹${comboNetUnit.toFixed(2)} / packet hai.` : ""}
+              {` 👉 Total amount: ₹${targetLineTotal.toFixed(2)}.`}
             </p>
           ) : (
             <div>
@@ -95,19 +104,10 @@ export default function ComboTargetPdpNotice({ productSlug, info }: Props) {
                 You can buy this product now. Aap qualifying condition meet kar chuke ho, isliye combo offer apply ho
                 sakta hai.
               </p>
-              <div className={styles.comboPdpNoticeLinksWrap}>
-                <Link
-                  href={`/products/${encodeURIComponent(productSlug)}`}
-                  prefetch={false}
-                  className={styles.comboPdpNoticeLink}
-                >
-                  Open this product and add to cart
-                </Link>
-              </div>
             </div>
           )
         ) : (
-          <p className={styles.comboPdpNoticeLead}>{info.message}</p>
+          <p className={styles.comboPdpNoticeLead}>{lockedComboMessage}</p>
         )}
         {!conditionMet && shown.length > 0 ? (
           <div className={styles.comboPdpNoticeLinksWrap}>
@@ -126,6 +126,15 @@ export default function ComboTargetPdpNotice({ productSlug, info }: Props) {
                 </Link>
               ))}
             </nav>
+            {shouldUseTriggerModal ? (
+              <button
+                type="button"
+                className={styles.comboPdpNoticeViewAllBtn}
+                onClick={() => setShowAllTriggersModal(true)}
+              >
+                See all qualifying products
+              </button>
+            ) : null}
             {rest > 0 ? (
               <p className={styles.comboPdpNoticeMore}>
                 +{rest} aur qualifying {rest === 1 ? "product" : "products"} is offer mein — catalog ya search se dekh
@@ -135,6 +144,42 @@ export default function ComboTargetPdpNotice({ productSlug, info }: Props) {
           </div>
         ) : null}
       </div>
+      {showAllTriggersModal ? (
+        <div
+          className={styles.comboPdpModalBackdrop}
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setShowAllTriggersModal(false);
+          }}
+        >
+          <div className={styles.comboPdpModal} role="dialog" aria-modal="true" aria-label="All qualifying products">
+            <div className={styles.comboPdpModalHeader}>
+              <h3 className={styles.comboPdpModalTitle}>All qualifying products</h3>
+              <button
+                type="button"
+                className={styles.comboPdpModalClose}
+                onClick={() => setShowAllTriggersModal(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.comboPdpModalBody}>
+              {info.qualifyingProductSlugs.map((slug) => (
+                <Link
+                  key={slug}
+                  href={`/products/${encodeURIComponent(slug)}`}
+                  prefetch={false}
+                  className={styles.comboPdpNoticeLink}
+                  onClick={() => setShowAllTriggersModal(false)}
+                >
+                  {titleCaseFromSlug(slug)}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </aside>
   );
 }

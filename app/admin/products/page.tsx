@@ -53,6 +53,13 @@ const INNER_UNIT_OPTIONS = [
 /** Select value for “Add new” — stored as `custom:label` */
 const UNIT_ADD_NEW = "__add_new__";
 const BRAND_ADD_NEW = "__add_new_brand__";
+const HIDDEN_BRAND_OPTIONS = new Set(["n-star"]);
+
+function formatBrandOptionLabel(brand: string): string {
+  const trimmed = String(brand ?? "").trim();
+  if (trimmed.toLowerCase() === "hitech square") return "HITECH SQUARE";
+  return trimmed;
+}
 
 const KEY_FEATURE_ICON_OPTIONS: { value: KeyFeatureIcon; label: string }[] = [
   { value: "check", label: "Checkmark" },
@@ -277,6 +284,28 @@ function skuFromName(name: string): string {
   return base || "PRODUCT";
 }
 
+function parseImagesJsonValue(imagesJson: string): string[] {
+  try {
+    const raw = String(imagesJson ?? "").trim() || "[]";
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((x): x is string => typeof x === "string")
+      .map((x) => x.trim())
+      .filter((x) => x.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function setPrimaryImageInImagesJson(imagesJson: string, nextUrl: string): string {
+  const current = parseImagesJsonValue(imagesJson);
+  const cleaned = nextUrl.trim();
+  const rest = current.filter((u) => u !== current[0] && u !== cleaned);
+  const next = cleaned ? [cleaned, ...rest] : rest;
+  return JSON.stringify(next, null, 2);
+}
+
 const emptyForm = {
   sku: "",
   name: "",
@@ -349,14 +378,17 @@ export default function AdminProductsPage() {
     [list, page]
   );
   const brandOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          list
-            .map((p) => String(p.brand ?? "").trim())
-            .filter((b) => b.length > 0)
-        )
-      ).sort((a, b) => a.localeCompare(b)),
+    () => {
+      const byLower = new Map<string, string>();
+      for (const p of list) {
+        const raw = String(p.brand ?? "").trim();
+        if (!raw) continue;
+        const lower = raw.toLowerCase();
+        if (HIDDEN_BRAND_OPTIONS.has(lower)) continue;
+        if (!byLower.has(lower)) byLower.set(lower, raw);
+      }
+      return Array.from(byLower.values()).sort((a, b) => a.localeCompare(b));
+    },
     [list]
   );
 
@@ -508,7 +540,7 @@ export default function AdminProductsPage() {
       setForm({
         sku: p.sku ?? "",
         name: p.name,
-        productKind: p.productKind,
+        productKind: "catalog",
         slug: p.slug ?? "",
         categoryId: p.category?._id ?? "",
         description: p.description ?? "",
@@ -533,6 +565,9 @@ export default function AdminProductsPage() {
         keyFeatureRows: loadKeyFeatureRowsFromProduct(p),
         sortOrder: typeof p.sortOrder === "number" ? p.sortOrder : 0,
       });
+      setCreatingBrandMode(
+        HIDDEN_BRAND_OPTIONS.has(String(p.brand ?? "").trim().toLowerCase()) ? "custom" : "select"
+      );
       setSortConflict(null);
       setSortOrderCheckOk(false);
       setEditBaselineSortOrder(typeof p.sortOrder === "number" ? p.sortOrder : 0);
@@ -663,7 +698,7 @@ export default function AdminProductsPage() {
         const body: Record<string, unknown> = {
           sku: String(f.sku ?? "").trim().toUpperCase(),
           name: String(f.name ?? "").trim(),
-          productKind: f.productKind,
+          productKind: "catalog",
           slug: String(f.slug ?? "").trim().toLowerCase() || undefined,
           category: f.categoryId,
           description: String(f.description ?? "").trim() || undefined,
@@ -1103,21 +1138,12 @@ export default function AdminProductsPage() {
                 <h3 className="admin-form-section-title">Product details</h3>
                 <div className="admin-field">
                   <label htmlFor="p-kind">Product kind</label>
-                  <select
+                  <input
                     id="p-kind"
-                    className="admin-input admin-select"
-                    value={form.productKind}
-                    disabled={!editingId}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        productKind: e.target.value as "sku" | "catalog",
-                      }))
-                    }
-                  >
-                    <option value="catalog">Catalog</option>
-                    {editingId ? <option value="sku">SKU line item</option> : null}
-                  </select>
+                    className="admin-input"
+                    value="Catalog"
+                    readOnly
+                  />
                 </div>
                 <div className="admin-field">
                   <label htmlFor="p-name">Name</label>
@@ -1231,75 +1257,61 @@ export default function AdminProductsPage() {
                 ) : null}
                 <div className="admin-field">
                   <label htmlFor="p-brand">Brand</label>
-                  {!editingId ? (
-                    <>
-                      <select
-                        id="p-brand"
-                        className="admin-input admin-select"
-                        value={creatingBrandMode === "custom" ? BRAND_ADD_NEW : form.brand}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === BRAND_ADD_NEW) {
-                            setCreatingBrandMode("custom");
-                            setForm((f) => ({ ...f, brand: "" }));
-                            return;
-                          }
-                          setCreatingBrandMode("select");
-                          setForm((f) => ({ ...f, brand: v }));
-                        }}
-                      >
-                        <option value="">Select brand (optional)…</option>
-                        {brandOptions.map((b) => (
-                          <option key={b} value={b}>
-                            {b}
-                          </option>
-                        ))}
-                        <option value={BRAND_ADD_NEW}>+ Add new brand</option>
-                      </select>
-                      {creatingBrandMode === "custom" ? (
-                        <input
-                          className="admin-input"
-                          style={{ marginTop: 8 }}
-                          value={form.brand}
-                          onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
-                          placeholder="Enter new brand name"
-                        />
-                      ) : null}
-                    </>
-                  ) : (
-                    <input
+                  <>
+                    <select
                       id="p-brand"
-                      className="admin-input"
-                      value={form.brand}
-                      onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
-                      placeholder="Optional"
-                    />
-                  )}
+                      className="admin-input admin-select"
+                      value={creatingBrandMode === "custom" ? BRAND_ADD_NEW : form.brand}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === BRAND_ADD_NEW) {
+                          setCreatingBrandMode("custom");
+                          return;
+                        }
+                        setCreatingBrandMode("select");
+                        setForm((f) => ({ ...f, brand: v }));
+                      }}
+                    >
+                      <option value="">Select brand (optional)…</option>
+                      {form.brand &&
+                      !HIDDEN_BRAND_OPTIONS.has(form.brand.toLowerCase()) &&
+                      !brandOptions.includes(form.brand) ? (
+                        <option value={form.brand}>{form.brand}</option>
+                      ) : null}
+                      {brandOptions.map((b) => (
+                        <option key={b} value={b}>
+                          {formatBrandOptionLabel(b)}
+                        </option>
+                      ))}
+                      <option value={BRAND_ADD_NEW}>+ Add new brand</option>
+                    </select>
+                    {creatingBrandMode === "custom" ? (
+                      <input
+                        className="admin-input"
+                        style={{ marginTop: 8 }}
+                        value={form.brand}
+                        onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
+                        placeholder="Enter new brand name"
+                      />
+                    ) : null}
+                  </>
                 </div>
               </div>
 
               <div className="admin-form-section">
                 <h3 className="admin-form-section-title">Images &amp; description</h3>
                 <MediaImageField
-                  label="Image gallery (Cloudinary)"
+                  label="Product image (Cloudinary)"
                   kind="product"
                   productId={editingId ?? undefined}
-                  value=""
-                  showUrlInput={false}
-                  trackMediaId={false}
+                  value={parseImagesJsonValue(form.imagesJson)[0] ?? ""}
                   onUrlChange={(url) =>
-                    setForm((f) => {
-                      let arr: string[] = [];
-                      try {
-                        const p = JSON.parse(String(f.imagesJson ?? "").trim() || "[]") as unknown;
-                        if (Array.isArray(p)) arr = p.filter((x): x is string => typeof x === "string");
-                      } catch {
-                        arr = [];
-                      }
-                      return { ...f, imagesJson: JSON.stringify([...arr, url], null, 2) };
-                    })
+                    setForm((f) => ({
+                      ...f,
+                      imagesJson: setPrimaryImageInImagesJson(String(f.imagesJson ?? "[]"), url),
+                    }))
                   }
-                  helpText="Upload images here. The first image is used as the main product photo on the storefront. Set CLOUDINARY_URL in .env.local. When editing, uploads are scoped under this product’s id."
+                  helpText="Uploads to Cloudinary (folder rpt/product/…). Set CLOUDINARY_URL in .env.local."
                 />
                 <div className="admin-field">
                   <label htmlFor="p-desc">Description</label>
@@ -1674,14 +1686,6 @@ export default function AdminProductsPage() {
                     onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
                   />
                   Active on storefront
-                </label>
-                <label className="admin-check admin-check-pill">
-                  <input
-                    type="checkbox"
-                    checked={form.isNew}
-                    onChange={(e) => setForm((f) => ({ ...f, isNew: e.target.checked }))}
-                  />
-                  Mark as new
                 </label>
                 <label className="admin-check admin-check-pill">
                   <input

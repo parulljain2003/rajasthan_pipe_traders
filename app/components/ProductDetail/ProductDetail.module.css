@@ -270,6 +270,77 @@
   opacity: 0.92;
 }
 
+.comboPdpNoticeViewAllBtn {
+  margin-top: 0.45rem;
+  border: 1px solid #f59e0b;
+  background: #fff7d6;
+  color: #92400e;
+  border-radius: 999px;
+  padding: 0.26rem 0.65rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.comboPdpModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(15, 23, 42, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.comboPdpModal {
+  width: min(46rem, 100%);
+  max-height: min(80vh, 38rem);
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.24);
+  display: flex;
+  flex-direction: column;
+}
+
+.comboPdpModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.comboPdpModalTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.comboPdpModalClose {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 8px;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.comboPdpModalBody {
+  padding: 0.9rem;
+  overflow: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem 0.5rem;
+}
+
 /* ── Description ── */
 .descriptionBlock {
   background: #ffffff;

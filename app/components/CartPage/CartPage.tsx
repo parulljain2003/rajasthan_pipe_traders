@@ -612,16 +612,35 @@ export default function CartPage() {
                           : "Aapka combo progress"}
                     </h3>
                   </div>
-                  <p className={styles.comboGuideText}>
-                    {comboOfferClaimed
-                      ? `Combo net pricing cart mein apply ho chuki hai. Aap abhi tak approx ₹${comboMeta.comboSavingsInclGst.toLocaleString("en-IN")} save kar rahe ho.`
-                      : comboConditionMet
-                        ? visibleEligibleTargets.length === 1
-                          ? "Ab bas neeche diya gaya combo product add karke offer claim karo."
-                          : "Ab bas neeche diye combo products mein se koi add karke offer claim karo."
-                        : comboMeta.suggestion ??
-                          "Combo unlock karne ke liye qualifying quantity complete karein. Neeche diye products par tap karke jaldi add kar sakte ho."}
-                  </p>
+                  {comboOfferClaimed ? (
+                    <p className={styles.comboGuideText}>
+                      {`Combo net pricing cart mein apply ho chuki hai. Aap abhi tak approx ₹${comboMeta.comboSavingsInclGst.toLocaleString("en-IN")} save kar rahe ho.`}
+                    </p>
+                  ) : comboConditionMet ? (
+                    <p className={styles.comboGuideText}>
+                      {visibleEligibleTargets.length === 1
+                        ? "Ab bas neeche diya gaya combo product add karke offer claim karo."
+                        : "Ab bas neeche diye combo products mein se koi add karke offer claim karo."}
+                    </p>
+                  ) : (
+                    <p className={styles.comboGuideText}>
+                      <strong>Combo Unlock Karne ke liye</strong>
+                      <br />
+                      👉 {comboMeta.suggestion ?? "Sirf thodi aur quantity add karein"}
+                      {visibleEligibleTargets[0]?.name ? (
+                        <>
+                          <br />
+                          <br />
+                          Phir aap yeh combo le sakte ho:
+                          <br />
+                          👉 {visibleEligibleTargets[0].name}
+                          <br />
+                          (combo price cart mein dikhega)
+                        </>
+                      ) : null}
+   
+                    </p>
+                  )}
 
                   {visibleEligibleTargets.length > 0 ? (
                     <div className={styles.comboGuideSection}>

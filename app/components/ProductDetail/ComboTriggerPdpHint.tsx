@@ -54,7 +54,7 @@ export default function ComboTriggerPdpHint({ productSlug, message, fallbackTarg
     isComboTriggerConditionMet(productSlug, cartLines, comboGuardRules);
 
   const currentMessage = conditionMet
-    ? "Aap qualifying condition meet kar chuke ho. Ab in products par combo offer mil sakta hai:"
+    ? "💥 Ab Milega Combo Offer! Aap ready ho — ab yeh product saste mein le sakte ho. You can buy this product now. Aap qualifying condition meet kar chuke ho, isliye combo offer apply ho sakta hai. 👉 Offer ka fayda uthayein."
     : message;
 
   if (conditionMet && targetSlugs.length === 0) return null;
