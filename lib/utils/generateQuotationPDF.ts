@@ -6,27 +6,33 @@ export const RPT_LOGO_PATH = "/logo.jpeg";
 
 const SELLER = {
   name: "RAJASTHAN PIPE TRADERS",
-  address: "SARASPUR, Ahmedabad - 380018, Gujarat, India",
-  phone: "080-4784-4816",
-  gst: "GSTIN: 24ABCDE1XXXX (update as applicable)",
+  address:
+    "HOUSE NO. C-1, SAFAL SUMEL-10, MH MILLS, NEAR AMBEDKAR HALL, BEHIND KALUPUR RAILWAY STATION, SARASPUR, AHMEDABAD-380018.",
+  gst: "GSTIN: 24ABGPL3782K1ZE",
+  contact: "9313386488",
+  email: "chetan.mutha9@gmail.com",
 } as const;
 
 const BANK = {
-  accountHolder: "[Account holder name]",
-  bankNameAndAccount: "[Bank name & A/c no.]",
-  ifsc: "[IFSC code]",
-  upi: "[UPI ID]",
+  accountHolder: "Rajasthan Pipe Traders",
+  bankName: "KOTAK MAHINDRA BANK",
+  accountNo: "3311963903",
+  branchAndIfsc: "Vadaj & KKBK0002590",
 } as const;
 
-const NOTE_TEXT =
-  "Thank you for your business! Please make payment by the due date.";
+const DOC_FOOTER_NOTE = "This is a Computer Generated Document";
 
-const BLUE_RGB: [number, number, number] = [34, 98, 166];
-/** Table header: corporate blue, white type (readability). */
-const TABLE_HEAD_FILL: [number, number, number] = [41, 98, 180];
-const ZEBRA_A: [number, number, number] = [255, 255, 255];
-const ZEBRA_B: [number, number, number] = [245, 247, 250];
 const GRID_LINE: [number, number, number] = [210, 215, 225];
+const GST_INCLUSIVE_DIVISOR = 1.18;
+
+/** White header/footer cells, black text & borders (jsPDF-AutoTable uses fillColor, not fillGray). */
+const TABLE_HEAD_FOOT = {
+  fillColor: [255, 255, 255] as [number, number, number],
+  textColor: [0, 0, 0] as [number, number, number],
+  fontStyle: "bold" as const,
+  lineColor: [0, 0, 0] as [number, number, number],
+  lineWidth: 0.1,
+};
 
 export interface QuotationPdfOrderSummary {
   basicTotal?: number;
@@ -44,6 +50,7 @@ export interface QuotationPdfCartLine {
   quantity?: number;
   orderMode?: CartOrderMode;
   qtyPerBag?: number;
+  pcsPerPacket?: number;
   pricePerUnit?: number;
   basicPricePerUnit?: number;
   comboSubtotalInclGst?: number;
@@ -54,9 +61,16 @@ export interface QuotationPdfOrderData {
   id: string;
   createdAt: string;
   serialNo: string;
+  fullName?: string;
   customerName: string;
   customerPhone: string;
   customerEmail: string;
+  companyName?: string;
+  gstin?: string;
+  streetAddress?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
   totalPrice: number;
   orderSummary: QuotationPdfOrderSummary;
   cartItems: QuotationPdfCartLine[];
@@ -67,6 +81,28 @@ function formatInr(n: number) {
   return "Rs. " + x.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+/** Amount strings for AutoTable — use ASCII "Rs." so standard PDF fonts never render ₹ as a stray superscript. */
+function formatInrRupee(n: number) {
+  const x = roundMoney(n);
+  return "Rs. " + x.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Rate column: GST-exclusive numeric (no currency), sample-style. */
+function formatRatePlain(n: number): string {
+  return roundMoney(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatDueOnLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const day = d.getDate();
+  const mon = d.toLocaleString("en-GB", { month: "short" });
+  const yy = String(d.getFullYear()).slice(-2);
+  /** Non-breaking hyphens (U+2011) so the date never wraps as e.g. "27-Apr-2" / "6". */
+  const nb = "\u2011";
+  return `${day}${nb}${mon}${nb}${yy}`;
+}
+
 function asLine(x: unknown): QuotationPdfCartLine {
   return (x && typeof x === "object" ? (x as QuotationPdfCartLine) : {}) as QuotationPdfCartLine;
 }
@@ -75,58 +111,72 @@ function roundMoney(n: number) {
   return Math.round(n * 100) / 100;
 }
 
-function lineInclAmount(item: QuotationPdfCartLine): number {
-  const combo = item.comboSubtotalInclGst;
-  if (typeof combo === "number" && combo > 0) return roundMoney(combo);
-  const pk = pricedPacketCount({
-    orderMode: item.orderMode,
-    quantity: Number(item.quantity) || 0,
-    qtyPerBag: Number(item.qtyPerBag) || 0,
-    pcsPerPacket: 0,
-  });
-  return roundMoney(pk * (Number(item.pricePerUnit) || 0));
-}
-
 const pricingCtx = (item: QuotationPdfCartLine) => ({
   orderMode: item.orderMode,
   quantity: Number(item.quantity) || 0,
   qtyPerBag: Number(item.qtyPerBag) || 0,
-  pcsPerPacket: 0,
+  pcsPerPacket: Number(item.pcsPerPacket) || 0,
 });
 
-function formatBagsCount(bags: number): string {
-  if (!Number.isFinite(bags) || bags < 0) return "0";
-  const r = roundMoney(bags);
-  if (Number.isInteger(r) || Math.abs(r - Math.round(r)) < 0.001) return String(Math.round(r));
-  return String(r);
+function linePacketCount(item: QuotationPdfCartLine): number {
+  return pricedPacketCount(pricingCtx(item));
 }
 
-function quantityWebsiteFormat(item: QuotationPdfCartLine): string {
-  const ctx = pricingCtx(item);
-  const pkts = pricedPacketCount(ctx);
+/** Ex-GST rate per packet (cart `pricePerUnit` is GST-inclusive per packet). */
+function unitPriceExGst(item: QuotationPdfCartLine): number {
+  const combo = item.comboSubtotalInclGst;
+  const pk = linePacketCount(item);
+  if (typeof combo === "number" && combo > 0 && pk > 0) {
+    return roundMoney(combo / pk / GST_INCLUSIVE_DIVISOR);
+  }
+  if (typeof combo === "number" && combo > 0 && pk <= 0) {
+    return 0;
+  }
+  return roundMoney((Number(item.pricePerUnit) || 0) / GST_INCLUSIVE_DIVISOR);
+}
+
+/** Taxable line amount = (Rate ex-GST) × (total packets). Combo: inclusive subtotal ÷ 1.18. */
+function rowAmountExGst(item: QuotationPdfCartLine): number {
+  const combo = item.comboSubtotalInclGst;
+  if (typeof combo === "number" && combo > 0) {
+    return roundMoney(combo / GST_INCLUSIVE_DIVISOR);
+  }
+  const pk = linePacketCount(item);
+  return roundMoney(unitPriceExGst(item) * pk);
+}
+
+/** Outer bags: master mode uses `quantity` as bags; packet mode uses packets ÷ qtyPerBag when set. */
+function altQuantityCell(item: QuotationPdfCartLine): string {
   if (normalizeOrderMode(item.orderMode) === "master_bag") {
     const bags = Math.max(0, Math.floor(Number(item.quantity) || 0));
-    const bLabel = formatBagsCount(bags);
-    return bLabel + (bags === 1 ? " bag" : " bags") + " (" + pkts + " pkts)";
+    if (bags <= 0) return "—";
+    return bags === 1 ? "1\u00A0bag" : `${bags}\u00A0bags`;
   }
   const q = Number(item.quantity) || 0;
   const qpb = Number(item.qtyPerBag) || 0;
-  if (qpb > 0) {
-    const bagsNum = q / qpb;
-    const bLabel = formatBagsCount(bagsNum);
-    const oneBag = Math.abs(bagsNum - 1) < 0.001;
-    return bLabel + (oneBag ? " bag" : " bags") + " (" + pkts + " pkts)";
+  if (qpb <= 0 || q <= 0) return "—";
+  const bags = q / qpb;
+  const n = roundMoney(bags);
+  if (n <= 0) return "—";
+  if (Number.isInteger(n) || Math.abs(n - Math.round(n)) < 0.001) {
+    const b = Math.round(n);
+    return b === 1 ? "1\u00A0bag" : `${b}\u00A0bags`;
   }
-  return "0 bags (" + pkts + " pkts)";
+  return `${n}\u00A0bags`;
 }
 
-/** Ex-GST unit price (per packet) from `basicPricePerUnit` / cart line. */
-function lineUnitPriceExGst(item: QuotationPdfCartLine): number {
-  return roundMoney(Number(item.basicPricePerUnit) || 0);
+function quantityDisplayCell(item: QuotationPdfCartLine): string {
+  const pk = linePacketCount(item);
+  return pk.toLocaleString("en-IN") + "\u00A0pkts";
+}
+
+function perUnitLabel(_item: QuotationPdfCartLine): string {
+  return "Pkt";
 }
 
 function productDetailsText(item: QuotationPdfCartLine): string {
-  const name = String(item.productName ?? "").trim() || "—";
+  const raw = String(item.productName ?? "").trim() || "—";
+  const name = raw === "—" ? raw : raw.toUpperCase();
   const v = brandVariantLabel(item);
   if (v === "—") return name;
   return name + "\n" + v;
@@ -141,17 +191,40 @@ function brandVariantLabel(item: QuotationPdfCartLine): string {
   return "—";
 }
 
-function summaryNumbers(orderData: QuotationPdfOrderData) {
-  const s = orderData.orderSummary;
-  const basic =
-    typeof s?.basicTotal === "number" && Number.isFinite(s.basicTotal) ? s.basicTotal : null;
-  const gst = typeof s?.gstTotal === "number" && Number.isFinite(s.gstTotal) ? s.gstTotal : null;
-  const fromSummary =
-    typeof s?.finalTotal === "number" && Number.isFinite(s.finalTotal) ? s.finalTotal : null;
-  const grand = fromSummary ?? (Number.isFinite(orderData.totalPrice) ? orderData.totalPrice : 0);
-  const discount =
-    typeof s?.couponDiscount === "number" && Number.isFinite(s.couponDiscount) ? s.couponDiscount : 0;
-  return { basic, gst, grand, discount };
+/**
+ * Fixed minimum widths (mm) for narrow columns so headers/body don't wrap one character per line.
+ * Description absorbs the remainder (target ≥ ~34% of table).
+ */
+function tableColumnWidths(innerW: number): number[] {
+  const targetDesc = Math.max(roundMoney(innerW * 0.34), 52);
+  let wSr = 11;
+  let wDue = 16;
+  let wAlt = 21;
+  let wQty = 24;
+  let wRate = 13;
+  let wPer = 10;
+  let wDisc = 12;
+  let wAmt = 28;
+  let wDesc = roundMoney(innerW - (wSr + wDue + wAlt + wQty + wRate + wPer + wDisc + wAmt));
+  if (wDesc < targetDesc) {
+    const need = targetDesc - wDesc;
+    const parts = [wSr, wDue, wAlt, wQty, wRate, wPer, wDisc, wAmt];
+    const sumParts = parts.reduce((a, b) => a + b, 0);
+    const factor = Math.max(0.55, (sumParts - need) / sumParts);
+    wSr = roundMoney(wSr * factor);
+    wDue = roundMoney(wDue * factor);
+    wAlt = roundMoney(wAlt * factor);
+    wQty = roundMoney(wQty * factor);
+    wRate = roundMoney(wRate * factor);
+    wPer = roundMoney(wPer * factor);
+    wDisc = roundMoney(wDisc * factor);
+    wAmt = roundMoney(wAmt * factor);
+    wDesc = roundMoney(innerW - (wSr + wDue + wAlt + wQty + wRate + wPer + wDisc + wAmt));
+  }
+  const out = [wSr, wDesc, wDue, wAlt, wQty, wRate, wPer, wDisc, wAmt];
+  const drift = roundMoney(innerW - out.reduce((a, b) => a + b, 0));
+  out[8] = roundMoney(out[8] + drift);
+  return out;
 }
 
 async function tryLoadLogoDataUrl(logoPath: string): Promise<string | null> {
@@ -178,16 +251,24 @@ export interface QuotationPdfResult {
   blob: Blob;
   base64: string;
   dataUrl: string;
+  suggestedFilename: string;
 }
 
-/**
- * Proforma / invoice PDF (Zenith-style). Totals: `orderData.orderSummary` + `orderData.totalPrice` from API.
- */
-export async function generateQuotationPDF(orderData: QuotationPdfOrderData): Promise<QuotationPdfResult> {
-  const { basic: basicExGrand, gst: gstGrand, grand: grandTotal, discount: couponDiscount } =
-    summaryNumbers(orderData);
+export type GenerateQuotationPdfOptions = {
+  saveDownload?: boolean;
+};
 
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+/**
+ * Quotation PDF: black & white grid table, ex-GST math from inclusive prices ÷ 1.18.
+ */
+export async function generateQuotationPDF(
+  orderData: QuotationPdfOrderData,
+  options: GenerateQuotationPdfOptions = {}
+): Promise<QuotationPdfResult> {
+  const saveDownload = options.saveDownload !== false;
+
+  const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
+  doc.setFont("helvetica", "normal");
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 16;
@@ -207,7 +288,7 @@ export async function generateQuotationPDF(orderData: QuotationPdfOrderData): Pr
   } else {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.setTextColor(BLUE_RGB[0], BLUE_RGB[1], BLUE_RGB[2]);
+    doc.setTextColor(0, 0, 0);
     doc.text("RPT", margin, y + 10);
   }
 
@@ -227,7 +308,7 @@ export async function generateQuotationPDF(orderData: QuotationPdfOrderData): Pr
     doc.text(ln, textStartX, ty);
     ty += 3.2;
   }
-  doc.text("Phone: " + SELLER.phone, textStartX, ty);
+  doc.text("Contact: " + SELLER.contact + " | Email: " + SELLER.email, textStartX, ty);
   ty += 3.2;
   const gstLines = doc.splitTextToSize(SELLER.gst, addrW) as string[];
   for (const ln of gstLines) {
@@ -237,9 +318,9 @@ export async function generateQuotationPDF(orderData: QuotationPdfOrderData): Pr
   const headerTextBottom = ty + 1;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.setTextColor(BLUE_RGB[0], BLUE_RGB[1], BLUE_RGB[2]);
-  doc.text("INVOICE", pageW - margin, y + 6, { align: "right" });
+  doc.setFontSize(18);
+  doc.setTextColor(0, 0, 0);
+  doc.text("QUOTATION", pageW - margin, y + 6, { align: "right" });
 
   y = Math.max(margin + logoH, headerTextBottom) + 3;
   doc.setDrawColor(GRID_LINE[0], GRID_LINE[1], GRID_LINE[2]);
@@ -261,17 +342,50 @@ export async function generateQuotationPDF(orderData: QuotationPdfOrderData): Pr
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.setTextColor(30, 30, 30);
-  doc.text("INVOICE TO:", leftX, y);
-  doc.text("INVOICE DETAILS:", rightX, y);
+  doc.text("BUYER (BILL TO):", leftX, y);
+  doc.text("QUOTATION DETAILS:", rightX, y);
   y += 4.2;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
-  const cName = orderData.customerName?.trim() || "—";
+  const company = orderData.companyName?.trim() || "";
+  const buyerName = orderData.fullName?.trim() || orderData.customerName?.trim() || "—";
+  const street = orderData.streetAddress?.trim() || "";
+  const city = orderData.city?.trim() || "";
+  const state = orderData.state?.trim() || "";
+  const pincode = orderData.pincode?.trim() || "";
+  const gstin = orderData.gstin?.trim() || "";
+
+  const buyerHeader = company || buyerName;
   doc.setFont("helvetica", "bold");
-  doc.text(cName, leftX, y);
+  doc.text(buyerHeader, leftX, y);
   doc.setFont("helvetica", "normal");
   y += 3.6;
+
+  if (company && buyerName && company !== buyerName) {
+    doc.text("Attn: " + buyerName, leftX, y);
+    y += 3.6;
+  }
+
+  if (street) {
+    const streetLines = doc.splitTextToSize(street, colW) as string[];
+    for (const ln of streetLines) {
+      doc.text(ln, leftX, y);
+      y += 3.6;
+    }
+  }
+
+  const cityLineParts = [city, state, pincode].filter(Boolean);
+  if (cityLineParts.length > 0) {
+    doc.text(cityLineParts.join(", "), leftX, y);
+    y += 3.6;
+  }
+
+  if (gstin) {
+    doc.text("GSTIN: " + gstin, leftX, y);
+    y += 3.6;
+  }
+
   doc.text("Phone: " + String(orderData.customerPhone), leftX, y);
   y += 3.6;
   if (orderData.customerEmail?.trim()) {
@@ -289,127 +403,233 @@ export async function generateQuotationPDF(orderData: QuotationPdfOrderData): Pr
   ry += 3.6;
   const rightBlockEnd = ry;
 
-  y = Math.max(leftBlockEnd, rightBlockEnd) + 6;
+  y = Math.max(leftBlockEnd, rightBlockEnd) + 5;
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.2);
+  doc.line(margin, y, pageW - margin, y);
+  y += 6;
 
   const items = orderData.cartItems.map(asLine);
   const innerW = pageW - 2 * margin;
-  const wSr = 9;
-  const wQty = 40;
-  const wUnit = 28;
-  const wTotal = 30;
-  const wDesc = innerW - wSr - wQty - wUnit - wTotal;
+  const [wSr, wDesc, wDue, wAltQty, wQty, wRate, wPer, wDisc, wAmt] = tableColumnWidths(innerW);
 
-  const rows: string[][] = items.map((it, i) => [
+  const dueLabel = formatDueOnLabel(orderData.createdAt);
+
+  const itemRows: string[][] = items.map((it, i) => [
     String(i + 1),
     productDetailsText(it),
-    quantityWebsiteFormat(it),
-    formatInr(lineUnitPriceExGst(it)),
-    formatInr(lineInclAmount(it)),
+    dueLabel,
+    altQuantityCell(it),
+    quantityDisplayCell(it),
+    formatRatePlain(unitPriceExGst(it)),
+    perUnitLabel(it),
+    "—",
+    formatInrRupee(rowAmountExGst(it)),
   ]);
+
+  const subtotal = roundMoney(items.reduce((s, it) => s + rowAmountExGst(it), 0));
+  const igst = roundMoney(subtotal * 0.18);
+  const preRound = roundMoney(subtotal + igst);
+  const grandTotal = Math.round(preRound);
+  const roundOff = roundMoney(grandTotal - preRound);
+
+  let sumBags = 0;
+  let anyBagLine = false;
+  for (const it of items) {
+    if (normalizeOrderMode(it.orderMode) === "master_bag") {
+      sumBags += Math.max(0, Math.floor(Number(it.quantity) || 0));
+      anyBagLine = true;
+    } else {
+      const q = Number(it.quantity) || 0;
+      const qpb = Number(it.qtyPerBag) || 0;
+      if (qpb > 0 && q > 0) {
+        sumBags += q / qpb;
+        anyBagLine = true;
+      }
+    }
+  }
+  const sumPkts = items.reduce((s, it) => s + linePacketCount(it), 0);
+  const altQtyFooter =
+    !anyBagLine || sumBags <= 0
+      ? "—"
+      : (() => {
+          const n = roundMoney(sumBags);
+          if (Number.isInteger(n) || Math.abs(n - Math.round(n)) < 0.001) {
+            const b = Math.round(n);
+            return b === 1 ? "1\u00A0bag" : `${b}\u00A0bags`;
+          }
+          return `${n}\u00A0bags`;
+        })();
+  const qtyFooter = sumPkts.toLocaleString("en-IN") + "\u00A0pkts";
+
+  type FootCell = string | { content: string; colSpan?: number; styles?: Record<string, unknown> };
+  /** Sample-style footer: subtotal amount; I GST / Round Off labels in Description; Total spans + column sums. */
+  const footRows: FootCell[][] = [
+    [{ content: "", colSpan: 8 }, formatInrRupee(subtotal)],
+    ["", "I GST", "", "", "", "", "", "", formatInrRupee(igst)],
+    ["", "Round Off", "", "", "", "", "", "", formatInrRupee(roundOff)],
+    [
+      { content: "Total", colSpan: 3, styles: { halign: "left", fontStyle: "bold" } },
+      altQtyFooter,
+      qtyFooter,
+      "",
+      "",
+      "—",
+      formatInrRupee(grandTotal),
+    ],
+  ];
 
   autoTable(doc, {
     startY: y,
-    head: [["Sr.", "Description", "Quantity", "Unit price", "Total"]],
-    body: rows,
+    head: [
+      [
+        "Sl.\nNo.",
+        "Description of Goods",
+        "Due\non",
+        "Alt.\nQty",
+        "Quantity",
+        "Rate",
+        "per",
+        "Disc.\n%",
+        "Amount",
+      ],
+    ],
+    body: itemRows,
+    foot: footRows,
     theme: "grid",
-    showFoot: "never",
+    showFoot: "lastPage",
     headStyles: {
-      fillColor: TABLE_HEAD_FILL,
-      textColor: 255,
-      fontStyle: "bold",
+      ...TABLE_HEAD_FOOT,
       halign: "center",
+      fontSize: 7.5,
+      valign: "middle",
+      cellPadding: 1.6,
+    },
+    footStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      fontStyle: "normal",
+      lineColor: [0, 0, 0],
+      lineWidth: 0.1,
+      halign: "right",
     },
     styles: {
       fontSize: 7.2,
-      cellPadding: 2.5,
-      textColor: [25, 25, 25],
+      cellPadding: { top: 1.8, right: 1.2, bottom: 1.8, left: 1.2 },
+      textColor: [0, 0, 0],
       overflow: "linebreak",
-      lineColor: [GRID_LINE[0], GRID_LINE[1], GRID_LINE[2]],
+      fillColor: [255, 255, 255],
+      lineColor: [0, 0, 0],
       lineWidth: 0.1,
+      font: "helvetica",
     },
-    alternateRowStyles: { fillColor: ZEBRA_B },
-    bodyStyles: { fillColor: ZEBRA_A },
     columnStyles: {
       0: { cellWidth: wSr, halign: "center" },
       1: { cellWidth: wDesc, halign: "left" },
-      2: { cellWidth: wQty, halign: "left", fontSize: 6.5 },
-      3: { cellWidth: wUnit, halign: "right" },
-      4: { cellWidth: wTotal, halign: "right" },
+      2: { cellWidth: wDue, halign: "left" },
+      3: { cellWidth: wAltQty, halign: "left", fontSize: 7 },
+      4: { cellWidth: wQty, halign: "right", fontSize: 7 },
+      5: { cellWidth: wRate, halign: "right" },
+      6: { cellWidth: wPer, halign: "center" },
+      7: { cellWidth: wDisc, halign: "center" },
+      8: { cellWidth: wAmt, halign: "right" },
     },
     margin: { left: margin, right: margin },
     didParseCell: (data) => {
       if (data.section === "head") {
         const i = data.column.index;
-        if (i === 0) data.cell.styles.halign = "center";
-        else if (i === 1) data.cell.styles.halign = "left";
-        else if (i === 2) data.cell.styles.halign = "left";
+        data.cell.styles.fontSize = 7.5;
+        data.cell.styles.cellPadding = 1.5;
+        if (i === 1) data.cell.styles.halign = "left";
+        else if (i === 0 || i === 2 || i === 3 || i === 6 || i === 7) data.cell.styles.halign = "center";
+        else if (i === 4) data.cell.styles.halign = "center";
         else data.cell.styles.halign = "right";
-        data.cell.styles.fillColor = TABLE_HEAD_FILL;
-        data.cell.styles.textColor = 255;
-        data.cell.styles.fontStyle = "bold";
+        Object.assign(data.cell.styles, TABLE_HEAD_FOOT);
       }
-      if (data.section === "body" && data.column.index === 1) {
-        data.cell.styles.fontStyle = "bold";
+      if (data.section === "body") {
+        if (data.column.index === 1) {
+          data.cell.styles.fontStyle = "bold";
+        }
+        if (data.column.index === 2) {
+          data.cell.styles.fontStyle = "italic";
+          data.cell.styles.halign = "left";
+          data.cell.styles.fontSize = 6.9;
+        }
+        if (data.column.index === 3 || data.column.index === 4) {
+          data.cell.styles.fontStyle = "bold";
+        }
+        if (data.column.index === 3) {
+          data.cell.styles.halign = "left";
+        }
+        if (data.column.index === 4 || data.column.index === 5 || data.column.index === 8) {
+          data.cell.styles.halign = "right";
+        }
+        if (data.column.index === 6) {
+          data.cell.styles.fontSize = 7;
+        }
+      }
+      if (data.section === "foot") {
+        data.cell.styles.fillColor = [255, 255, 255];
+        data.cell.styles.textColor = [0, 0, 0];
+        data.cell.styles.lineColor = [0, 0, 0];
+        data.cell.styles.fontStyle = "normal";
+        const fr = data.row.index;
+        const ci = data.column.index;
+
+        const edge = 0.12;
+
+        /** Subtotal row: keep top + outer left/right; vertical before Amount; no bottom. */
+        if (fr === 0) {
+          if (ci === 8) {
+            data.cell.styles.halign = "right";
+            data.cell.styles.lineWidth = { top: 0.25, right: edge, bottom: 0, left: edge };
+          } else {
+            data.cell.styles.lineWidth = { top: 0.1, right: edge, bottom: 0, left: ci === 0 ? edge : 0 };
+          }
+        }
+
+        /**
+         * I GST + Round Off: no inner grid — keep continuous outer left/right so corners
+         * align with body and Total row.
+         */
+        if (fr === 1 || fr === 2) {
+          data.cell.styles.lineWidth = {
+            top: 0,
+            bottom: 0,
+            left: ci === 0 ? edge : 0,
+            right: ci === 8 ? edge : 0,
+          };
+        }
+        if (fr === 1 && ci === 1) {
+          data.cell.styles.fontStyle = "bolditalic";
+          data.cell.styles.halign = "right";
+        }
+        if (fr === 2 && ci === 1) {
+          data.cell.styles.fontStyle = "bolditalic";
+          data.cell.styles.halign = "right";
+        }
+        if (fr === 1 || fr === 2) {
+          if (ci === 8) data.cell.styles.halign = "right";
+        }
+
+        /** Total row: full grid + heavier bottom to close the table. */
+        if (fr === 3) {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.lineWidth = { top: 0.35, right: edge, bottom: 0.45, left: edge };
+          if (ci === 0) data.cell.styles.halign = "left";
+          if (ci === 3) data.cell.styles.halign = "left";
+          if (ci === 4) data.cell.styles.halign = "right";
+          if (ci === 8) {
+            data.cell.styles.halign = "right";
+            data.cell.styles.fontSize = 9;
+          }
+        }
       }
     },
   });
 
   const tableEnd = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY;
-  y = typeof tableEnd === "number" ? tableEnd + 8 : y + 50;
-
-  const sumLabelW = 52;
-  const sumX = pageW - margin - sumLabelW - 30;
-  const valueRight = pageW - margin;
-  const lineH = 5.2;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.setTextColor(30, 30, 30);
-
-  const rightVal = (label: string, value: string) => {
-    const w = doc.getTextWidth(value);
-    doc.setFont("helvetica", "normal");
-    doc.text(label, sumX, y);
-    doc.text(value, valueRight - w, y);
-    y += lineH;
-  };
-
-  if (basicExGrand != null) {
-    rightVal("Subtotal", formatInr(basicExGrand));
-  } else {
-    rightVal("Subtotal", "—");
-  }
-  if (gstGrand != null) {
-    rightVal("Tax (GST 18%)", formatInr(gstGrand));
-  } else {
-    rightVal("Tax (GST 18%)", "—");
-  }
-  if (couponDiscount > 0) {
-    const val = formatInr(couponDiscount);
-    const rightText = "- " + val;
-    const w = doc.getTextWidth(rightText);
-    doc.setFont("helvetica", "normal");
-    doc.text("Discount", sumX, y);
-    doc.text(rightText, valueRight - w, y);
-    y += lineH;
-  }
-
-  y += 1.5;
-  doc.setDrawColor(GRID_LINE[0], GRID_LINE[1], GRID_LINE[2]);
-  doc.setLineWidth(0.2);
-  doc.line(sumX - 2, y, valueRight, y);
-  y += 4.5;
-
-  const totalVal = formatInr(grandTotal);
-  const totalLabel = "Total Amount";
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(BLUE_RGB[0], BLUE_RGB[1], BLUE_RGB[2]);
-  doc.text(totalLabel, sumX, y);
-  const tw = doc.getTextWidth(totalVal);
-  doc.setFontSize(12);
-  doc.text(totalVal, valueRight - tw, y);
-  y += lineH + 4;
+  y = typeof tableEnd === "number" ? tableEnd + 6 : y + 50;
 
   doc.setTextColor(30, 30, 30);
   if (y > pageH - 55) {
@@ -419,38 +639,28 @@ export async function generateQuotationPDF(orderData: QuotationPdfOrderData): Pr
     y += 4;
   }
 
-  const footColW = (pageW - 2 * margin - colGap) / 2;
   const yFoot = y;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.text("PAYMENT METHODS", leftX, yFoot);
-  doc.text("NOTES:", rightX, yFoot);
+  doc.text("COMPANY'S BANK DETAILS:", leftX, yFoot);
   y = yFoot + 4.5;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(50, 50, 50);
   const payLines = [
-    "Account: " + BANK.accountHolder,
-    "Bank: " + BANK.bankNameAndAccount,
-    "IFSC: " + BANK.ifsc,
-    "UPI: " + BANK.upi,
+    "A/c Holder's Name: " + BANK.accountHolder,
+    "Bank Name: " + BANK.bankName,
+    "A/c No.: " + BANK.accountNo,
+    "Branch & IFSC Code: " + BANK.branchAndIfsc,
   ];
   for (const pl of payLines) {
-    const lines = doc.splitTextToSize(pl, footColW) as string[];
+    const lines = doc.splitTextToSize(pl, pageW - 2 * margin) as string[];
     for (const ln of lines) {
       doc.text(ln, leftX, y);
       y += 3.4;
     }
   }
-  const payEndY = y;
-
-  let ny = yFoot + 4.5;
-  const noteSplit = doc.splitTextToSize(NOTE_TEXT, footColW) as string[];
-  for (const ln of noteSplit) {
-    doc.text(ln, rightX, ny);
-    ny += 3.4;
-  }
-  y = Math.max(payEndY, ny) + 8;
+  y += 8;
 
   doc.setDrawColor(180, 185, 195);
   doc.setLineWidth(0.5);
@@ -462,8 +672,7 @@ export async function generateQuotationPDF(orderData: QuotationPdfOrderData): Pr
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(100, 100, 100);
-  const footCenter = SELLER.name + " | " + SELLER.phone + " | " + SELLER.address;
-  const ft = doc.splitTextToSize(footCenter, pageW - 2 * margin) as string[];
+  const ft = doc.splitTextToSize(DOC_FOOTER_NOTE, pageW - 2 * margin) as string[];
   for (const line of ft) {
     const lw = doc.getTextWidth(line);
     doc.text(line, (pageW - lw) / 2, y);
@@ -474,8 +683,10 @@ export async function generateQuotationPDF(orderData: QuotationPdfOrderData): Pr
   const comma = dataUri.indexOf(",");
   const base64 = comma >= 0 ? dataUri.slice(comma + 1) : dataUri;
   const outBlob = doc.output("blob");
-  const safeName = "Invoice-" + orderData.serialNo.replace(/[^a-zA-Z0-9-]+/g, "-") + ".pdf";
-  doc.save(safeName);
+  const safeName = "Quotation-" + orderData.serialNo.replace(/[^a-zA-Z0-9-]+/g, "-") + ".pdf";
+  if (saveDownload) {
+    doc.save(safeName);
+  }
 
-  return { blob: outBlob, base64, dataUrl: dataUri };
+  return { blob: outBlob, base64, dataUrl: dataUri, suggestedFilename: safeName };
 }
