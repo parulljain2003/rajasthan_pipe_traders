@@ -235,7 +235,7 @@ export default function CartItemCard({
           <div className={styles.nameGroup}>
             <div className={styles.nameRow}>
               <Link href={`/products/${base.productSlug}`} className={styles.name}>
-                {productHeading(base.productName, base.size)}
+                {base.productName}
               </Link>
               {showComboBadge ? (
                 <span className={styles.comboBadge} title="RPT Patti + core combo net rate on this line">
@@ -252,8 +252,8 @@ export default function CartItemCard({
             {base.sellerId !== "default" && <span className={styles.sellerLine}>Seller: {base.sellerName}</span>}
             {showComboBadge ? (
               <p className={styles.comboInlineMsg}>
-                🎉 Combo offer claimed on this product. Combo net price: ₹{safePrice.toFixed(2)} per{" "}
-                {labels.inner}. Current line total: ₹{combinedLineTotal.toFixed(2)}.
+                🎉 Combo Offer Lag Gaya! Ab is product ka rate sirf ₹{safePrice.toFixed(2)} / {labels.inner} hai.
+                👉 Total amount: ₹{combinedLineTotal.toFixed(2)}.
               </p>
             ) : null}
           </div>

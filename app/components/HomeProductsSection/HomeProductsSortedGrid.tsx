@@ -13,7 +13,7 @@ type Props = {
 };
 
 export default function HomeProductsSortedGrid({ apiProducts }: Props) {
-  const [comboTriggerSlugs, setComboTriggerSlugs] = useState<string[]>([]);
+  const [comboTargetSlugs, setComboTargetSlugs] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -22,16 +22,16 @@ export default function HomeProductsSortedGrid({ apiProducts }: Props) {
         const res = await fetch("/api/combo/active-guard-rules", { cache: "no-store" });
         const json = (await res.json()) as { data?: { rules?: ComboRuleGuard[] } };
         if (cancelled || !res.ok || !Array.isArray(json.data?.rules)) return;
-        const trigger = new Set<string>();
+        const target = new Set<string>();
         for (const r of json.data.rules) {
-          for (const s of r.triggerSlugs ?? []) {
+          for (const s of r.targetSlugs ?? []) {
             const n = String(s).trim().toLowerCase();
-            if (n) trigger.add(n);
+            if (n) target.add(n);
           }
         }
-        setComboTriggerSlugs([...trigger]);
+        setComboTargetSlugs([...target]);
       } catch {
-        if (!cancelled) setComboTriggerSlugs([]);
+        if (!cancelled) setComboTargetSlugs([]);
       }
     })();
     return () => {
@@ -55,7 +55,8 @@ export default function HomeProductsSortedGrid({ apiProducts }: Props) {
     <ProductGrid
       listingEntries={listingEntries}
       cardListingLayout
-      comboTriggerSlugs={comboTriggerSlugs}
+      comboTriggerSlugs={comboTargetSlugs}
+      showSizeInTitle={false}
     />
   );
 }

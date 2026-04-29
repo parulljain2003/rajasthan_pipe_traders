@@ -194,6 +194,7 @@ export default function CategoryPage({ category, products, comboTriggerSlugs = [
                 listingEntries={filteredListingEntries}
                 cardListingLayout
                 comboTriggerSlugs={comboTriggerSlugs}
+                showSizeInTitle={false}
               />
             ) : listingEntries.length === 0 ? (
               <div className={styles.empty}>

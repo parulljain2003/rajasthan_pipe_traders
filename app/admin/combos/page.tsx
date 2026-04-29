@@ -15,6 +15,7 @@ type CategoryOption = { id: string; name: string };
 type ProductOption = {
   id: string;
   slug: string;
+  comboKey: string;
   name: string;
   sku?: string;
   priceWithGst?: number;
@@ -66,11 +67,13 @@ async function fetchAllProductOptions(): Promise<ProductOption[]> {
       const categoryId =
         catObj && "_id" in catObj && catObj._id != null ? String(catObj._id) : "";
       const categoryName = typeof catObj?.name === "string" ? catObj.name : "";
-      const slug = typeof p.slug === "string" && p.slug.trim() ? p.slug.trim().toLowerCase() : "";
-      if (!slug) continue;
+      const rawSlug = typeof p.slug === "string" && p.slug.trim() ? p.slug.trim().toLowerCase() : "";
+      const slug = rawSlug;
+      const comboKey = rawSlug || `${toSlugLike(p.name) || "product"}--${String(p._id).toLowerCase()}`;
       out.push({
         id: String(p._id),
         slug,
+        comboKey,
         name: p.name,
         sku: p.sku,
         priceWithGst:
@@ -151,7 +154,7 @@ function MultiCheckboxBlock({
   onSearchChange: (v: string) => void;
   loading: boolean;
   emptyMessage: string;
-  options: { key: string; primary: string; secondary?: string }[];
+  options: { key: string; primary: string; secondary?: string; disabled?: boolean }[];
   selectedKeys: string[];
   onToggle: (key: string, checked: boolean) => void;
   onSelectAll?: (keys: string[]) => void;
@@ -197,7 +200,7 @@ function MultiCheckboxBlock({
           <button
             type="button"
             className="admin-btn admin-btn-ghost"
-            onClick={() => onSelectAll?.(options.map((o) => o.key))}
+            onClick={() => onSelectAll?.(options.filter((o) => !o.disabled).map((o) => o.key))}
             disabled={loading || options.length === 0 || !onSelectAll}
           >
             Select all ({options.length})
@@ -219,6 +222,7 @@ function MultiCheckboxBlock({
           <div className="admin-multiselect-list" role="group" style={{ maxHeight: "14rem", overflowY: "auto" }}>
             {filtered.map((o) => {
               const checked = selectedKeys.includes(o.key);
+              const disabled = Boolean(o.disabled);
               const domId = `${idPrefix}-${o.key.replace(/[^a-z0-9_-]/gi, "_")}`;
               return (
                 <div className="admin-multiselect-row" key={o.key}>
@@ -226,9 +230,10 @@ function MultiCheckboxBlock({
                     type="checkbox"
                     id={domId}
                     checked={checked}
+                    disabled={disabled}
                     onChange={(e) => onToggle(o.key, e.target.checked)}
                   />
-                  <label htmlFor={domId}>
+                  <label htmlFor={domId} style={disabled ? { opacity: 0.65, cursor: "not-allowed" } : undefined}>
                     {o.primary}
                     {o.secondary ? <span className="admin-multiselect-meta">{o.secondary}</span> : null}
                   </label>
@@ -348,8 +353,7 @@ export default function AdminCombosPage() {
       (p) =>
         p.categoryId &&
         set.has(p.categoryId) &&
-        !blockedSlugs.has(normSlug(p.slug)) &&
-        typeof p.isEligibleForCombo !== "boolean"
+        !blockedSlugs.has(normSlug(p.comboKey))
     );
   }, [
     productOptions,
@@ -366,14 +370,14 @@ export default function AdminCombosPage() {
   const targetProductsForPicker = useMemo(() => {
     return productOptions.filter(
       (p) =>
-        !triggerSlugSetForPicker.has(normSlug(p.slug))
+        !triggerSlugSetForPicker.has(normSlug(p.comboKey))
     );
   }, [productOptions, triggerSlugSetForPicker]);
 
   const fallbackProductsForPicker = useMemo(() => {
     return productOptions.filter(
       (p) =>
-        !triggerSlugSetForPicker.has(normSlug(p.slug))
+        !triggerSlugSetForPicker.has(normSlug(p.comboKey))
     );
   }, [productOptions, triggerSlugSetForPicker]);
 
@@ -383,7 +387,7 @@ export default function AdminCombosPage() {
     if (catIds.length === 0) return;
     const catSet = new Set(catIds);
     const allowed = new Set(
-      productOptions.filter((p) => p.categoryId && catSet.has(p.categoryId)).map((p) => normSlug(p.slug))
+      productOptions.filter((p) => p.categoryId && catSet.has(p.categoryId)).map((p) => normSlug(p.comboKey))
     );
     setForm((f) => {
       const next = f.triggerProductSlugs.filter((s) => allowed.has(normSlug(s)));
@@ -569,9 +573,9 @@ export default function AdminCombosPage() {
   const triggerProdRows = useMemo(
     () =>
       triggerProductsForPicker.map((p) => ({
-        key: p.slug,
+        key: p.comboKey,
         primary: p.name,
-        secondary: `${p.sku ?? "—"} · ${p.categoryName || "—"}`,
+        secondary: `${p.sku ?? "—"} · ${p.categoryName || "—"}${p.slug ? "" : " · Uses name key"}`,
       })),
     [triggerProductsForPicker]
   );
@@ -579,11 +583,11 @@ export default function AdminCombosPage() {
   const targetProdRows = useMemo(
     () =>
       targetProductsForPicker.map((p) => ({
-        key: p.slug,
+        key: p.comboKey,
         primary: p.name,
         secondary: `${p.sku ?? "—"} · ${p.categoryName || "—"} · ₹${
           typeof p.priceWithGst === "number" ? p.priceWithGst.toFixed(2) : "—"
-        }`,
+        }${p.slug ? "" : " · Uses name key"}`,
       })),
     [targetProductsForPicker]
   );
@@ -591,11 +595,11 @@ export default function AdminCombosPage() {
   const fallbackProdRows = useMemo(
     () =>
       fallbackProductsForPicker.map((p) => ({
-        key: p.slug,
+        key: p.comboKey,
         primary: p.name,
         secondary: `${p.sku ?? "—"} · ${p.categoryName || "—"} · ₹${
           typeof p.priceWithGst === "number" ? p.priceWithGst.toFixed(2) : "—"
-        }`,
+        }${p.slug ? "" : " · Uses name key"}`,
       })),
     [fallbackProductsForPicker]
   );
@@ -828,7 +832,7 @@ export default function AdminCombosPage() {
                       clearFieldError("targetProducts");
                       setForm((f) => ({
                         ...f,
-                        targetProductSlugs: toggleSlug(f.targetProductSlugs, key, checked),
+                        targetProductSlugs: checked ? [key] : [],
                         fallbackTargetProductSlugs: checked
                           ? toggleSlug(f.fallbackTargetProductSlugs, key, false)
                           : f.fallbackTargetProductSlugs,
@@ -836,14 +840,14 @@ export default function AdminCombosPage() {
                     }}
                     onSelectAll={(keys) => {
                       clearFieldError("targetProducts");
+                      const first = keys[0];
                       setForm((f) => {
-                        let nextTargets = [...f.targetProductSlugs];
-                        let nextFallback = [...f.fallbackTargetProductSlugs];
-                        for (const k of keys) {
-                          nextTargets = toggleSlug(nextTargets, k, true);
-                          nextFallback = toggleSlug(nextFallback, k, false);
-                        }
-                        return { ...f, targetProductSlugs: nextTargets, fallbackTargetProductSlugs: nextFallback };
+                        if (!first) return f;
+                        return {
+                          ...f,
+                          targetProductSlugs: [first],
+                          fallbackTargetProductSlugs: toggleSlug(f.fallbackTargetProductSlugs, first, false),
+                        };
                       });
                     }}
                     onClear={() => {
@@ -873,7 +877,7 @@ export default function AdminCombosPage() {
                       clearFieldError("fallbackProducts");
                       setForm((f) => ({
                         ...f,
-                        fallbackTargetProductSlugs: toggleSlug(f.fallbackTargetProductSlugs, key, checked),
+                        fallbackTargetProductSlugs: checked ? [key] : [],
                         targetProductSlugs: checked
                           ? toggleSlug(f.targetProductSlugs, key, false)
                           : f.targetProductSlugs,
@@ -881,14 +885,14 @@ export default function AdminCombosPage() {
                     }}
                     onSelectAll={(keys) => {
                       clearFieldError("fallbackProducts");
+                      const first = keys[0];
                       setForm((f) => {
-                        let nextTargets = [...f.targetProductSlugs];
-                        let nextFallback = [...f.fallbackTargetProductSlugs];
-                        for (const k of keys) {
-                          nextFallback = toggleSlug(nextFallback, k, true);
-                          nextTargets = toggleSlug(nextTargets, k, false);
-                        }
-                        return { ...f, targetProductSlugs: nextTargets, fallbackTargetProductSlugs: nextFallback };
+                        if (!first) return f;
+                        return {
+                          ...f,
+                          fallbackTargetProductSlugs: [first],
+                          targetProductSlugs: toggleSlug(f.targetProductSlugs, first, false),
+                        };
                       });
                     }}
                     onClear={() => {

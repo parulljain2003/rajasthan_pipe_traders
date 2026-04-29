@@ -317,7 +317,9 @@
   color: #334155;
   line-height: 1.45;
   max-width: 100%;
-  word-break: break-word;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  white-space: normal;
 }
 
 .savingBadge {
@@ -337,6 +339,12 @@
   max-width: 100%;
   width: fit-content;
   margin-top: 0.15rem;
+}
+
+@media (max-width: 1300px) and (min-width:900px) {
+  .metaControlsRow {
+flex-direction: column;
+  }
 }
 
 @media (max-width: 1100px) {

@@ -97,7 +97,6 @@ export default async function ProductPage({ params }: PageProps) {
         };
     }
     if (isComboTriggerSlug(product.slug, rules)) {
-      comboTriggerPdpMessage = "Is product ko cart me add karne par aapko combo offer mil jayega.";
       const normalized = product.slug.trim().toLowerCase();
       const target = new Set<string>();
       for (const r of rules) {
@@ -109,6 +108,35 @@ export default async function ProductPage({ params }: PageProps) {
         }
       }
       comboTriggerTargetSlugs = [...target];
+
+      let minTargetPriceWithGst: number | null = null;
+      let minTargetSizeLabel: string | null = null;
+      if (comboTriggerTargetSlugs.length > 0) {
+        const targetDocs = await Promise.all(comboTriggerTargetSlugs.map((s) => getStorefrontProductBySlug(s)));
+        for (const tDoc of targetDocs) {
+          if (!tDoc) continue;
+          const targetProduct = apiProductToProduct(tDoc as unknown as ApiProduct);
+          const firstOffer = targetProduct.sellers?.[0];
+          const firstSize = firstOffer?.sizes?.[0];
+          const candidate = firstSize?.withGST;
+          if (typeof candidate !== "number" || !Number.isFinite(candidate) || candidate <= 0) continue;
+          if (minTargetPriceWithGst == null || candidate < minTargetPriceWithGst) {
+            minTargetPriceWithGst = candidate;
+            const rawSize = String(firstSize?.size ?? "").trim();
+            minTargetSizeLabel = rawSize || null;
+          }
+        }
+      }
+
+      const displaySize = minTargetSizeLabel || "20MM";
+      const displayPrice =
+        minTargetPriceWithGst == null
+          ? "54"
+          : Number.isInteger(minTargetPriceWithGst)
+            ? String(minTargetPriceWithGst)
+            : minTargetPriceWithGst.toFixed(2);
+
+      comboTriggerPdpMessage = `Eligible quantity add karo aur combo unlock karo — ${displaySize} combo products ab sirf ₹${displayPrice} se start. Offer claim karne ke liye qualifying bags cart me add karein.`;
     }
   } catch {
     if (product.isEligibleForCombo === true) {

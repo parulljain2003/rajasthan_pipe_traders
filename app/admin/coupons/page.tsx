@@ -317,7 +317,7 @@ export default function AdminCouponsPage() {
 
   function buildBody(): Record<string, unknown> {
     return {
-      code: form.code.trim().toUpperCase(),
+      code: form.code.trim(),
       name: form.name.trim(),
       description: form.description.trim(),
       discountType: form.discountType,
@@ -537,7 +537,6 @@ export default function AdminCouponsPage() {
                       value={form.code}
                       onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
                       required
-                      disabled={Boolean(editingId)}
                     />
                   </div>
                   <div className="admin-field">
@@ -613,7 +612,6 @@ export default function AdminCouponsPage() {
                     <tr>
                       <th>{form.tierUnit === "outer" ? "Min outer units" : "Min packets"}</th>
                       <th>{form.discountType === "percentage" ? "Percent off" : "INR off"}</th>
-                      <th />
                     </tr>
                   </thead>
                   <tbody>
@@ -642,23 +640,10 @@ export default function AdminCouponsPage() {
                             required
                           />
                         </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="admin-btn admin-btn-ghost"
-                            onClick={() => removeTier(i)}
-                            disabled={form.packetTiers.length <= 1}
-                          >
-                            Remove
-                          </button>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <button type="button" className="admin-btn admin-btn-ghost" onClick={addTier}>
-                  Add tier
-                </button>
               </div>
 
               <div className="admin-form-section">

@@ -23,6 +23,8 @@ interface ProductGridProps {
   gridDensity?: "default" | "four";
   /** Optional: show "COMBO OFFER" for slugs that qualify as trigger products. */
   comboTriggerSlugs?: string[];
+  /** When false, keep only product name (no size suffix in title). */
+  showSizeInTitle?: boolean;
 }
 
 function listingKey(productId: number, sellerId: string) {
@@ -35,6 +37,7 @@ export default function ProductGrid({
   categoryCardLayout = false,
   gridDensity = "default",
   comboTriggerSlugs = [],
+  showSizeInTitle = true,
 }: ProductGridProps) {
   const useCardListing = cardListingLayout || categoryCardLayout;
   const triggerSlugSet = useMemo(
@@ -110,7 +113,9 @@ export default function ProductGrid({
                 </div>
               ) : null}
 
-              <h3 className={styles.title}>{productHeading(product.name, size0.size)}</h3>
+              <h3 className={styles.title}>
+                {showSizeInTitle ? productHeading(product.name, size0.size) : product.name}
+              </h3>
               {categoryCardLayout ? (
                 <div className={styles.cardPriceStack}>
                   <span className={styles.cardPriceLabel}>Price (incl. GST)</span>
