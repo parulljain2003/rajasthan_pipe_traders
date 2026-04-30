@@ -29,7 +29,7 @@ import { SortableProductRow } from "./SortableProductRow";
 
 const pageSize = 25;
 
-/** Primary cart unit — derived from inner (packet/box) first, then bulk (bags/carton) */
+// /** Primary cart unit — derived from inners (packet/box) first, then bulk (bags/carton) */
 type PackagingPricingUnit =
   | "per_piece"
   | "per_packet"
@@ -63,7 +63,6 @@ function formatBrandOptionLabel(brand: string): string {
 
 const KEY_FEATURE_ICON_OPTIONS: { value: KeyFeatureIcon; label: string }[] = [
   { value: "check", label: "Checkmark" },
-  // { value: "material", label: "Info / material" },
   { value: "dot", label: "Dot" },
 ];
 
