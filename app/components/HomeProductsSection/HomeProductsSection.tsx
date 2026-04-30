@@ -65,25 +65,17 @@ export default function HomeProductsSection({ page: pageProp = 1 }: Props) {
     };
   }, [page]);
 
-  const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const end = total === 0 ? 0 : Math.min(page * PAGE_SIZE, total);
-
   return (
     <section className={styles.section}>
       <div className={styles.container}>
         <div className={styles.header}>
           <div className={styles.headingRow}>
             <h2 className={styles.title}>All Products</h2>
-            <span className={styles.pill}>
-              {total} {total === 1 ? "product" : "products"}
-            </span>
           </div>
           <p className={styles.subtitle}>
             {isLoading
               ? "Loading products..."
-              : total > 0
-              ? `Showing ${start}–${end} of ${total} · Browse our hardware and plumbing catalog`
-              : "Our catalog will appear here when products are available"}
+              : "Browse our hardware and plumbing catalog"}
           </p>
         </div>
 

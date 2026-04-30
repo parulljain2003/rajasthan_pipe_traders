@@ -97,7 +97,6 @@ export default function CategoryPage({ category, products, comboTriggerSlugs = [
           <div className={styles.heroText}>
             <h1 className={styles.heroTitle}>{category.name}</h1>
             <p className={styles.heroDesc}>{category.description}</p>
-            <span className={styles.heroCount}>{products.length} products</span>
           </div>
         </div>
       </div>
@@ -136,9 +135,6 @@ export default function CategoryPage({ category, products, comboTriggerSlugs = [
                     <span className={styles.filterCount}>{activeFilterCount}</span>
                   )}
                 </button>
-                <p className={styles.resultCount}>
-                  Showing {filteredListingEntries.length} of {listingEntries.length}
-                </p>
               </div>
               <div className={styles.toolbarRight}>
                 <label className={styles.sortLabel} htmlFor="sort-select">Sort:</label>
