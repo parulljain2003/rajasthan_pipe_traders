@@ -830,23 +830,31 @@ export default function AdminCombosPage() {
                     selectedKeys={form.targetProductSlugs}
                     onToggle={(key, checked) => {
                       clearFieldError("targetProducts");
-                      setForm((f) => ({
-                        ...f,
-                        targetProductSlugs: checked ? [key] : [],
-                        fallbackTargetProductSlugs: checked
-                          ? toggleSlug(f.fallbackTargetProductSlugs, key, false)
-                          : f.fallbackTargetProductSlugs,
-                      }));
+                      setForm((f) => {
+                        const nextTargets = checked
+                          ? [...new Set([...f.targetProductSlugs, key])].slice(0, 2)
+                          : f.targetProductSlugs.filter((s) => s !== key);
+                        return {
+                          ...f,
+                          targetProductSlugs: nextTargets,
+                          fallbackTargetProductSlugs: checked
+                            ? toggleSlug(f.fallbackTargetProductSlugs, key, false)
+                            : f.fallbackTargetProductSlugs,
+                        };
+                      });
                     }}
                     onSelectAll={(keys) => {
                       clearFieldError("targetProducts");
-                      const first = keys[0];
+                      const picked = [...new Set(keys)].slice(0, 2);
                       setForm((f) => {
-                        if (!first) return f;
+                        if (picked.length === 0) return f;
+                        const nextFallback = f.fallbackTargetProductSlugs.filter(
+                          (s) => !picked.includes(s)
+                        );
                         return {
                           ...f,
-                          targetProductSlugs: [first],
-                          fallbackTargetProductSlugs: toggleSlug(f.fallbackTargetProductSlugs, first, false),
+                          targetProductSlugs: picked,
+                          fallbackTargetProductSlugs: nextFallback,
                         };
                       });
                     }}
@@ -875,23 +883,29 @@ export default function AdminCombosPage() {
                     selectedKeys={form.fallbackTargetProductSlugs}
                     onToggle={(key, checked) => {
                       clearFieldError("fallbackProducts");
-                      setForm((f) => ({
-                        ...f,
-                        fallbackTargetProductSlugs: checked ? [key] : [],
-                        targetProductSlugs: checked
-                          ? toggleSlug(f.targetProductSlugs, key, false)
-                          : f.targetProductSlugs,
-                      }));
+                      setForm((f) => {
+                        const nextFallback = checked
+                          ? [...new Set([...f.fallbackTargetProductSlugs, key])].slice(0, 2)
+                          : f.fallbackTargetProductSlugs.filter((s) => s !== key);
+                        return {
+                          ...f,
+                          fallbackTargetProductSlugs: nextFallback,
+                          targetProductSlugs: checked
+                            ? toggleSlug(f.targetProductSlugs, key, false)
+                            : f.targetProductSlugs,
+                        };
+                      });
                     }}
                     onSelectAll={(keys) => {
                       clearFieldError("fallbackProducts");
-                      const first = keys[0];
+                      const picked = [...new Set(keys)].slice(0, 2);
                       setForm((f) => {
-                        if (!first) return f;
+                        if (picked.length === 0) return f;
+                        const nextTargets = f.targetProductSlugs.filter((s) => !picked.includes(s));
                         return {
                           ...f,
-                          fallbackTargetProductSlugs: [first],
-                          targetProductSlugs: toggleSlug(f.targetProductSlugs, first, false),
+                          fallbackTargetProductSlugs: picked,
+                          targetProductSlugs: nextTargets,
                         };
                       });
                     }}

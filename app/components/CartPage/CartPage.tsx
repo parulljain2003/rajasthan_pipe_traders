@@ -653,11 +653,7 @@ export default function CartPage() {
                       👉 {comboMeta.suggestion ?? "Sirf thodi aur quantity add karein"}
                       {visibleFallbackTargets[0]?.name ? (
                         <>
-                          <br />
-                          <br />
-                          Phir aap yeh combo le sakte ho:
-                          <br />
-                          👉 {visibleFallbackTargets[0].name}
+                          
                           <br />
                           (combo price cart mein dikhega)
                         </>

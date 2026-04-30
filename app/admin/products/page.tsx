@@ -358,6 +358,8 @@ export default function AdminProductsPage() {
 
   const [activeProductId, setActiveProductId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const [categoryFilterSlug, setCategoryFilterSlug] = useState("");
+  const appliedCategoryFilterRef = useRef("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -422,15 +424,19 @@ export default function AdminProductsPage() {
     }
   }, []);
 
-  const loadProducts = useCallback(async (nextSearch?: string, scrollToId?: string) => {
+  const loadProducts = useCallback(async (nextSearch?: string, scrollToId?: string, nextCategorySlug?: string) => {
     const searchTerm = nextSearch !== undefined ? nextSearch : appliedSearchRef.current;
+    const categorySlug =
+      nextCategorySlug !== undefined ? nextCategorySlug.trim() : appliedCategoryFilterRef.current;
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({ limit: "500", skip: "0" });
       const trimmed = searchTerm.trim();
       if (trimmed) params.set("q", trimmed);
+      if (categorySlug) params.set("categorySlug", categorySlug);
       appliedSearchRef.current = trimmed;
+      appliedCategoryFilterRef.current = categorySlug;
       const res = await fetch(`/api/admin/products?${params}`, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || res.statusText);
@@ -462,6 +468,15 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     void loadProducts("");
+  }, [loadProducts]);
+
+  const applyCategoryFilter = useCallback(() => {
+    void loadProducts(undefined, undefined, categoryFilterSlug);
+  }, [loadProducts, categoryFilterSlug]);
+
+  const clearCategoryFilter = useCallback(() => {
+    setCategoryFilterSlug("");
+    void loadProducts(undefined, undefined, "");
   }, [loadProducts]);
 
   useEffect(() => {
@@ -991,6 +1006,38 @@ export default function AdminProductsPage() {
           <span className="muted" style={{ fontSize: "0.875rem" }}>
             {meta.total} product(s) total
           </span>
+          <select
+            className="admin-input admin-select"
+            value={categoryFilterSlug}
+            onChange={(e) => setCategoryFilterSlug(e.target.value)}
+            style={{ maxWidth: 260 }}
+            aria-label="Filter products by category"
+          >
+            <option value="">All categories</option>
+            {categories.map((c) => (
+              <option key={c._id} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="admin-btn admin-btn-ghost"
+            onClick={() => void applyCategoryFilter()}
+            disabled={loading}
+          >
+            Filter
+          </button>
+          {appliedCategoryFilterRef.current || categoryFilterSlug ? (
+            <button
+              type="button"
+              className="admin-btn admin-btn-ghost"
+              onClick={() => void clearCategoryFilter()}
+              disabled={loading}
+            >
+              Clear filter
+            </button>
+          ) : null}
         </div>
         <AdminProductSearchBar
           onRunSearch={(query, scrollToId) => void loadProducts(query, scrollToId)}

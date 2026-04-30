@@ -746,11 +746,7 @@ export async function resolveCartComboPricing(
       if (!triggerMet) {
         const triggerDiff = bagsRemainingToThreshold(minTrig, st.triggerAmount);
         const triggerDiffLabel = formatCountWithUnit(triggerDiff, trigUnit);
-        const fallbackSource =
-          Array.isArray(r.fallbackTargetSlugs) && r.fallbackTargetSlugs.length > 0
-            ? r.fallbackTargetSlugs
-            : r.targetSlugs;
-        const targets = comboTargetNamesPhrase(fallbackSource);
+        const targets = comboTargetNamesPhrase(r.targetSlugs);
         const tail =
           targets.length > 0
             ? ` Then add combo target: ${targets} (opens combo net pricing in cart).`
