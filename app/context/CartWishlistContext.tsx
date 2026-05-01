@@ -269,6 +269,15 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
             const existingTargetLine = prev.find(
               (ci) => String(ci.productSlug || "").trim().toLowerCase() === outcome.existingTargetSlug
             );
+            const requestedName = String(
+              row.productName ||
+                row.productSlug
+                  .split("-")
+                  .filter(Boolean)
+                  .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                  .join(" ") ||
+                "YEH COMBO PRODUCT"
+            ).toUpperCase();
             const existingName = String(
               existingTargetLine?.productName ||
                 outcome.existingTargetSlug
