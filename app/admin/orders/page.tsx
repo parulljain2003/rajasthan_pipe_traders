@@ -5,6 +5,9 @@ import { formatAdminDateTime } from "@/lib/utils/formatAdminDateTime";
 import type { QuotationPdfOrderData } from "@/lib/utils/generateQuotationPDF";
 import AdminOrdersTable, { type AdminOrdersTableRow } from "../components/AdminOrdersTable";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function formatInr(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(
     n
