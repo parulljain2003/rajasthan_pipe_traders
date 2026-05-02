@@ -14,6 +14,7 @@ import {
   isEligibleForCombo,
   comboTargetAddBlockedInfo,
   comboQualifyingTriggersSectionHeading,
+  comboTargetAlreadyInCartConflict,
   type ComboRuleGuard,
   type ComboTargetAddBlockedInfo,
 } from "@/lib/combo/comboAddGuard";
@@ -92,6 +93,12 @@ function sameLine(
 type CartAddOutcome =
   | { ok: true }
   | { ok: false; reason: "guard" }
+  | {
+      ok: false;
+      reason: "target_conflict";
+      existingTargetSlug: string;
+      fallbackTargetSlugs: string[];
+    }
   | { ok: false; reason: "cap"; cap: number; unit: ThresholdUnit };
 
 /** Pure: whether add/merge would succeed under combo guard + target cap (mirrors addToCart). */
@@ -105,6 +112,15 @@ function getCartAddOutcome(
 ): CartAddOutcome {
   const existing = prev.find((ci) => sameLine(ci, row.productId, row.size, row.sellerId, mode));
   if (!existing && rules && row.productSlug?.trim()) {
+    const conflict = comboTargetAlreadyInCartConflict(row.productSlug, prev, rules);
+    if (conflict) {
+      return {
+        ok: false,
+        reason: "target_conflict",
+        existingTargetSlug: conflict.existingTargetSlug,
+        fallbackTargetSlugs: conflict.fallbackTargetSlugs,
+      };
+    }
     if (!isEligibleForCombo(row.productSlug, prev, rules)) {
       return { ok: false, reason: "guard" };
     }
@@ -249,6 +265,34 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
           if (outcome.reason === "guard") {
             setComboTargetCapNotice(null);
             setComboAddBlockedNotice(comboTargetAddBlockedInfo(row.productSlug, comboGuardRules));
+          } else if (outcome.reason === "target_conflict") {
+            const existingTargetLine = prev.find(
+              (ci) => String(ci.productSlug || "").trim().toLowerCase() === outcome.existingTargetSlug
+            );
+            const requestedName = String(
+              row.productName ||
+                row.productSlug
+                  .split("-")
+                  .filter(Boolean)
+                  .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                  .join(" ") ||
+                "YEH COMBO PRODUCT"
+            ).toUpperCase();
+            const existingName = String(
+              existingTargetLine?.productName ||
+                outcome.existingTargetSlug
+                  .split("-")
+                  .filter(Boolean)
+                  .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                  .join(" ") ||
+                outcome.existingTargetSlug
+            ).toUpperCase();
+            setComboTargetCapNotice(null);
+            setComboAddBlockedNotice({
+              message: `⚠️ ${existingName} pehle se aapki cart me hai, isliye ${requestedName || "YEH COMBO PRODUCT"} abhi add nahi ho sakta. Combo rule ke hisaab se ek time par ek hi combo target allow hai. Neeche diye gaye non-combo products add karke order continue karein.`,
+              qualifyingProductSlugs: outcome.fallbackTargetSlugs,
+              linksHeading: "Abhi regular rate par add kar sakte ho:",
+            });
           } else {
             setComboAddBlockedNotice(null);
             setComboTargetCapNotice(comboTargetMaxReachedMessage(outcome.cap, outcome.unit));
@@ -466,7 +510,8 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
                 {comboAddBlockedNotice.qualifyingProductSlugs.length > 0 ? (
                   <div className={styles.noticeLinksBlock}>
                     <div className={styles.noticeLinksHeading}>
-                      {comboQualifyingTriggersSectionHeading(comboAddBlockedNotice.qualifyingProductSlugs.length)}
+                      {comboAddBlockedNotice.linksHeading ??
+                        comboQualifyingTriggersSectionHeading(comboAddBlockedNotice.qualifyingProductSlugs.length)}
                     </div>
                     <div className={styles.noticeLinksWrap}>
                       {comboAddBlockedNotice.qualifyingProductSlugs.slice(0, 12).map((slug) => (
@@ -488,7 +533,8 @@ export function CartWishlistProvider({ children }: { children: React.ReactNode }
                         </Link>
                       ))}
                     </div>
-                    {comboAddBlockedNotice.qualifyingProductSlugs.length > 12 ? (
+                    {!comboAddBlockedNotice.linksHeading &&
+                    comboAddBlockedNotice.qualifyingProductSlugs.length > 12 ? (
                       <div className={styles.noticeExtraText}>
                         +{comboAddBlockedNotice.qualifyingProductSlugs.length - 12} aur qualifying{" "}
                         {comboAddBlockedNotice.qualifyingProductSlugs.length - 12 === 1 ? "product" : "products"} is

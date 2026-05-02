@@ -87,6 +87,7 @@ export default async function ProductPage({ params }: PageProps) {
   let comboTargetPdpNotice: ComboTargetAddBlockedInfo | undefined;
   let comboTriggerPdpMessage: string | undefined;
   let comboTriggerTargetSlugs: string[] | undefined;
+  let comboTriggerTargetNames: Record<string, string> | undefined;
   try {
     const rules = await loadActiveComboGuardRules();
     if (product.isEligibleForCombo === true) {
@@ -108,18 +109,40 @@ export default async function ProductPage({ params }: PageProps) {
         }
       }
       comboTriggerTargetSlugs = [...target];
+      const nameBySlug: Record<string, string> = {};
+      const targetNamePriceLines: string[] = [];
 
       let minTargetPriceWithGst: number | null = null;
       let minTargetSizeLabel: string | null = null;
       if (comboTriggerTargetSlugs.length > 0) {
         const targetDocs = await Promise.all(comboTriggerTargetSlugs.map((s) => getStorefrontProductBySlug(s)));
-        for (const tDoc of targetDocs) {
+        for (let i = 0; i < targetDocs.length; i++) {
+          const tDoc = targetDocs[i];
+          const slugKey = comboTriggerTargetSlugs[i];
+          if (slugKey && tDoc && typeof tDoc.name === "string" && tDoc.name.trim()) {
+            nameBySlug[slugKey] = tDoc.name.trim();
+          }
           if (!tDoc) continue;
           const targetProduct = apiProductToProduct(tDoc as unknown as ApiProduct);
           const firstOffer = targetProduct.sellers?.[0];
           const firstSize = firstOffer?.sizes?.[0];
-          const candidate = firstSize?.withGST;
+          const pricingFromDoc = Number(
+            (tDoc as { pricing?: { priceWithGst?: unknown } }).pricing?.priceWithGst
+          );
+          const candidate =
+            typeof firstSize?.withGST === "number" && Number.isFinite(firstSize.withGST)
+              ? firstSize.withGST
+              : Number.isFinite(pricingFromDoc)
+                ? pricingFromDoc
+                : undefined;
           if (typeof candidate !== "number" || !Number.isFinite(candidate) || candidate <= 0) continue;
+          const cleanName = String(targetProduct.name ?? "")
+            .replace(/\b\d+(?:\.\d+)?\s*MM\b/gi, "")
+            .replace(/\s{2,}/g, " ")
+            .trim()
+            .toUpperCase();
+          const displayLine = `${cleanName || String(slugKey || "").toUpperCase()} ₹${candidate.toFixed(2)}`;
+          targetNamePriceLines.push(displayLine);
           if (minTargetPriceWithGst == null || candidate < minTargetPriceWithGst) {
             minTargetPriceWithGst = candidate;
             const rawSize = String(firstSize?.size ?? "").trim();
@@ -127,6 +150,7 @@ export default async function ProductPage({ params }: PageProps) {
           }
         }
       }
+      comboTriggerTargetNames = Object.keys(nameBySlug).length > 0 ? nameBySlug : undefined;
 
       const displaySize = minTargetSizeLabel || "20MM";
       const displayPrice =
@@ -136,7 +160,11 @@ export default async function ProductPage({ params }: PageProps) {
             ? String(minTargetPriceWithGst)
             : minTargetPriceWithGst.toFixed(2);
 
-      comboTriggerPdpMessage = `Eligible quantity add karo aur combo unlock karo — ${displaySize} combo products ab sirf ₹${displayPrice} se start. Offer claim karne ke liye qualifying bags cart me add karein.`;
+      const topTwoTargets = targetNamePriceLines.slice(0, 2);
+      comboTriggerPdpMessage =
+        topTwoTargets.length > 0
+          ? `Eligible quantity add karo aur combo unlock karo — ${topTwoTargets.join(" • ")}. Offer claim karne ke liye koi ek qualifying bags cart me add karein.`
+          : `Eligible quantity add karo aur combo unlock karo — ${displaySize} combo products ab sirf ₹${displayPrice} se start. Offer claim karne ke liye qualifying bags cart me add karein.`;
     }
   } catch {
     if (product.isEligibleForCombo === true) {
@@ -154,6 +182,7 @@ export default async function ProductPage({ params }: PageProps) {
       comboTargetPdpNotice={comboTargetPdpNotice}
       comboTriggerPdpMessage={comboTriggerPdpMessage}
       comboTriggerTargetSlugs={comboTriggerTargetSlugs}
+      comboTriggerTargetNames={comboTriggerTargetNames}
     />
   );
 }

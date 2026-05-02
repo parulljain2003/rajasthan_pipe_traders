@@ -671,8 +671,8 @@ export async function resolveCartComboPricing(
       ? await resolveTargetProductLabelsBySlug([...allRuleTargetLabelSlugs])
       : new Map<string, string>();
 
-  function comboTargetNamesPhrase(rule: LeanComboRule): string {
-    const parts = rule.targetSlugs
+  function comboTargetNamesPhrase(slugs: string[]): string {
+    const parts = slugs
       .map((s) => normalizeSlugToken(s))
       .filter(Boolean)
       .map((slug) => targetLabelBySlug.get(slug) ?? slug);
@@ -690,7 +690,7 @@ export async function resolveCartComboPricing(
       : undefined;
   const comboFallbackTargets =
     !skipCombo && fallbackUpsellSlugSet.size > 0
-      ? [...fallbackUpsellSlugSet].sort().map((slug) => ({
+      ? [...fallbackUpsellSlugSet].map((slug) => ({
         slug,
         name: targetLabelBySlug.get(slug) ?? slug,
       }))
@@ -709,7 +709,7 @@ export async function resolveCartComboPricing(
               if (k) bad.add(k);
             }
           }
-          return bad.size > 0 ? [...bad].sort() : undefined;
+          return bad.size > 0 ? [...bad] : undefined;
         })()
       : undefined;
   const comboRemoveWhenNoTriggerSlugs =
@@ -724,7 +724,7 @@ export async function resolveCartComboPricing(
               if (k) toRemove.add(k);
             }
           }
-          return toRemove.size > 0 ? [...toRemove].sort() : undefined;
+          return toRemove.size > 0 ? [...toRemove] : undefined;
         })()
       : undefined;
 
@@ -746,7 +746,7 @@ export async function resolveCartComboPricing(
       if (!triggerMet) {
         const triggerDiff = bagsRemainingToThreshold(minTrig, st.triggerAmount);
         const triggerDiffLabel = formatCountWithUnit(triggerDiff, trigUnit);
-        const targets = comboTargetNamesPhrase(r);
+        const targets = comboTargetNamesPhrase(r.targetSlugs);
         const tail =
           targets.length > 0
             ? ` Then add combo target: ${targets} (opens combo net pricing in cart).`

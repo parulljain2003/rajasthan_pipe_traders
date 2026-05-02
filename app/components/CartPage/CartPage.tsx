@@ -119,17 +119,18 @@ export default function CartPage() {
   const fallbackPayloadCacheRef = useRef(new Map<string, Parameters<typeof addToCart>[0] | null>());
   const swapBusyRef = useRef(false);
 
-  const resolveAddPayloadForSlug = useCallback(async (slug: string) => {
+  const resolveAddPayloadForSlug = useCallback(async (slug: string, preferredSize?: string) => {
     const k = slug.trim().toLowerCase();
     if (!k) return null;
-    if (fallbackPayloadCacheRef.current.has(k)) {
-      return fallbackPayloadCacheRef.current.get(k) ?? null;
+    const cacheKey = preferredSize ? `${k}|${preferredSize}` : k;
+    if (fallbackPayloadCacheRef.current.has(cacheKey)) {
+      return fallbackPayloadCacheRef.current.get(cacheKey) ?? null;
     }
     try {
       const res = await fetch(`/api/products?q=${encodeURIComponent(k)}&limit=20`, { cache: "no-store" });
       const json = (await res.json()) as ApiProductsListResponse;
       if (!res.ok || !Array.isArray(json.data)) {
-        fallbackPayloadCacheRef.current.set(k, null);
+        fallbackPayloadCacheRef.current.set(cacheKey, null);
         return null;
       }
       const hit = json.data.find((p) => {
@@ -137,14 +138,20 @@ export default function CartPage() {
         return s === k;
       });
       if (!hit) {
-        fallbackPayloadCacheRef.current.set(k, null);
+        fallbackPayloadCacheRef.current.set(cacheKey, null);
         return null;
       }
       const mapped = apiProductToProduct(hit);
       const offer = mapped.sellers?.[0] ?? null;
-      const size = offer?.sizes?.[0] ?? mapped.sizes?.[0];
+      
+      let size = offer?.sizes?.[0] ?? mapped.sizes?.[0];
+      if (preferredSize) {
+        const match = (offer?.sizes ?? mapped.sizes ?? []).find(s => s.size === preferredSize);
+        if (match) size = match;
+      }
+
       if (!size) {
-        fallbackPayloadCacheRef.current.set(k, null);
+        fallbackPayloadCacheRef.current.set(cacheKey, null);
         return null;
       }
       const payload: Parameters<typeof addToCart>[0] = {
@@ -165,10 +172,10 @@ export default function CartPage() {
         pcsPerPacket: size.pcsPerPacket,
         orderMode: "packets",
       };
-      fallbackPayloadCacheRef.current.set(k, payload);
+      fallbackPayloadCacheRef.current.set(cacheKey, payload);
       return payload;
     } catch {
-      fallbackPayloadCacheRef.current.set(k, null);
+      fallbackPayloadCacheRef.current.set(cacheKey, null);
       return null;
     }
   }, [addToCart]);
@@ -206,8 +213,21 @@ export default function CartPage() {
         const queue: Array<{ row: (typeof linesToSwap)[number]; payload: Parameters<typeof addToCart>[0] }> = [];
         for (let i = 0; i < linesToSwap.length; i++) {
           const row = linesToSwap[i];
-          const fbSlug = fallbackSlugs[i % fallbackSlugs.length];
-          const payload = await resolveAddPayloadForSlug(fbSlug);
+          const targetName = (row.productName || "").toLowerCase();
+          
+          // Identify the product prefix before the word "combo"
+          const prefix = targetName.split("combo")[0].trim();
+          
+          // Find a fallback that matches this prefix and contains "non combo"
+          let matchedFallback = comboMeta.comboFallbackTargets.find((f) => {
+            const fn = f.name.toLowerCase();
+            return prefix && fn.includes(prefix) && fn.includes("non combo");
+          });
+
+          // Fallback to index-based rotation if no specific name match is found
+          const fbSlug = matchedFallback ? matchedFallback.slug : fallbackSlugs[i % fallbackSlugs.length];
+          
+          const payload = await resolveAddPayloadForSlug(fbSlug, row.size);
           if (payload) queue.push({ row, payload });
         }
         if (cancelled || queue.length === 0) return;
@@ -216,13 +236,17 @@ export default function CartPage() {
           removeFromCart(q.row.productId, q.row.size, q.row.sellerId, normalizeOrderMode(q.row.orderMode));
         }
 
-        // Merge fallback quantities so existing + swapped lines show one combined non-combo count.
+        // Aggregated quantities to add back as fallback lines.
         const currentQtyByKey = new Map<string, number>();
+        const linesToKillKeys = new Set(linesToSwap.map(r => `${r.productId}|${r.size}|${r.sellerId}|${normalizeOrderMode(r.orderMode)}`));
+
         for (const ci of cartItems) {
           const mode = normalizeOrderMode(ci.orderMode);
           const key = `${ci.productId}|${ci.size}|${ci.sellerId}|${mode}`;
-          currentQtyByKey.set(key, Number(ci.quantity) || 0);
+          if (linesToKillKeys.has(key)) continue;
+          currentQtyByKey.set(key, (currentQtyByKey.get(key) ?? 0) + (Number(ci.quantity) || 0));
         }
+
         const mergedAdds = new Map<
           string,
           { payload: Parameters<typeof addToCart>[0]; totalQty: number }
@@ -235,10 +259,10 @@ export default function CartPage() {
           };
           const key = `${nextPayload.productId}|${nextPayload.size}|${nextPayload.sellerId}|${mode}`;
           const existingBase = currentQtyByKey.get(key) ?? 0;
-          const prevExtra = mergedAdds.get(key)?.totalQty ?? existingBase;
+          const prevTotal = mergedAdds.get(key)?.totalQty ?? existingBase;
           mergedAdds.set(key, {
             payload: nextPayload,
-            totalQty: prevExtra + Math.max(0, Number(q.row.quantity) || 0),
+            totalQty: prevTotal + Math.max(0, Number(q.row.quantity) || 0),
           });
         }
         for (const merged of mergedAdds.values()) {
@@ -627,13 +651,9 @@ export default function CartPage() {
                       <strong>Combo Unlock Karne ke liye</strong>
                       <br />
                       👉 {comboMeta.suggestion ?? "Sirf thodi aur quantity add karein"}
-                      {visibleEligibleTargets[0]?.name ? (
+                      {visibleFallbackTargets[0]?.name ? (
                         <>
-                          <br />
-                          <br />
-                          Phir aap yeh combo le sakte ho:
-                          <br />
-                          👉 {visibleEligibleTargets[0].name}
+                          
                           <br />
                           (combo price cart mein dikhega)
                         </>

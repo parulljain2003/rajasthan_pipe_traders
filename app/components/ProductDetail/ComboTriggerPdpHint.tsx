@@ -14,19 +14,25 @@ type Props = {
   productSlug: string;
   message: string;
   fallbackTargetSlugs?: string[];
+  targetNameBySlug?: Record<string, string>;
 };
 
 function titleFromSlug(slug: string): string {
-  return (
-    slug
-      .split("-")
-      .filter(Boolean)
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ") || slug
-  );
+  const words = slug
+    .split("-")
+    .filter(Boolean)
+    .map((w) => w.toUpperCase());
+  const raw = words.join(" ") || slug.toUpperCase();
+  // Hide inline size labels like "25 MM" from combo chip names.
+  return raw.replace(/\b\d+(?:\.\d+)?\s*MM\b/g, "").replace(/\s{2,}/g, " ").trim();
 }
 
-export default function ComboTriggerPdpHint({ productSlug, message, fallbackTargetSlugs = [] }: Props) {
+export default function ComboTriggerPdpHint({
+  productSlug,
+  message,
+  fallbackTargetSlugs = [],
+  targetNameBySlug,
+}: Props) {
   const { cartItems, cartHydrated, comboGuardRules } = useCartWishlist();
 
   const cartLines = useMemo<CartLineForComboTriggerThreshold[]>(
@@ -73,8 +79,7 @@ export default function ComboTriggerPdpHint({ productSlug, message, fallbackTarg
                 href={`/products/${encodeURIComponent(slug)}`}
                 className={styles.comboTriggerPdpLink}
               >
-                {titleFromSlug(slug)}
-              </Link>
+                {targetNameBySlug?.[slug] || titleFromSlug(slug)}              </Link>
             ))}
           </div>
         </div>

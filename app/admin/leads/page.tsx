@@ -6,6 +6,9 @@ import { last10PhoneKey } from "@/lib/phone/last10PhoneKey";
 import { formatAdminDateTime } from "@/lib/utils/formatAdminDateTime";
 import AdminLeadsTable, { type AdminLeadCartLine, type AdminLeadsTableRow } from "../components/AdminLeadsTable";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function toRowStatus(s: unknown): LeadStatus {
   return s === "ordered" ? "ordered" : "non-ordered";
 }

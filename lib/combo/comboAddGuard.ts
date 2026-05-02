@@ -66,6 +66,23 @@ export function isEligibleForCombo(
   const applicable = rules.filter((r) => slugInList(productSlug, r.targetSlugs));
   if (applicable.length === 0) return true;
 
+  // Enforce single combo target family in cart: if one target slug is already present,
+  // block adding a different target slug from the same applicable target pool.
+  const requested = normalizeSlug(productSlug);
+  const applicableTargetSet = new Set<string>();
+  for (const rule of applicable) {
+    for (const s of rule.targetSlugs ?? []) {
+      const n = normalizeSlug(String(s));
+      if (n) applicableTargetSet.add(n);
+    }
+  }
+  for (const line of cartItems) {
+    const inCart = normalizeSlug(String(line.productSlug ?? ""));
+    if (!inCart) continue;
+    if (!applicableTargetSet.has(inCart)) continue;
+    if (inCart !== requested) return false;
+  }
+
   return applicable.every((rule) => {
     const minTrig = resolveMinTriggerBagsForRule(rule);
     const trigUnit = parseThresholdUnit(rule.triggerThresholdUnit, "bags");
@@ -121,7 +138,54 @@ export type ComboTargetAddBlockedInfo = {
   message: string;
   /** Trigger / qualifying product slugs for PDP links (`/products/[slug]`). */
   qualifyingProductSlugs: string[];
+  /** Optional custom heading for links in cart notice UI. */
+  linksHeading?: string;
 };
+
+export type ComboTargetAlreadyInCartConflict = {
+  existingTargetSlug: string;
+  fallbackTargetSlugs: string[];
+};
+
+/**
+ * If a different combo target from the same applicable rule is already in cart,
+ * return conflict info + fallback target slugs (regular-rate alternatives).
+ */
+export function comboTargetAlreadyInCartConflict(
+  productSlug: string,
+  cartItems: CartLineForComboTriggerThreshold[],
+  rules: ComboRuleGuard[] | null | undefined
+): ComboTargetAlreadyInCartConflict | null {
+  if (!rules?.length) return null;
+  const applicable = rules.filter((r) => slugInList(productSlug, r.targetSlugs));
+  if (applicable.length === 0) return null;
+
+  const requested = normalizeSlug(productSlug);
+  let existingTargetSlug: string | null = null;
+  const fallbackCollected: string[] = [];
+
+  for (const rule of applicable) {
+    for (const line of cartItems) {
+      if (!slugInList(line.productSlug, rule.targetSlugs)) continue;
+      const inCart = normalizeSlug(line.productSlug);
+      if (inCart && inCart !== requested) {
+        existingTargetSlug = inCart;
+        break;
+      }
+    }
+    for (const s of rule.fallbackTargetSlugs ?? []) {
+      const n = normalizeSlug(String(s));
+      if (n) fallbackCollected.push(n);
+    }
+    if (existingTargetSlug) break;
+  }
+
+  if (!existingTargetSlug) return null;
+  return {
+    existingTargetSlug,
+    fallbackTargetSlugs: uniqueSlugsPreservingOrder(fallbackCollected),
+  };
+}
 
 /**
  * When a combo *target* is blocked: copy (first matching rule’s B2C suggestion, else default)

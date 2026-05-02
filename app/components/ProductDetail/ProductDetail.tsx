@@ -18,6 +18,7 @@ interface ProductDetailProps {
   /** Combo *trigger* PDP hint when this product helps unlock combo offers in cart. */
   comboTriggerPdpMessage?: string;
   comboTriggerTargetSlugs?: string[];
+  comboTriggerTargetNames?: Record<string, string>;
 }
 
 export default function ProductDetail({
@@ -26,6 +27,7 @@ export default function ProductDetail({
   comboTargetPdpNotice,
   comboTriggerPdpMessage,
   comboTriggerTargetSlugs,
+  comboTriggerTargetNames,
 }: ProductDetailProps) {
   const aboutText = (product.longDescription || product.description || "").trim();
 
@@ -59,6 +61,7 @@ export default function ProductDetail({
                 productSlug={product.slug}
                 message={comboTriggerPdpMessage}
                 fallbackTargetSlugs={comboTriggerTargetSlugs}
+                targetNameBySlug={comboTriggerTargetNames}
               />
             ) : null}
             {comboTargetPdpNotice ? (
